@@ -16,7 +16,7 @@
  * Sheets with 4 rows (hit and ko merged) or 5 rows (no attack) are accepted too.
  *
  * --attack mode: for a fighter whose sheet already exists. The image has two rows: row 1 is the idle stance
- * (only used to match the scale of the existing sheet), row 2 is the attack swing. Only the attack row is
+ * (only used to size the new row to the existing sheet's idle sprite), row 2 is the attack swing. Only the attack row is
  * added; everything else in the sheet is kept.
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
@@ -204,6 +204,27 @@ function toRows(sprites: Box[]): Box[][] {
   return rows.sort((a, b) => a.top - b.top).map((r) => r.items.sort((a, b) => a.left - b.left));
 }
 
+/** Median height of the opaque part of the first `frames` cells of the top row of an imported sheet. */
+async function measureIdleHeight(sheetPath: string, cell: number, frames: number): Promise<number> {
+  const { data, info } = await sharp(sheetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const heights: number[] = [];
+  for (let c = 0; c < frames; c++) {
+    let top = cell;
+    let bottom = -1;
+    for (let y = 0; y < cell; y++) {
+      for (let x = c * cell; x < (c + 1) * cell; x++) {
+        if (data[(y * info.width + x) * 4 + 3] >= ALPHA_CUTOFF) {
+          top = Math.min(top, y);
+          bottom = Math.max(bottom, y);
+        }
+      }
+    }
+    if (bottom >= top) heights.push(bottom - top + 1);
+  }
+  heights.sort((a, b) => a - b);
+  return heights[Math.floor(heights.length / 2)] ?? cell * CHARACTER_HEIGHT;
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const { input, id, form, attack: attackOnly, copyTo } = args;
@@ -216,6 +237,8 @@ async function main(): Promise<void> {
   const dir = join(import.meta.dirname, '..', 'public', 'assets', 'fighters', id, ...(form ? ['form'] : []));
   const ATTACK_ROW = ANIMS.indexOf('attack');
   let existing: SheetConfig = {};
+  /** --attack: how tall the existing sheet's idle sprite is, in cell pixels, so the new row matches it. */
+  let matchHeight: number | undefined;
   if (attackOnly) {
     if (!existsSync(join(dir, 'sheet.png')) || !existsSync(join(dir, 'sheet.json'))) {
       console.error(`--attack adds a row to an existing sheet, but there is none at ${dir}. Import the full sheet first.`);
@@ -223,6 +246,7 @@ async function main(): Promise<void> {
     }
     existing = JSON.parse(readFileSync(join(dir, 'sheet.json'), 'utf8')) as SheetConfig;
     cell = existing.frameWidth ?? cell;
+    matchHeight = await measureIdleHeight(join(dir, 'sheet.png'), cell, existing.frames?.idle ?? 1);
   }
 
   const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -251,7 +275,7 @@ async function main(): Promise<void> {
 
   // One scale for every frame, from the median standing (idle) height, so size never jumps between frames.
   const idleHeights = rows[0].map(height).sort((a, b) => a - b);
-  let scale = (cell * CHARACTER_HEIGHT) / idleHeights[Math.floor(idleHeights.length / 2)];
+  let scale = (matchHeight ?? cell * CHARACTER_HEIGHT) / idleHeights[Math.floor(idleHeights.length / 2)];
   const widest = Math.max(...sprites.map(width));
   const tallest = Math.max(...sprites.map(height));
   scale = Math.min(scale, (cell * 0.95) / widest, (cell * FEET) / tallest);
