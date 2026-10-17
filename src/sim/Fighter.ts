@@ -39,7 +39,8 @@ export interface FighterStats {
 export class Fighter {
   readonly maxHp: number;
   hp: number;
-  energy = 0;
+  /** Fighters start with some energy so the opening seconds aren't dead air. */
+  energy = 40;
   readonly maxEnergy = 100;
   /** Ultimate meter, charged by dealing and taking damage. Ultimates spend all of it. */
   ult = 0;
