@@ -28,6 +28,7 @@ Roster: Naruto, Sasuke, Goku, Vegeta, Gojo, Tanjiro.
 | `npm test` | Run the simulation tests |
 | `npm run balance` | Run headless AI-vs-AI matches and print win rates |
 | `npm run build` | Type-check and build a static bundle into `dist/` |
+| `npm run import-lpc -- <file.png> <id>` | Convert a sheet from the LPC character generator into a fighter sprite (see the art spec) |
 | `npm run assets` | Rebuild the asset manifest after adding art or sound (runs automatically before `dev`/`build`) |
 
 See [docs/PLAN.md](docs/PLAN.md) for the full build plan.

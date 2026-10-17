@@ -58,6 +58,21 @@ Without `frames`, every row is assumed to be filled to the sheet's full width.
 
 `arena/floor.png`: a seamless tile (64×64 to 256×256), top-down, mid-dark so the effects stay readable. The game tiles it across the 900×372 arena.
 
+## Making sprites with the LPC generator (no drawing needed)
+
+The [Universal LPC Spritesheet Character Generator](https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/) builds a fully animated top-down character from dropdowns. Gojo was made this way.
+
+1. Build the character in the generator, then click **Spritesheet (PNG)**.
+2. Run the importer with the downloaded file and the fighter id:
+   ```
+   npm run import-lpc -- path/to/download.png sasuke
+   ```
+   It writes `sheet.png`, `sheet.json` and a cropped `portrait.png` into `public/assets/fighters/<id>/`, taking the right-facing combat-idle, run and spellcast rows plus the hurt row.
+3. Copy the generator's credits into `public/assets/CREDITS.md` (see Gojo's entry for the format) and save the generator URL there, so the character can be rebuilt.
+4. Restart `npm run dev`.
+
+LPC art is CC-BY-SA / OGA-BY / GPL. Always credit the authors.
+
 ## Making sprites with AI image tools
 
 AI tools are good at single images and bad at keeping a character consistent across frames. This workflow keeps the drift down:

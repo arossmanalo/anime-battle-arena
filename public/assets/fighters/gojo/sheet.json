@@ -1,0 +1,11 @@
+{
+  "frameWidth": 64,
+  "frameHeight": 64,
+  "frames": {
+    "idle": 2,
+    "run": 8,
+    "cast": 7,
+    "hit": 2,
+    "ko": 6
+  }
+}

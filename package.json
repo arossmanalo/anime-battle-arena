@@ -12,7 +12,8 @@
     "test": "vitest run",
     "balance": "tsx tools/balance.ts",
     "typecheck": "tsc --noEmit",
-    "assets": "tsx tools/build-asset-manifest.ts"
+    "assets": "tsx tools/build-asset-manifest.ts",
+    "import-lpc": "tsx tools/import-lpc.ts"
   },
   "dependencies": {
     "phaser": "^3.90.0"
