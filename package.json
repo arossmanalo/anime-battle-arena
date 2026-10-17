@@ -1,0 +1,24 @@
+{
+  "name": "anime-battle-arena",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "balance": "tsx tools/balance.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vite": "^7.3.7",
+    "vitest": "^4.1.12"
+  }
+}
