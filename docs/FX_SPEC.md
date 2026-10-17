@@ -16,8 +16,11 @@ Each part is a **single row of frames** (`<part>.png`) plus an optional `<part>.
 | | **buff** (Infinity): around the caster while the buff lasts | fades out at the end |
 | `start` | once, where the skill fires | muzzle flash, blink-out puff |
 | `impact` | once, where it hits | for a passive, where it triggers (e.g. Limitless blocking an attack) |
+| `body` (beam) | the beam itself, stretched from the caster to its end | draw it as a horizontal strip facing right that can stretch (same look along its whole length); `size` is its thickness. It extends out quickly when fired and fades at the end |
+| `muzzle` | beam only: loops on the caster while the beam lasts | the glow where the beam leaves the hands |
+| `tip` | beam only: loops at the far end of the beam | the head of the beam |
 
-Which parts a skill can use: projectile = `cast`, `start`, `body`, `impact` · zone = `cast`, `start`, `body` · dash = `cast`, `start`, `impact` · buff = `cast`, `start`, `body` · aoe = `cast`, `start`, `impact` · beam (body is still the generic beam for now) = `cast`, `start` · passive = `impact`.
+Which parts a skill can use: projectile = `cast`, `start`, `body`, `impact` · zone = `cast`, `start`, `body` · dash = `cast`, `start`, `impact` · buff = `cast`, `start`, `body` · aoe = `cast`, `start`, `impact` · beam = `cast`, `start`, `muzzle`, `body`, `tip` · passive = `impact`.
 
 ## Making the art
 

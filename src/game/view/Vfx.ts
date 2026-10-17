@@ -41,6 +41,7 @@ export class Vfx {
   private readonly customProjectiles = new Set<number>();
   private readonly zoneSprites = new Map<number, Phaser.GameObjects.Sprite>();
   private readonly attached: Attached[] = [];
+  private readonly beamSprites = new Map<number, Phaser.GameObjects.Sprite[]>();
   /** Simulation time in seconds, so timed effects follow slow motion instead of wall-clock time. */
   private clock: () => number = () => 0;
 
@@ -263,10 +264,12 @@ export class Vfx {
     const g = this.beamGfx;
     g.clear();
     const t = this.scene.time.now / 1000;
+    const live = new Set<number>();
     for (const b of list) {
       const from = b.owner.pos;
       const to = add(from, scale(b.dir, b.length));
       const w = b.halfWidth * 2;
+      if (this.drawCustomBeam(b, live)) continue;
       const wobble = 1 + Math.sin(t * 40) * 0.08;
       g.lineStyle(w * 2.2 * wobble, b.skill.color, 0.25).lineBetween(from.x, from.y, to.x, to.y);
       g.lineStyle(w * 1.2 * wobble, b.skill.color, 0.7).lineBetween(from.x, from.y, to.x, to.y);
@@ -274,6 +277,46 @@ export class Vfx {
       g.fillStyle(b.skill.color, 0.6).fillCircle(from.x, from.y, w * 0.9 * wobble);
       g.fillStyle(0xffffff, 0.9).fillCircle(to.x, to.y, w * 0.55 * wobble);
     }
+    for (const [id, sprites] of this.beamSprites) {
+      if (live.has(id)) continue;
+      sprites.forEach((s) => s.destroy());
+      this.beamSprites.delete(id);
+    }
+  }
+
+  /** Draws a beam from its custom sprites (body stretched along it, muzzle and tip at the ends). False if it has none. */
+  private drawCustomBeam(b: Beam, live: Set<number>): boolean {
+    const id = b.skill.id;
+    const body = this.fx(id, 'body');
+    if (!body) return false;
+    let sprites = this.beamSprites.get(b.id);
+    const thickness = body.size ?? b.halfWidth * 2 * 2.2;
+    if (!sprites) {
+      const made = [this.createFxSprite(id, 'body', body, thickness).setOrigin(0, 0.5)];
+      for (const part of ['muzzle', 'tip'] as const) {
+        const info = this.fx(id, part);
+        if (info) made.push(this.createFxSprite(id, part, info, thickness * 1.3));
+      }
+      sprites = made;
+      made.forEach((s) => this.layers.fx.add(s));
+      this.beamSprites.set(b.id, sprites);
+    }
+    live.add(b.id);
+    const elapsed = (b.skill.duration ?? 1) - b.remaining;
+    const grow = Math.min(1, elapsed / 0.12);
+    const alpha = Math.min(1, b.remaining / 0.15);
+    const length = b.length * grow;
+    const from = b.owner.pos;
+    const angle = Math.atan2(b.dir.y, b.dir.x);
+    const [main, ...ends] = sprites;
+    main.setPosition(from.x, from.y).setRotation(angle).setDisplaySize(Math.max(1, length), thickness).setAlpha(alpha);
+    // Muzzle sits on the caster, tip rides the far end of the beam.
+    for (const end of ends) {
+      const isTip = end.texture.key.endsWith('_tip');
+      const p = isTip ? add(from, scale(b.dir, length)) : from;
+      end.setPosition(p.x, p.y).setRotation(angle).setAlpha(alpha);
+    }
+    return true;
   }
 
   drawZones(list: Zone[]): void {

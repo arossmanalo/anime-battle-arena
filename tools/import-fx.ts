@@ -4,7 +4,7 @@
  *   npm run import-fx -- <image> <skill-id> <part> [options]
  *
  *   <skill-id>   e.g. gojo.red, gojo.purple, gojo.attack (default attack), gojo.limitless (passive)
- *   <part>       cast | body | start | impact   (see FX_PARTS in src/game/assets.ts)
+ *   <part>       cast | body | start | impact | muzzle | tip   (see FX_PARTS in src/game/assets.ts)
  *
  * Options:
  *   --bg auto|black|transparent|flat   how to remove the background (default auto: transparent, black or a flat colour)
@@ -153,15 +153,20 @@ function splitByValleys(data: Buffer, w: number, h: number, count: number): Rect
   const left = xs.length ? xs[0] : 0;
   const right = xs.length ? xs[xs.length - 1] : w - 1;
   const minDist = Math.max(4, Math.round((right - left) / count / 3));
+  // Candidate cut points: the centre of each flat-bottomed dip (a clean black gap is a long run of equal values).
+  const dips: { x: number; value: number; width: number }[] = [];
+  for (let x = left + minDist; x <= right - minDist; ) {
+    let end = x;
+    while (end + 1 <= right - minDist && Math.abs(smooth[end + 1] - smooth[x]) < 0.5) end++;
+    const lower = (i: number) => smooth[Math.min(w - 1, Math.max(0, i))];
+    if (lower(x - 1) >= smooth[x] && lower(end + 1) >= smooth[x]) dips.push({ x: Math.round((x + end) / 2), value: smooth[x], width: end - x + 1 });
+    x = end + 1;
+  }
+  dips.sort((p, q) => p.value - q.value || q.width - p.width);
   const cuts: number[] = [];
-  while (cuts.length < count - 1) {
-    let best = -1;
-    for (let x = left + minDist; x <= right - minDist; x++) {
-      if (cuts.some((c) => Math.abs(c - x) < minDist)) continue;
-      if (best < 0 || smooth[x] < smooth[best]) best = x;
-    }
-    if (best < 0) break;
-    cuts.push(best);
+  for (const d of dips) {
+    if (cuts.length >= count - 1) break;
+    if (cuts.every((c) => Math.abs(c - d.x) >= minDist)) cuts.push(d.x);
   }
   cuts.sort((a, b) => a - b);
   const bounds = [left, ...cuts, right + 1];
@@ -237,7 +242,7 @@ function detectFrames(data: Buffer, w: number, h: number, cutoff = ALPHA_CUTOFF)
 async function main(): Promise<void> {
   const { input, id, part, opts } = parseArgs(process.argv.slice(2));
   if (!input || !id || !/^[a-z0-9_.-]+$/.test(id) || !FX_PARTS.includes(part)) {
-    console.error('Usage: npm run import-fx -- <image> <skill-id> <cast|body|start|impact> [options]   (see the top of tools/import-fx.ts)');
+    console.error('Usage: npm run import-fx -- <image> <skill-id> <cast|body|start|impact|muzzle|tip> [options]   (see the top of tools/import-fx.ts)');
     process.exit(1);
   }
 
