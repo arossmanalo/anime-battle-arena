@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { fighterById } from '../../data/fighters';
+import { sfx } from '../audio/Sfx';
 import { GAME_HEIGHT, GAME_WIDTH } from '../layout';
 import { newSeed, type MatchResult } from '../match';
 import { COLORS, hex, impactStyle, textStyle } from '../theme';
@@ -59,7 +60,10 @@ export class ResultsScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       t.on('pointerover', () => t.setColor(hex(COLORS.ult)));
       t.on('pointerout', () => t.setColor(hex(i === 0 ? COLORS.ult : COLORS.text)));
-      t.on('pointerdown', fn);
+      t.on('pointerdown', () => {
+        sfx(this).play('click');
+        fn();
+      });
     });
     this.add.text(cx, GAME_HEIGHT - 32, 'ENTER rematch · ESC change fighters', textStyle(11, COLORS.muted)).setOrigin(0.5);
     this.input.keyboard?.once('keydown-ENTER', buttons[0][1]);

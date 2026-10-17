@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 
 /**
  * Generates the small shared textures (particles, glows) at runtime so the game runs with zero art files.
- * When sprite atlases are added, load them here too.
+ * Real art and audio are loaded afterwards by the Preload scene.
  */
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -34,6 +34,6 @@ export class BootScene extends Phaser.Scene {
     g.generateTexture('shard', 10, 6);
     g.destroy();
 
-    this.scene.start('MainMenu');
+    this.scene.start('Preload');
   }
 }

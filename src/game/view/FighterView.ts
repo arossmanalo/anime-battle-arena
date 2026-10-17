@@ -1,8 +1,13 @@
 import Phaser from 'phaser';
 import type { Fighter } from '../../sim/Fighter';
+import { animKey, fighterSheetKey, type AnimName, type AssetManifest } from '../assets';
 import { COLORS, hpColor, impactStyle, shade, textStyle } from '../theme';
 
 const BAR_W = 40;
+/** How long the hit animation holds after taking damage, in seconds. */
+const HIT_ANIM_TIME = 0.18;
+/** Sprite frames are 64px; draw them a bit larger than the fighter's collision circle. */
+const SPRITE_SCALE = 3.6;
 
 /**
  * Draws one fighter: shadow, aura, body (sprite when available, placeholder disc otherwise),
@@ -20,6 +25,9 @@ export class FighterView {
   private readonly facingMark: Phaser.GameObjects.Triangle;
   private sprite?: Phaser.GameObjects.Sprite;
   private trailTimer = 0;
+  private hitTimer = 0;
+  private lastX: number;
+  private lastY: number;
   private koPlayed = false;
 
   constructor(
@@ -29,6 +37,8 @@ export class FighterView {
     isPlayer: boolean,
   ) {
     const r = f.def.radius;
+    this.lastX = f.pos.x;
+    this.lastY = f.pos.y;
     this.root = scene.add.container(f.pos.x, f.pos.y);
     parent.add(this.root);
 
@@ -37,10 +47,12 @@ export class FighterView {
     this.charge = scene.add.graphics();
 
     this.body = scene.add.container(0, 0);
-    const key = `fighter_${f.def.id}`;
+    const key = fighterSheetKey(f.def.id);
     if (scene.textures.exists(key)) {
-      this.sprite = scene.add.sprite(0, -r * 0.4, key).setDisplaySize(r * 3.4, r * 3.4);
+      // Feet sit on the shadow; see docs/ART_SPEC.md for the frame layout.
+      this.sprite = scene.add.sprite(0, r * 0.85, key).setOrigin(0.5, 0.875).setDisplaySize(r * SPRITE_SCALE, r * SPRITE_SCALE);
       this.body.add(this.sprite);
+      this.playAnim('idle');
     } else {
       this.body.add(scene.add.circle(0, 0, r, f.def.color).setStrokeStyle(3, f.def.accent));
       this.body.add(scene.add.circle(-r * 0.3, -r * 0.35, r * 0.28, shade(f.def.color, 0.5), 0.6));
@@ -56,12 +68,26 @@ export class FighterView {
       .setOrigin(0.5);
     this.status = scene.add.text(0, -r - 34, '', textStyle(11, 0xffffff, { fontStyle: 'bold' })).setOrigin(0.5);
 
+    // With a real sprite the art itself shows facing and the hit flash tints the sprite instead.
+    if (this.sprite) this.facingMark.setVisible(false);
+
     this.root.add([shadow, this.aura, this.charge, this.body, this.facingMark, this.flash, this.shield, this.hpBar, tag, this.status]);
   }
 
+  private playAnim(anim: AnimName): void {
+    const key = animKey(this.f.def.id, anim);
+    if (this.sprite && this.scene.anims.exists(key)) this.sprite.play(key, true);
+  }
+
   hitFlash(): void {
-    this.flash.setVisible(true).setAlpha(0.9);
-    this.scene.tweens.add({ targets: this.flash, alpha: 0, duration: 120, onComplete: () => this.flash.setVisible(false) });
+    this.hitTimer = HIT_ANIM_TIME;
+    if (this.sprite) {
+      this.sprite.setTintFill(0xffffff);
+      this.scene.time.delayedCall(70, () => this.sprite?.clearTint());
+    } else {
+      this.flash.setVisible(true).setAlpha(0.9);
+      this.scene.tweens.add({ targets: this.flash, alpha: 0, duration: 120, onComplete: () => this.flash.setVisible(false) });
+    }
     this.scene.tweens.add({ targets: this.root, scaleX: 1.15, scaleY: 0.85, duration: 50, yoyo: true });
   }
 
@@ -84,6 +110,7 @@ export class FighterView {
 
     // Only real sprites flip; the placeholder keeps its initials readable and uses the facing marker.
     this.sprite?.setFlipX(f.facing < 0);
+    this.updateAnim(dt);
     this.facingMark.setX(f.facing * (f.def.radius + 5)).setScale(f.facing, 1);
 
     // Aura: form colour while transformed, skill colour while buffed.
@@ -135,6 +162,20 @@ export class FighterView {
     this.hpBar.fillStyle(hpColor(frac)).fillRect(-BAR_W / 2, -r - 12, BAR_W * frac, 4);
   }
 
+  /** Picks the animation from sim state: hit > cast > run > idle. */
+  private updateAnim(dt: number): void {
+    const f = this.f;
+    const moved = Math.hypot(f.pos.x - this.lastX, f.pos.y - this.lastY);
+    this.lastX = f.pos.x;
+    this.lastY = f.pos.y;
+    this.hitTimer -= dt;
+    if (!this.sprite) return;
+    if (this.hitTimer > 0) this.playAnim('hit');
+    else if (f.busy) this.playAnim('cast');
+    else if (moved > 0.4) this.playAnim('run');
+    else this.playAnim('idle');
+  }
+
   private playKo(): void {
     if (this.koPlayed) return;
     this.koPlayed = true;
@@ -143,6 +184,12 @@ export class FighterView {
     this.aura.setVisible(false);
     this.shield.setVisible(false);
     this.status.setText('');
-    this.scene.tweens.add({ targets: this.body, angle: 540, scale: 0.6, alpha: 0.35, duration: 900, ease: 'Cubic.out' });
+    const manifest = this.scene.registry.get('manifest') as AssetManifest | undefined;
+    if (this.sprite && manifest?.fighters[this.f.def.id]?.sheet?.frames.ko) {
+      this.playAnim('ko');
+      this.scene.tweens.add({ targets: this.body, alpha: 0.6, duration: 900 });
+    } else {
+      this.scene.tweens.add({ targets: this.body, angle: 540, scale: 0.6, alpha: 0.35, duration: 900, ease: 'Cubic.out' });
+    }
   }
 }

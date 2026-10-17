@@ -13,6 +13,7 @@ Pick your fighter and a CPU opponent. Both fighters move and dodge on their own.
 | `U` | Ultimate (needs a full ULT meter, which fills as you deal and take damage) |
 | `T` | Transform (unlocks at low HP with enough energy) |
 | `A` | Toggle Auto, so the AI casts for you |
+| `M` | Mute / unmute |
 | `Esc` | Pause |
 
 If you don't cast anything for 4 seconds, the AI casts for you until you press a skill again.
@@ -27,7 +28,12 @@ Roster: Naruto, Sasuke, Goku, Vegeta, Gojo, Tanjiro.
 | `npm test` | Run the simulation tests |
 | `npm run balance` | Run headless AI-vs-AI matches and print win rates |
 | `npm run build` | Type-check and build a static bundle into `dist/` |
+| `npm run assets` | Rebuild the asset manifest after adding art or sound (runs automatically before `dev`/`build`) |
 
 See [docs/PLAN.md](docs/PLAN.md) for the full build plan.
+
+## Art and sound
+
+The game runs without any art files: fighters are placeholder discs and every sound is synthesized. Drop sprite sheets, portraits, a floor tile or sound files into `public/assets/` and they're picked up automatically. [docs/ART_SPEC.md](docs/ART_SPEC.md) has the exact format, plus a workflow and prompt template for AI-generated sprites.
 
 All characters belong to their respective owners. This project is not affiliated with or endorsed by them.

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ROSTER } from '../../data/fighters';
 import type { Difficulty, FighterDef } from '../../sim/types';
+import { sfx } from '../audio/Sfx';
 import { GAME_HEIGHT, GAME_WIDTH } from '../layout';
 import { newSeed, type MatchSetup } from '../match';
 import { COLORS, hex, impactStyle, shade, textStyle } from '../theme';
@@ -97,12 +98,14 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
 
   private pick(def: FighterDef): void {
+    sfx(this).play('click');
     this.picks[this.active] = def;
     if (this.active === 'player') this.active = 'enemy';
     this.refresh();
   }
 
   private startMatch(): void {
+    sfx(this).play('click');
     const setup: MatchSetup = {
       playerId: this.picks.player.id,
       enemyId: this.picks.enemy.id,

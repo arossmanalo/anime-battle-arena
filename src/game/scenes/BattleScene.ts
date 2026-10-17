@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import { fighterById } from '../../data/fighters';
 import type { Fighter } from '../../sim/Fighter';
 import { DT, Simulation } from '../../sim/Simulation';
-import type { SimEvent } from '../../sim/types';
+import type { SimEvent, SkillDef } from '../../sim/types';
+import { FLOOR_KEY } from '../assets';
+import { sfx, type Sfx } from '../audio/Sfx';
 import { Announcer } from '../hud/Announcer';
 import { Hud } from '../hud/Hud';
 import { SkillBar } from '../hud/SkillBar';
@@ -32,6 +34,7 @@ export class BattleScene extends Phaser.Scene {
   private announcer!: Announcer;
   private controller!: PlayerController;
   private uiCam!: Phaser.Cameras.Scene2D.Camera;
+  private sfx!: Sfx;
 
   private acc = 0;
   private timeScale = 1;
@@ -68,6 +71,7 @@ export class BattleScene extends Phaser.Scene {
       ],
     });
     this.player = this.sim.fighters.find((f) => f.controller === 'player')!;
+    this.sfx = sfx(this);
 
     // World (arena space, offset onto the screen) and UI live on separate cameras,
     // so camera zoom/shake moves the arena but never the HUD.
@@ -96,31 +100,40 @@ export class BattleScene extends Phaser.Scene {
     this.announcer = new Announcer(this, this.world, this.ui);
 
     const hint = this.add
-      .text(GAME_WIDTH - 8, GAME_HEIGHT - 4, '1-4 skills · U ultimate · T transform · A auto · ESC pause', textStyle(10, COLORS.muted))
+      .text(GAME_WIDTH - 8, GAME_HEIGHT - 4, '1-4 skills · U ultimate · T transform · A auto · M mute · ESC pause', textStyle(10, COLORS.muted))
       .setOrigin(1, 1);
     this.ui.add(hint);
 
     this.input.keyboard?.on('keydown-ESC', () => this.togglePause());
+    this.input.keyboard?.on('keydown-M', () => this.sfx.toggleMute());
     this.input.keyboard?.on('keydown-Q', () => {
       if (this.paused) this.scene.start('CharacterSelect', this.setup);
     });
 
     this.handleEvents(this.sim.drainEvents()); // intro voice lines
     this.announcer.banner('READY', COLORS.ult, undefined, 700);
-    this.time.delayedCall(1100, () => this.announcer.banner('FIGHT!', 0xff5a3c, undefined, 500));
+    this.time.delayedCall(1100, () => {
+      this.announcer.banner('FIGHT!', 0xff5a3c, undefined, 500);
+      this.sfx.play('fight');
+    });
   }
 
   private drawArena(): void {
+    if (this.textures.exists(FLOOR_KEY)) {
+      this.world.add(this.add.tileSprite(0, 0, ARENA_WIDTH, ARENA_HEIGHT, FLOOR_KEY).setOrigin(0));
+    }
     const g = this.add.graphics();
-    g.fillStyle(0x3a3e4c).fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
-    // Stone tiles with a little deterministic variation.
-    const tile = 46;
-    for (let y = 0; y < ARENA_HEIGHT; y += tile) {
-      for (let x = 0; x < ARENA_WIDTH; x += tile) {
-        const v = ((x * 7 + y * 13) % 5) / 5;
-        const w = Math.min(tile, ARENA_WIDTH - x) - 2;
-        const h = Math.min(tile, ARENA_HEIGHT - y) - 2;
-        g.fillStyle(shade(0x3a3e4c, -0.08 + v * 0.12)).fillRect(x + 1, y + 1, w, h);
+    if (!this.textures.exists(FLOOR_KEY)) {
+      g.fillStyle(0x3a3e4c).fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+      // Stone tiles with a little deterministic variation.
+      const tile = 46;
+      for (let y = 0; y < ARENA_HEIGHT; y += tile) {
+        for (let x = 0; x < ARENA_WIDTH; x += tile) {
+          const v = ((x * 7 + y * 13) % 5) / 5;
+          const w = Math.min(tile, ARENA_WIDTH - x) - 2;
+          const h = Math.min(tile, ARENA_HEIGHT - y) - 2;
+          g.fillStyle(shade(0x3a3e4c, -0.08 + v * 0.12)).fillRect(x + 1, y + 1, w, h);
+        }
       }
     }
     g.lineStyle(2, 0xffffff, 0.08).strokeCircle(ARENA_WIDTH / 2, ARENA_HEIGHT / 2, 70);
@@ -192,6 +205,8 @@ export class BattleScene extends Phaser.Scene {
           if (e.skill.ultimate) {
             this.announcer.callout(f.pos.x, f.pos.y, e.skill.name, e.skill.color, true);
             this.cinematic(f, 0.35, 900, 1.25);
+            // The wind-up plays in slow motion, so stretch the charge sound to match.
+            this.sfx.play('charge', { duration: e.skill.castTime / 0.35 });
           } else {
             this.announcer.callout(f.pos.x, f.pos.y, e.skill.name, e.skill.color);
           }
@@ -199,6 +214,7 @@ export class BattleScene extends Phaser.Scene {
         }
         case 'skillFired': {
           const f = this.sim.fighter(e.uid)!;
+          this.playFireSound(e.skill);
           if (e.skill.kind === 'buff') {
             this.views.get(e.uid)?.pulse(e.skill.color);
             this.vfx.aura(f.pos.x, f.pos.y, e.skill.color);
@@ -211,11 +227,15 @@ export class BattleScene extends Phaser.Scene {
           break;
         }
         case 'castFailed':
-          if (e.uid === this.player.uid) this.controller.onCastFailed(e.reason);
+          if (e.uid === this.player.uid) {
+            this.controller.onCastFailed(e.reason);
+            this.sfx.play('fail');
+          }
           break;
         case 'hit': {
           if (e.damage <= 0) break;
           this.views.get(e.target)?.hitFlash();
+          this.sfx.play(e.damage >= 15 ? 'hitHeavy' : 'hit');
           this.vfx.damageNumber(e.x, e.y, e.damage, e.skill.color);
           this.hitstop = Math.max(this.hitstop, hitstopFor(e.damage));
           if (e.damage >= 8) this.cameras.main.shake(120 + e.damage * 4, Math.min(0.012, 0.0015 + e.damage * 0.00018));
@@ -223,12 +243,14 @@ export class BattleScene extends Phaser.Scene {
         }
         case 'impact':
           this.vfx.impact(e.x, e.y, e.radius, e.color);
+          if (e.radius >= 60) this.sfx.play('explosion');
           break;
         case 'transform': {
           const f = this.sim.fighter(e.uid)!;
           this.views.get(e.uid)?.pulse(e.form.color);
           this.vfx.aura(f.pos.x, f.pos.y, e.form.color);
           this.cameras.main.flash(200, 255, 255, 255);
+          this.sfx.play('transform');
           this.announcer.banner(e.form.name.toUpperCase(), e.form.color, f.def.name.toUpperCase(), 1100);
           this.cinematic(f, 0.25, 1200, 1.4);
           break;
@@ -241,6 +263,7 @@ export class BattleScene extends Phaser.Scene {
         case 'ko': {
           const f = this.sim.fighter(e.uid)!;
           this.vfx.impact(f.pos.x, f.pos.y, 90, 0xffffff);
+          this.sfx.play('ko');
           this.cameras.main.shake(500, 0.012);
           break;
         }
@@ -248,6 +271,28 @@ export class BattleScene extends Phaser.Scene {
           this.endMatch(e.winnerTeam, e.reason);
           break;
       }
+    }
+  }
+
+  private playFireSound(skill: SkillDef): void {
+    switch (skill.kind) {
+      case 'projectile':
+        this.sfx.play('shoot', { volume: skill.ultimate ? 2 : 1 });
+        break;
+      case 'beam':
+        this.sfx.play('beam', { duration: skill.duration, volume: skill.ultimate ? 1.5 : 1 });
+        break;
+      case 'dash':
+        this.sfx.play('dash');
+        break;
+      case 'zone':
+        this.sfx.play(skill.domain ? 'domain' : 'buff', { volume: 0.7 });
+        break;
+      case 'buff':
+        this.sfx.play('buff');
+        break;
+      case 'aoe':
+        break; // its impact event plays the explosion
     }
   }
 

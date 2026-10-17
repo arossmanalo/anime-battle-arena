@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { FighterDef } from '../../sim/types';
+import { portraitKey } from '../assets';
 import { impactStyle, shade } from '../theme';
 
 /**
@@ -11,7 +12,7 @@ export function makePortrait(scene: Phaser.Scene, x: number, y: number, size: nu
   const bg = scene.add.rectangle(0, 0, size, size, shade(def.color, -0.55)).setStrokeStyle(2, def.accent);
   c.add(bg);
 
-  const key = `portrait_${def.id}`;
+  const key = portraitKey(def.id);
   if (scene.textures.exists(key)) {
     c.add(scene.add.image(0, 0, key).setDisplaySize(size - 4, size - 4));
   } else {

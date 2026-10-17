@@ -4,12 +4,15 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "predev": "npm run assets --silent",
     "dev": "vite",
+    "prebuild": "npm run assets --silent",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "balance": "tsx tools/balance.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "assets": "tsx tools/build-asset-manifest.ts"
   },
   "dependencies": {
     "phaser": "^3.90.0"
