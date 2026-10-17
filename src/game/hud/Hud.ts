@@ -17,6 +17,7 @@ class SidePanel {
   private readonly hpText: Phaser.GameObjects.Text;
   private readonly formTag: Phaser.GameObjects.Text;
   private readonly ultLabel: Phaser.GameObjects.Text;
+  private readonly passiveText: Phaser.GameObjects.Text;
   /** Trailing white bar that catches up to the real HP, so chunks of damage read clearly. */
   private lagHp: number;
   private readonly x0: number;
@@ -49,12 +50,30 @@ class SidePanel {
       .text(this.x0 + dir * (HP_W - ULT_W - 6), 54, 'ULT', textStyle(9, COLORS.ult, { fontStyle: 'bold' }))
       .setOrigin(1 - origin, 0.5);
 
-    parent.add([bg, portrait, name, this.formTag, this.bars, this.hpText, this.ultLabel]);
+    this.passiveText = scene.add.text(this.x0, 61, '', textStyle(9, COLORS.muted, { fontStyle: 'bold' })).setOrigin(origin, 0.5);
+
+    parent.add([bg, portrait, name, this.formTag, this.bars, this.hpText, this.ultLabel, this.passiveText]);
   }
 
   /** x of a bar segment starting `offset` px in from the panel's inner edge, `w` wide. */
   private segX(offset: number, w: number): number {
     return this.dir === 1 ? this.x0 + offset : this.x0 - offset - w;
+  }
+
+  /** Passive name plus whatever live state it has (barrier charges, recharge timer, spent). */
+  private passiveLabel(): string {
+    const def = this.f.def.passive;
+    const p = this.f.passive;
+    switch (def.kind) {
+      case 'barrier':
+        return p.hitsLeft > 0
+          ? `${def.name.toUpperCase()}  ${'● '.repeat(p.hitsLeft)}${'○ '.repeat(def.hits - p.hitsLeft)}`.trimEnd()
+          : `${def.name.toUpperCase()}  recharging ${Math.ceil(p.recharge)}s`;
+      case 'lastStand':
+        return `${def.name.toUpperCase()}  ${p.used ? 'spent' : 'ready'}`;
+      default:
+        return def.name.toUpperCase();
+    }
   }
 
   update(dt: number): void {
@@ -91,6 +110,7 @@ class SidePanel {
     g.fillStyle(COLORS.ult, blink).fillRect(this.dir === 1 ? ux : ux + ULT_W - uw, 50, uw, 8);
     this.ultLabel.setText(ready ? 'ULT READY' : 'ULT');
 
+    this.passiveText.setText(this.passiveLabel());
     this.formTag.setText(f.form ? f.form.name.toUpperCase() : '');
     this.formTag.setColor(hex(f.form?.color ?? COLORS.ult));
   }

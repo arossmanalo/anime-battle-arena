@@ -108,6 +108,12 @@ export const naruto: FighterDef = {
     heal: 0.1,
     color: 0xffc23d,
   },
+  passive: {
+    id: 'naruto.kurama-vitality',
+    name: "Kurama's Vitality",
+    description: 'Heals 4 HP per second while at 60% HP or lower.',
+    kind: 'regen', hpPerSec: 4, belowHp: 0.6,
+  },
   voiceLines: {
     intro: ["I'm not losing to you!", "Let's do this — I never go back on my word!"],
     ultimate: ['Take this! RASENSHURIKEN!', 'Everything I have — right here!'],

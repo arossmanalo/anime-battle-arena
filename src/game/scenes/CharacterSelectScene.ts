@@ -152,18 +152,23 @@ export class CharacterSelectScene extends Phaser.Scene {
 
     const lines = [
       `HP ${def.hp}   SPD ${def.speed}`,
-      '',
       ...def.skills.map((s, i) => `${i + 1}  ${s.name}`),
       `U  ${def.ultimate.name}`,
       def.form ? `T  ${def.form.name}` : '',
     ];
     c.add(
       this.add
-        .text(-PANEL_W / 2 + 14, 4, lines.join('\n'), textStyle(12, COLORS.text, { lineSpacing: 5, wordWrap: { width: PANEL_W - 24 } }))
+        .text(-PANEL_W / 2 + 14, 2, lines.join('\n'), textStyle(12, COLORS.text, { lineSpacing: 2, wordWrap: { width: PANEL_W - 24 } }))
+        .setOrigin(0, 0),
+    );
+    c.add(
+      this.add
+        .text(-PANEL_W / 2 + 14, 140, `PASSIVE · ${def.passive.name.toUpperCase()}
+${def.passive.description}`, textStyle(11, shade(def.color, 0.4), { lineSpacing: 2, wordWrap: { width: PANEL_W - 24 } }))
         .setOrigin(0, 0),
     );
     if (isActive) {
-      const hint = this.add.text(0, 172, 'picking…', textStyle(11, accent)).setOrigin(0.5);
+      const hint = this.add.text(PANEL_W / 2 - 12, -170, 'picking…', textStyle(11, accent)).setOrigin(1, 0.5);
       this.tweens.add({ targets: hint, alpha: 0.3, duration: 500, yoyo: true, repeat: -1 });
       c.add(hint);
     }

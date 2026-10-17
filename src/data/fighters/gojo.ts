@@ -120,6 +120,12 @@ export const gojo: FighterDef = {
       },
     },
   },
+  passive: {
+    id: 'gojo.limitless',
+    name: 'Limitless',
+    description: 'Blocks the first 2 incoming attacks. Recharges 24s after the last one.',
+    kind: 'barrier', hits: 2, cooldown: 24,
+  },
   voiceLines: {
     intro: ["Don't worry, I'm the strongest.", "Let's make this quick, shall we?"],
     ultimate: ['Imaginary technique...', "Red and Blue. Let's see you dodge this."],

@@ -264,6 +264,14 @@ export class BattleScene extends Phaser.Scene {
           this.announcer.say(f.def.name, e.text, f.def.color);
           break;
         }
+        case 'passive': {
+          const f = this.sim.fighter(e.uid)!;
+          const text = { block: 'BLOCKED', dodge: 'EVADED', lastStand: 'RESOLVE', recharged: `${e.passive.name} READY` }[e.proc];
+          this.announcer.callout(f.pos.x, this.calloutY(f), text, f.def.color);
+          if (e.proc !== 'recharged') this.vfx.impact(e.x, e.y, 40, f.def.color);
+          if (e.proc === 'lastStand') this.cameras.main.shake(300, 0.008);
+          break;
+        }
         case 'ko': {
           const f = this.sim.fighter(e.uid)!;
           this.vfx.impact(f.pos.x, f.pos.y, 90, 0xffffff);

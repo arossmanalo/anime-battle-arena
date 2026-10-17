@@ -100,6 +100,12 @@ export const tanjiro: FighterDef = {
     heal: 0.1,
     color: 0xff4d2d,
   },
+  passive: {
+    id: 'tanjiro.resolve',
+    name: 'Unbreakable Resolve',
+    description: 'Once per match, survives a lethal hit on 1 HP and is invulnerable for 2s.',
+    kind: 'lastStand', invuln: 2,
+  },
   voiceLines: {
     intro: ["I won't hold back!", "I'll protect everyone, no matter what!"],
     ultimate: ['Breath of the Sun!', 'Hinokami Kagura!'],

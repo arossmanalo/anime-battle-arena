@@ -16,6 +16,8 @@ Pick your fighter and a CPU opponent. Both fighters move and dodge on their own.
 | `M` | Mute / unmute |
 | `Esc` | Pause |
 
+Every fighter also has a **passive** that works on its own, with no key to press: Gojo's Limitless blocks his next 2 attacks (then recharges), Sasuke's Sharingan evades 15% of attacks, Goku's Zenkai raises his damage as his HP drops, Naruto heals while low on HP, Vegeta charges his ultimate faster, and Tanjiro survives one lethal hit. Passives are defined in each fighter's data file (see `PassiveEffect` in `src/sim/types.ts`).
+
 If you don't cast anything for 4 seconds, the AI casts for you until you press a skill again.
 
 Roster: Naruto, Sasuke, Goku, Vegeta, Gojo, Tanjiro.

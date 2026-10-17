@@ -120,6 +120,12 @@ export const goku: FighterDef = {
       },
     },
   },
+  passive: {
+    id: 'goku.zenkai',
+    name: 'Zenkai',
+    description: 'Deals up to +30% damage as HP drops.',
+    kind: 'rage', maxBonus: 0.3,
+  },
   voiceLines: {
     intro: ["You look strong! Let's have a good fight!", "I've been itching for a real challenge!"],
     ultimate: ['Everyone, lend me your energy!', 'This one ends it!'],

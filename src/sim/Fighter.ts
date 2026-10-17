@@ -1,4 +1,5 @@
-import type { Controller, FighterDef, FormDef, SkillDef, SkillSlot, Vec } from './types';
+import { passiveDamageMult } from './passives';
+import type { Controller, FighterDef, FormDef, PassiveProc, SkillDef, SkillSlot, Vec } from './types';
 import { vec } from './vec';
 
 export type StatusType = 'stun' | 'burn' | 'slow' | 'shield' | 'speedBuff' | 'damageBuff';
@@ -35,6 +36,20 @@ export interface FighterStats {
   hits: number;
 }
 
+/** Mutable state behind a fighter's passive. */
+export interface PassiveState {
+  /** barrier: attacks it can still block. */
+  hitsLeft: number;
+  /** barrier: seconds until it refills (0 = not recharging). */
+  recharge: number;
+  /** lastStand: already spent this match. */
+  used: boolean;
+  /** Attacks already decided this instant (key -> verdict), so a beam's later ticks share the first tick's verdict. */
+  decided: Map<string, { blocked: boolean; remaining: number }>;
+  /** Triggers since the Simulation last looked, turned into events. */
+  procs: PassiveProc[];
+}
+
 /** Runtime state of one fighter in a match. Pure data plus small helpers — the Simulation drives it. */
 export class Fighter {
   readonly maxHp: number;
@@ -61,6 +76,7 @@ export class Fighter {
   auto: boolean;
   /** Seconds since the player last issued a skill command. */
   idleTime = 0;
+  passive: PassiveState;
   stats: FighterStats = { damageDealt: 0, damageTaken: 0, skillsUsed: 0, hits: 0 };
 
   constructor(
@@ -74,6 +90,13 @@ export class Fighter {
     this.hp = def.hp;
     this.pos = pos;
     this.auto = controller === 'ai';
+    this.passive = {
+      hitsLeft: def.passive.kind === 'barrier' ? def.passive.hits : 0,
+      recharge: 0,
+      used: false,
+      decided: new Map(),
+      procs: [],
+    };
   }
 
   get alive(): boolean {
@@ -118,7 +141,7 @@ export class Fighter {
   }
 
   get damageMult(): number {
-    return (this.form?.damageMult ?? 1) * this.statusMult('damageBuff');
+    return (this.form?.damageMult ?? 1) * this.statusMult('damageBuff') * passiveDamageMult(this);
   }
 
   get energyRegen(): number {

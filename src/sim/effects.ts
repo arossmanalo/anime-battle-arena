@@ -1,5 +1,6 @@
 import type { Fighter, StatusType } from './Fighter';
 import type { Effect, SkillDef, Vec } from './types';
+import { negatesAttack, passiveUltMult, survivesHit } from './passives';
 import { norm, scale, sub } from './vec';
 
 /** Energy gained per point of damage dealt / taken. */
@@ -39,7 +40,7 @@ export function takeDamage(target: Fighter, amount: number): number {
     left -= absorbed;
   }
   target.statuses = target.statuses.filter((s) => s.type !== 'shield' || s.value > 0);
-  const lost = Math.min(target.hp, left);
+  const lost = survivesHit(target, Math.min(target.hp, left));
   target.hp -= lost;
   return lost;
 }
@@ -49,7 +50,7 @@ export function gainEnergy(f: Fighter, amount: number): void {
 }
 
 export function gainUlt(f: Fighter, amount: number): void {
-  f.ult = Math.min(f.maxUlt, f.ult + amount);
+  f.ult = Math.min(f.maxUlt, f.ult + amount * passiveUltMult(f));
 }
 
 /**
@@ -66,6 +67,7 @@ export function applyEffects(
 ): void {
   const self = source === target;
   if (!self && (target.invuln > 0 || !target.alive)) return;
+  if (!self && negatesAttack(target, effects, `${source.uid}:${skill.id}`, ctx.roll)) return;
 
   for (const e of effects) {
     switch (e.type) {

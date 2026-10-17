@@ -1,4 +1,5 @@
 import { UtilityAI } from './ai/UtilityAI';
+import { tickPassive } from './passives';
 import { applyEffects as applyEffectsTo, gainUlt, takeDamage, ULT_REGEN, type EffectContext } from './effects';
 import type { Beam, Projectile, Zone } from './entities';
 import { Fighter } from './Fighter';
@@ -155,6 +156,7 @@ export class Simulation {
     this.updateProjectiles();
     this.updateBeams();
     this.updateZones();
+    this.emitPassiveProcs();
     this.checkDeaths();
     this.checkEnd();
   }
@@ -220,6 +222,7 @@ export class Simulation {
     gainUlt(f, ULT_REGEN * DT);
     f.invuln = Math.max(0, f.invuln - DT);
     f.idleTime += DT;
+    tickPassive(f, DT);
 
     for (const s of f.statuses) {
       s.remaining -= DT;
@@ -419,6 +422,14 @@ export class Simulation {
       }
       return z.remaining > 0;
     });
+  }
+
+  private emitPassiveProcs(): void {
+    for (const f of this.fighters) {
+      for (const proc of f.passive.procs.splice(0)) {
+        this.emit({ type: 'passive', uid: f.uid, passive: f.def.passive, proc, x: f.pos.x, y: f.pos.y });
+      }
+    }
   }
 
   // ---- match flow -----------------------------------------------------------------------------

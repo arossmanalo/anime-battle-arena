@@ -68,6 +68,23 @@ export interface FormDef {
   color: number;
 }
 
+/** What a passive does. Passives are always on: no cast, no energy, no button. */
+export type PassiveEffect =
+  /** Blocks the next `hits` incoming attacks outright. Once spent, recharges after `cooldown` seconds. */
+  | { kind: 'barrier'; hits: number; cooldown: number }
+  /** Each incoming attack has this chance (0-1) to be evaded outright. */
+  | { kind: 'dodge'; chance: number }
+  /** Heals `hpPerSec` while HP is at or below `belowHp` (fraction of max). */
+  | { kind: 'regen'; hpPerSec: number; belowHp: number }
+  /** Damage dealt grows with missing HP, up to +`maxBonus` (0.3 = +30%) at 0 HP. */
+  | { kind: 'rage'; maxBonus: number }
+  /** The ultimate meter charges `mult` times as fast. */
+  | { kind: 'ultCharge'; mult: number }
+  /** Once per match, a lethal hit leaves the fighter on 1 HP and invulnerable for `invuln` seconds. */
+  | { kind: 'lastStand'; invuln: number };
+
+export type PassiveDef = { id: string; name: string; description: string } & PassiveEffect;
+
 export type AiProfile = 'rushdown' | 'balanced' | 'zoner';
 
 export interface VoiceLines {
@@ -93,6 +110,7 @@ export interface FighterDef {
   aiProfile: AiProfile;
   skills: [SkillDef, SkillDef, SkillDef, SkillDef];
   ultimate: SkillDef;
+  passive: PassiveDef;
   form?: FormDef;
   voiceLines: VoiceLines;
 }
@@ -128,12 +146,16 @@ export type Command =
 
 export type CastFailReason = 'cooldown' | 'energy' | 'busy' | 'stunned' | 'dead' | 'unavailable';
 
+/** What a passive just did: blocked or evaded an attack, saved its owner from a KO, or recharged. */
+export type PassiveProc = 'block' | 'dodge' | 'lastStand' | 'recharged';
+
 export type SimEvent =
   | { type: 'skillCast'; uid: number; skill: SkillDef }
   | { type: 'skillFired'; uid: number; skill: SkillDef; x: number; y: number }
   | { type: 'castFailed'; uid: number; reason: CastFailReason }
   | { type: 'hit'; source: number; target: number; damage: number; x: number; y: number; skill: SkillDef }
   | { type: 'impact'; x: number; y: number; radius: number; color: number }
+  | { type: 'passive'; uid: number; passive: PassiveDef; proc: PassiveProc; x: number; y: number }
   | { type: 'ko'; uid: number }
   | { type: 'transform'; uid: number; form: FormDef }
   | { type: 'voiceLine'; uid: number; text: string }

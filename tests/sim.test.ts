@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ROSTER, fighterById } from '../src/data/fighters';
-import { applyEffects, takeDamage } from '../src/sim/effects';
+import { applyEffects, gainUlt, takeDamage } from '../src/sim/effects';
+import { Rng } from '../src/sim/rng';
 import { DT, Simulation } from '../src/sim/Simulation';
-import type { FighterDef, SimConfig, SimEvent } from '../src/sim/types';
+import type { Effect, FighterDef, SimConfig, SimEvent, SkillDef } from '../src/sim/types';
 
 function duel(a: string, b: string, seed = 1, extra: Partial<SimConfig> = {}): Simulation {
   return new Simulation({
@@ -225,5 +226,100 @@ describe('match flow', () => {
       expect(def.ultimate.energyCost).toBe(0);
     };
     ROSTER.forEach(check);
+  });
+});
+
+describe('passives', () => {
+  const hit: Effect[] = [{ type: 'damage', amount: 10 }];
+  const skill = (id: string) => ({ id, name: id, kind: 'projectile', energyCost: 0, cooldown: 1, castTime: 0, range: 1, effects: hit, color: 0 }) as SkillDef;
+
+  it("Gojo's Limitless blocks its quota of attacks, then recharges", () => {
+    const sim = duel('naruto', 'gojo');
+    const [n, g] = sim.fighters;
+    const p = g.def.passive;
+    if (p.kind !== 'barrier') throw new Error('Gojo should have a barrier passive');
+    g.invuln = 0;
+    for (let i = 0; i < p.hits; i++) applyEffects(ctx, n, g, hit, skill(`s${i}`), n.pos);
+    expect(g.hp).toBe(g.maxHp);
+    applyEffects(ctx, n, g, hit, skill('extra'), n.pos);
+    expect(g.hp).toBeLessThan(g.maxHp);
+    const events = stepCollect(sim, Math.ceil((p.cooldown + 0.1) / DT));
+    expect(g.passive.hitsLeft).toBe(p.hits);
+    expect(events.some((e) => e.type === 'passive' && e.proc === 'recharged')).toBe(true);
+  });
+
+  it('a beam ticking many times counts as one blocked attack', () => {
+    const sim = duel('naruto', 'gojo');
+    const [n, g] = sim.fighters;
+    g.invuln = 0;
+    const beam = skill('beam');
+    for (let i = 0; i < 10; i++) applyEffects(ctx, n, g, hit, beam, n.pos);
+    expect(g.hp).toBe(g.maxHp);
+    expect(g.passive.hitsLeft).toBe(g.def.passive.kind === 'barrier' ? g.def.passive.hits - 1 : -1);
+  });
+
+  it("Sasuke's Sharingan evades roughly its chance of attacks", () => {
+    const [n, s] = duel('naruto', 'sasuke').fighters;
+    s.invuln = 0;
+    const rng = new Rng(7);
+    const rollCtx = { roll: () => rng.range(0.9, 1.1), onHit: () => {} };
+    let evaded = 0;
+    const attacks = 2000;
+    for (let i = 0; i < attacks; i++) {
+      s.hp = s.maxHp;
+      applyEffects(rollCtx, n, s, hit, skill(`a${i}`), n.pos);
+      if (s.hp === s.maxHp) evaded++;
+      s.passive.decided.clear();
+    }
+    const chance = s.def.passive.kind === 'dodge' ? s.def.passive.chance : -1;
+    expect(Math.abs(evaded / attacks - chance)).toBeLessThan(0.03);
+  });
+
+  it("Goku's Zenkai raises damage as HP falls", () => {
+    const [, g] = duel('naruto', 'goku').fighters;
+    const full = g.damageMult;
+    g.hp = g.maxHp / 2;
+    expect(g.damageMult).toBeCloseTo(full * 1.15, 5);
+  });
+
+  it("Naruto's Kurama's Vitality only heals at or below 50% HP", () => {
+    const sim = duel('naruto', 'goku');
+    const [n] = sim.fighters;
+    n.invuln = 99;
+    sim.tryCast = () => 'busy';
+    const start = n.hp;
+    for (let i = 0; i < 60; i++) sim.step();
+    expect(n.hp).toBe(start);
+    n.hp = n.maxHp * 0.4;
+    const low = n.hp;
+    for (let i = 0; i < 60; i++) sim.step();
+    expect(n.hp).toBeGreaterThan(low + 1.5);
+  });
+
+  it("Vegeta's Saiyan Elite charges the ultimate faster", () => {
+    const [n, v] = duel('naruto', 'vegeta').fighters;
+    gainUlt(n, 10);
+    gainUlt(v, 10);
+    const p = v.def.passive;
+    expect(p.kind === 'ultCharge' ? v.ult : -1).toBeCloseTo(p.kind === 'ultCharge' ? 10 * p.mult : 0, 5);
+    expect(n.ult).toBeCloseTo(10, 5);
+  });
+
+  it("Tanjiro's Unbreakable Resolve survives one lethal hit", () => {
+    const [, t] = duel('naruto', 'tanjiro').fighters;
+    t.invuln = 0;
+    t.hp = 5;
+    takeDamage(t, 500);
+    expect(t.hp).toBe(1);
+    expect(t.invuln).toBeGreaterThan(0);
+    t.invuln = 0;
+    takeDamage(t, 500);
+    expect(t.hp).toBe(0);
+  });
+
+  it('every fighter has a passive with a unique id', () => {
+    const ids = ROSTER.map((f) => f.passive.id);
+    expect(new Set(ids).size).toBe(ROSTER.length);
+    for (const f of ROSTER) expect(f.passive.description.length).toBeGreaterThan(5);
   });
 });

@@ -103,6 +103,12 @@ export const sasuke: FighterDef = {
     heal: 0.08,
     color: 0xb07cff,
   },
+  passive: {
+    id: 'sasuke.sharingan',
+    name: 'Sharingan',
+    description: '15% chance to evade each incoming attack.',
+    kind: 'dodge', chance: 0.15,
+  },
   voiceLines: {
     intro: ["You're in my way.", "Don't waste my time."],
     ultimate: ['The lightning answers to me.', "It's over."],

@@ -107,6 +107,12 @@ export const vegeta: FighterDef = {
     heal: 0.08,
     color: 0xffe14d,
   },
+  passive: {
+    id: 'vegeta.elite',
+    name: 'Saiyan Elite',
+    description: 'Ultimate meter charges 50% faster.',
+    kind: 'ultCharge', mult: 1.5,
+  },
   voiceLines: {
     intro: ['I am the Prince of all Saiyans!', "You'll regret facing me."],
     ultimate: ['Witness my true strength!', 'Vanish without a trace!'],
