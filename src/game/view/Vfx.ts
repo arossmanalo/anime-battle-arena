@@ -4,7 +4,7 @@ import type { Fighter } from '../../sim/Fighter';
 import type { SkillDef } from '../../sim/types';
 import { add, scale } from '../../sim/vec';
 import { EMPTY_MANIFEST, fxKey, type AssetManifest, type FxInfo, type FxPart } from '../assets';
-import { ARENA_HEIGHT, ARENA_WIDTH } from '../layout';
+import { ARENA_HEIGHT, ARENA_WIDTH, ARENA_X, ARENA_Y, GAME_HEIGHT, GAME_WIDTH } from '../layout';
 import { impactStyle, shade } from '../theme';
 
 const MAX_CRATERS = 18;
@@ -13,6 +13,23 @@ const CRATER_LIFETIME = 7000;
 const BODY_LIFT = 14;
 /** Seconds over which a timed effect on a fighter fades out at the end. */
 const FX_FADE = 0.3;
+
+/** A Domain Expansion with custom art: takes over the whole screen, not just the arena, and opens outward from the caster. */
+interface DomainView {
+  sprite: Phaser.GameObjects.Sprite;
+  vignette: Phaser.GameObjects.Image;
+  maskGfx: Phaser.GameObjects.Graphics;
+  mask: Phaser.Display.Masks.GeometryMask | null;
+  /** scene.time.now when it started opening. */
+  start: number;
+  baseW: number;
+  baseH: number;
+}
+
+/** How long the domain takes to open from the caster to the screen edges (ms), and how far past the screen it's drawn. */
+const DOMAIN_OPEN_MS = 650;
+const DOMAIN_OVERSCAN = 1.25;
+const VIGNETTE_KEY = 'fx_domain_vignette';
 
 interface Attached {
   sprite: Phaser.GameObjects.Sprite;
@@ -42,6 +59,7 @@ export class Vfx {
   private readonly zoneSprites = new Map<number, Phaser.GameObjects.Sprite>();
   private readonly attached: Attached[] = [];
   private readonly beamSprites = new Map<number, Phaser.GameObjects.Sprite[]>();
+  private readonly domains = new Map<number, DomainView>();
   /** Simulation time in seconds, so timed effects follow slow motion instead of wall-clock time. */
   private clock: () => number = () => 0;
 
@@ -329,6 +347,11 @@ export class Vfx {
       const fadeOut = Math.min(1, z.remaining * 3);
       const a = fadeIn * fadeOut;
       const body = this.fx(z.skill.id, 'body');
+      if (body && z.skill.domain) {
+        this.drawDomain(z, body, fadeOut, g);
+        live.add(z.id);
+        continue;
+      }
       if (body) {
         let sprite = this.zoneSprites.get(z.id);
         if (!sprite) {
@@ -342,8 +365,8 @@ export class Vfx {
         continue;
       }
       if (z.skill.domain) {
-        // A Domain Expansion paints over the whole arena.
-        g.fillStyle(z.skill.color, 0.72 * a).fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+        // A Domain Expansion paints over the whole screen, not just the arena.
+        g.fillStyle(z.skill.color, 0.72 * a).fillRect(-ARENA_X, -ARENA_Y, GAME_WIDTH, GAME_HEIGHT);
         g.lineStyle(2, 0xffffff, 0.15 * a);
         for (let i = 0; i < 6; i++) {
           const r = ((t * 120 + i * 90) % 540) + 10;
@@ -375,5 +398,84 @@ export class Vfx {
       sprite.destroy();
       this.zoneSprites.delete(id);
     }
+    for (const [id, d] of this.domains) {
+      if (live.has(id)) continue;
+      this.destroyDomain(d);
+      this.domains.delete(id);
+    }
+  }
+
+  /** A soft dark-edged vignette, generated once. */
+  private vignetteTexture(): string {
+    if (!this.scene.textures.exists(VIGNETTE_KEY)) {
+      const tex = this.scene.textures.createCanvas(VIGNETTE_KEY, 512, 288);
+      if (tex) {
+        const ctx = tex.getContext();
+        const grad = ctx.createRadialGradient(256, 144, 60, 256, 144, 300);
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+        grad.addColorStop(0.55, 'rgba(8,4,24,0.25)');
+        grad.addColorStop(1, 'rgba(4,0,16,0.85)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 512, 288);
+        tex.refresh();
+      }
+    }
+    return VIGNETTE_KEY;
+  }
+
+  /**
+   * The domain: custom art covering the whole screen (the HUD sits above it), revealed by a circle that opens out from
+   * the caster with a bright rim, then slowly breathing, darkened at the edges, and fading out at the end.
+   */
+  private drawDomain(z: Zone, info: FxInfo, fadeOut: number, g: Phaser.GameObjects.Graphics): void {
+    let d = this.domains.get(z.id);
+    if (!d) {
+      const sprite = this.createFxSprite(z.skill.id, 'body', info, GAME_WIDTH);
+      // Cover the screen without squashing the art, with margin for camera pans and zooms.
+      const cover = Math.max((GAME_WIDTH * DOMAIN_OVERSCAN) / info.frameWidth, (GAME_HEIGHT * DOMAIN_OVERSCAN) / info.frameHeight);
+      const baseW = info.frameWidth * cover;
+      const baseH = info.frameHeight * cover;
+      sprite.setDisplaySize(baseW, baseH);
+      const vignette = this.scene.add.image(0, 0, this.vignetteTexture()).setDisplaySize(GAME_WIDTH * DOMAIN_OVERSCAN, GAME_HEIGHT * DOMAIN_OVERSCAN);
+      const maskGfx = this.scene.make.graphics({}, false);
+      const mask = new Phaser.Display.Masks.GeometryMask(this.scene, maskGfx);
+      sprite.setMask(mask);
+      vignette.setMask(mask);
+      this.layers.zones.add([sprite, vignette]);
+      d = { sprite, vignette, maskGfx, mask, start: this.scene.time.now, baseW, baseH };
+      this.domains.set(z.id, d);
+    }
+    // Screen centre in the world container's coordinates.
+    const cx = GAME_WIDTH / 2 - ARENA_X;
+    const cy = GAME_HEIGHT / 2 - ARENA_Y;
+    const t = (this.scene.time.now - d.start) / DOMAIN_OPEN_MS;
+    const open = Math.min(1, t);
+    const eased = 1 - Math.pow(1 - open, 3);
+    const origin = z.owner.pos;
+    const maxR = Math.hypot(GAME_WIDTH, GAME_HEIGHT) * 1.1;
+    const radius = eased * maxR;
+    if (d.mask) {
+      d.maskGfx.clear().fillStyle(0xffffff).fillCircle(ARENA_X + origin.x, ARENA_Y + origin.y, radius);
+      if (open >= 1) {
+        d.sprite.clearMask(true);
+        d.vignette.clearMask(false);
+        d.maskGfx.destroy();
+        d.mask = null;
+      }
+    }
+    const breathe = 1 + Math.sin(this.scene.time.now / 1100) * 0.025;
+    d.sprite.setPosition(cx, cy).setDisplaySize(d.baseW * breathe, d.baseH * breathe).setAlpha(fadeOut);
+    d.vignette.setPosition(cx, cy).setAlpha(fadeOut);
+    // Bright rim on the opening edge, and a soft flash at the caster.
+    if (open < 1) {
+      g.lineStyle(10, 0xffffff, 0.85 * (1 - open)).strokeCircle(origin.x, origin.y, radius);
+      g.lineStyle(26, z.skill.color === 0x14092e ? 0x9a86ff : z.skill.color, 0.35 * (1 - open)).strokeCircle(origin.x, origin.y, radius);
+    }
+  }
+
+  private destroyDomain(d: DomainView): void {
+    d.sprite.destroy();
+    d.vignette.destroy();
+    if (d.mask) d.maskGfx.destroy();
   }
 }
