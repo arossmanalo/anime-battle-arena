@@ -6,6 +6,8 @@ export interface MatchSetup {
   enemyId: string;
   difficulty: Difficulty;
   seed: number;
+  /** Training mode: fight a dummy with infinite energy instead of a CPU opponent. */
+  training?: boolean;
 }
 
 export const newSeed = (): number => Math.floor(Math.random() * 2 ** 31);

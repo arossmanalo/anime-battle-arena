@@ -142,7 +142,8 @@ export interface FighterDef {
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
-export type Controller = 'ai' | 'player';
+/** `dummy` is the training dummy: it never acts, can't be killed, and its position is controlled by the sim. */
+export type Controller = 'ai' | 'player' | 'dummy';
 
 export interface FighterSetup {
   def: FighterDef;
@@ -159,6 +160,8 @@ export interface SimConfig {
   difficulty?: Difficulty;
   /** Seconds a player may stay idle before the AI starts casting for them. 0 disables it. */
   idleFallback?: number;
+  /** Training mode: the player has infinite energy and ultimate, can transform any time and can't be hurt; the match never ends. */
+  training?: boolean;
 }
 
 /** Slot 0-3 are the regular skills, 4 is the ultimate. */

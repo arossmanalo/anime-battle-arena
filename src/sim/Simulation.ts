@@ -38,6 +38,12 @@ export class Simulation {
   readonly timeLimit: number;
   readonly difficulty: Difficulty;
   readonly idleFallback: number;
+  /** Training mode (see SimConfig.training). */
+  readonly training: boolean;
+  /** Training: skills have no cooldown. */
+  noCooldowns = false;
+  /** Training: how the dummy moves. */
+  dummyMode: 'still' | 'pace' | 'strafe' = 'still';
   readonly fighters: Fighter[] = [];
   projectiles: Projectile[] = [];
   beams: Beam[] = [];
@@ -62,6 +68,7 @@ export class Simulation {
     this.timeLimit = config.timeLimit ?? DEFAULT_TIME_LIMIT;
     this.difficulty = config.difficulty ?? 'normal';
     this.idleFallback = config.idleFallback ?? 4;
+    this.training = config.training ?? false;
     this.effectCtx = {
       roll: () => this.rng.range(0.9, 1.1),
       onHit: (source, target, damage, skill) =>
@@ -71,11 +78,15 @@ export class Simulation {
     // Teams start on opposite sides, members spread vertically.
     const teamCount = config.teams.length;
     config.teams.forEach((team, t) => {
-      const x = teamCount === 1 ? this.arena.width / 2 : this.arena.width * (0.15 + (0.7 * t) / (teamCount - 1));
+      let x = teamCount === 1 ? this.arena.width / 2 : this.arena.width * (0.15 + (0.7 * t) / (teamCount - 1));
+      // Training: put the dummy closer, within reach of most skills.
+      if (this.training && t === 1) x = this.arena.width * 0.65;
       team.forEach((setup, i) => {
         const y = (this.arena.height * (i + 1)) / (team.length + 1);
         const f = new Fighter(this.nextId++, t, setup.def, setup.controller, { x, y });
         f.facing = x < this.arena.width / 2 ? 1 : -1;
+        f.home = { x, y };
+        f.sandbox = this.training && setup.controller === 'player';
         this.fighters.push(f);
         this.ai.set(f.uid, new UtilityAI(f, this, this.difficulty));
       });
@@ -150,7 +161,8 @@ export class Simulation {
       if (!f.alive) continue;
       const allowSkills =
         f.auto || (f.controller === 'player' && this.idleFallback > 0 && f.idleTime >= this.idleFallback);
-      this.ai.get(f.uid)!.update(DT, allowSkills);
+      if (f.controller === 'dummy') this.updateDummy(f);
+      else this.ai.get(f.uid)!.update(DT, allowSkills);
       this.updateCasting(f);
       this.updateSwing(f);
       this.move(f);
@@ -208,6 +220,11 @@ export class Simulation {
   tryTransform(f: Fighter): boolean {
     if (!f.canTransform || f.stunned) return false;
     const form = f.def.form!;
+    if (f.sandbox && f.form) {
+      // Training: using it again turns the form off.
+      f.form = null;
+      return true;
+    }
     f.energy -= form.energyCost;
     f.form = form;
     f.hp = Math.min(f.maxHp, f.hp + Math.round(f.maxHp * form.heal));
@@ -222,6 +239,13 @@ export class Simulation {
   // ---- per-fighter update ---------------------------------------------------------------------
 
   private updateTimers(f: Fighter): void {
+    if (f.controller === 'dummy') f.hp = f.maxHp;
+    if (f.sandbox) {
+      f.energy = f.maxEnergy;
+      f.ult = f.maxUlt;
+      f.hp = f.maxHp;
+      if (this.noCooldowns) f.cooldowns.clear();
+    }
     for (const [id, cd] of f.cooldowns) f.cooldowns.set(id, Math.max(0, cd - DT));
     f.energy = Math.min(f.maxEnergy, f.energy + f.energyRegen * DT);
     gainUlt(f, ULT_REGEN * DT);
@@ -241,6 +265,43 @@ export class Simulation {
       }
     }
     f.statuses = f.statuses.filter((s) => s.remaining > 0);
+  }
+
+  /** The training dummy: stays at (or paces around) its home spot and faces the player. */
+  private updateDummy(f: Fighter): void {
+    const target = { ...f.home };
+    const t = this.time;
+    if (this.dummyMode === 'pace') target.y += 90 * Math.sin(t * 0.9);
+    else if (this.dummyMode === 'strafe') target.x += 110 * Math.sin(t * 0.9);
+    const to = sub(target, f.pos);
+    const d = Math.hypot(to.x, to.y);
+    f.vel = d > 2 ? scale(norm(to), Math.min(160, d * 5)) : { x: 0, y: 0 };
+    const foe = this.nearestEnemy(f);
+    if (foe && Math.abs(foe.pos.x - f.pos.x) > 1) f.facing = foe.pos.x > f.pos.x ? 1 : -1;
+  }
+
+  /** Training: clears the field, puts everyone back, zeroes the stats and refreshes cooldowns. */
+  resetTraining(): void {
+    for (const f of this.fighters) {
+      f.statuses = [];
+      f.knock = { x: 0, y: 0 };
+      f.vel = { x: 0, y: 0 };
+      f.casting = null;
+      f.dash = null;
+      f.channel = null;
+      f.swing = null;
+      f.combo = 0;
+      f.attackCd = 0;
+      f.cooldowns.clear();
+      f.stats = { damageDealt: 0, damageTaken: 0, skillsUsed: 0, hits: 0 };
+      f.pos = { ...f.home };
+      f.passive.hitsLeft = f.def.passive.kind === 'barrier' ? f.def.passive.hits : 0;
+      f.passive.recharge = 0;
+      f.passive.used = false;
+    }
+    this.projectiles = [];
+    this.beams = [];
+    this.zones = [];
   }
 
   /** Gap between two fighters' edges. */
@@ -512,6 +573,7 @@ export class Simulation {
   }
 
   private checkEnd(): void {
+    if (this.training) return;
     const teamsAlive = new Set(this.fighters.filter((f) => f.alive).map((f) => f.team));
     if (teamsAlive.size <= 1) {
       this.finish(teamsAlive.size === 1 ? [...teamsAlive][0] : -1, 'ko');

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { TRAINING_DUMMY } from '../../data/dummy';
 import { fighterById } from '../../data/fighters';
 import type { Fighter } from '../../sim/Fighter';
 import { DT, Simulation } from '../../sim/Simulation';
@@ -8,6 +9,7 @@ import { sfx, type Sfx } from '../audio/Sfx';
 import { Announcer } from '../hud/Announcer';
 import { Hud } from '../hud/Hud';
 import { SkillBar } from '../hud/SkillBar';
+import { TrainingHud } from '../hud/TrainingHud';
 import { PlayerController } from '../input/PlayerController';
 import { ARENA_HEIGHT, ARENA_WIDTH, ARENA_X, ARENA_Y, fitCamera, GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from '../layout';
 import type { MatchResult, MatchSetup } from '../match';
@@ -33,6 +35,7 @@ export class BattleScene extends Phaser.Scene {
   private bar!: SkillBar;
   private announcer!: Announcer;
   private controller!: PlayerController;
+  private trainingHud?: TrainingHud;
   private uiCam!: Phaser.Cameras.Scene2D.Camera;
   private sfx!: Sfx;
 
@@ -58,6 +61,7 @@ export class BattleScene extends Phaser.Scene {
     this.paused = false;
     this.pauseOverlay = undefined;
     this.ending = false;
+    this.trainingHud = undefined;
   }
 
   create(): void {
@@ -65,9 +69,13 @@ export class BattleScene extends Phaser.Scene {
       seed: this.setup.seed,
       difficulty: this.setup.difficulty,
       arena: { width: ARENA_WIDTH, height: ARENA_HEIGHT },
+      training: this.setup.training,
+      ...(this.setup.training ? { idleFallback: 0 } : {}),
       teams: [
         [{ def: fighterById(this.setup.playerId), controller: 'player' }],
-        [{ def: fighterById(this.setup.enemyId), controller: 'ai' }],
+        this.setup.training
+          ? [{ def: TRAINING_DUMMY, controller: 'dummy' }]
+          : [{ def: fighterById(this.setup.enemyId), controller: 'ai' }],
       ],
     });
     this.player = this.sim.fighters.find((f) => f.controller === 'player')!;
@@ -101,9 +109,15 @@ export class BattleScene extends Phaser.Scene {
     this.bar = new SkillBar(this, this.player, this.ui, (a) => this.controller.act(a));
     this.controller = new PlayerController(this, this.sim, this.player, this.bar);
     this.announcer = new Announcer(this, this.world, this.ui);
+    if (this.setup.training) this.setupTraining();
 
     const hint = this.add
-      .text(GAME_WIDTH - 8, GAME_HEIGHT - 4, '1-4 skills · U ultimate · T transform · A auto · M mute · ESC pause', textStyle(10, COLORS.muted))
+      .text(
+        GAME_WIDTH - 8,
+        GAME_HEIGHT - 4,
+        this.setup.training ? '1-4 skills · U ultimate · T form · A auto · R reset · C cooldowns · D dummy · M mute · ESC pause' : '1-4 skills · U ultimate · T transform · A auto · M mute · ESC pause',
+        textStyle(10, COLORS.muted),
+      )
       .setOrigin(1, 1);
     this.ui.add(hint);
 
@@ -114,10 +128,30 @@ export class BattleScene extends Phaser.Scene {
     });
 
     this.handleEvents(this.sim.drainEvents()); // intro voice lines
-    this.announcer.banner('READY', COLORS.ult, undefined, 700);
+    this.announcer.banner(this.setup.training ? 'TRAINING' : 'READY', COLORS.ult, undefined, 700);
     this.time.delayedCall(1100, () => {
-      this.announcer.banner('FIGHT!', 0xff5a3c, undefined, 500);
+      if (!this.setup.training) this.announcer.banner('FIGHT!', 0xff5a3c, undefined, 500);
       this.sfx.play('fight');
+    });
+  }
+
+  /** Training mode: the stats panel and its keys (R reset, C cooldowns, D dummy motion). */
+  private setupTraining(): void {
+    const dummy = this.sim.fighters.find((f) => f.controller === 'dummy')!;
+    const hud = new TrainingHud(this, this.sim, dummy, this.ui);
+    this.trainingHud = hud;
+    const kb = this.input.keyboard;
+    kb?.on('keydown-R', () => {
+      this.sim.resetTraining();
+      hud.reset();
+      this.announcer.banner('RESET', COLORS.energy, undefined, 400);
+    });
+    kb?.on('keydown-C', () => {
+      this.sim.noCooldowns = !this.sim.noCooldowns;
+    });
+    kb?.on('keydown-D', () => {
+      const modes = ['still', 'pace', 'strafe'] as const;
+      this.sim.dummyMode = modes[(modes.indexOf(this.sim.dummyMode) + 1) % modes.length];
     });
   }
 
@@ -155,7 +189,7 @@ export class BattleScene extends Phaser.Scene {
         .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 30, 'ESC resume   ·   Q quit to Character Select', textStyle(14, COLORS.muted))
         .setOrigin(0.5);
       const idle = this.add
-        .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 56, `If you don't cast for ${this.sim.idleFallback}s, the AI casts for you until you do.`, textStyle(12, COLORS.muted))
+        .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 56, this.sim.training ? 'Training: nothing is lost by quitting.' : `If you don't cast for ${this.sim.idleFallback}s, the AI casts for you until you do.`, textStyle(12, COLORS.muted))
         .setOrigin(0.5);
       this.pauseOverlay = this.add.container(0, 0, [bg, t, s, idle]);
       this.ui.add(this.pauseOverlay);
@@ -197,6 +231,7 @@ export class BattleScene extends Phaser.Scene {
     this.vfx.drawZones(this.sim.zones);
     this.vfx.syncAttached();
     this.hud.update(dt);
+    this.trainingHud?.update();
     this.bar.update();
     this.announcer.update();
   }
@@ -241,6 +276,7 @@ export class BattleScene extends Phaser.Scene {
           }
           break;
         case 'hit': {
+          this.trainingHud?.onHit(e.target, e.damage, e.skill.name);
           if (e.damage <= 0) break;
           this.views.get(e.target)?.hitFlash();
           this.sfx.play(e.damage >= 15 ? 'hitHeavy' : 'hit');

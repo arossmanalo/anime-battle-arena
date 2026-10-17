@@ -22,6 +22,8 @@ export class CharacterSelectScene extends Phaser.Scene {
   private picks: Record<Slot, FighterDef> = { player: ROSTER[0], enemy: ROSTER[2 % ROSTER.length] };
   private active: Slot = 'player';
   private difficulty: Difficulty = 'normal';
+  /** Training mode: pick one fighter, the opponent is the dummy. */
+  private training = false;
   private panels!: Record<Slot, Phaser.GameObjects.Container>;
   private cards: { def: FighterDef; frame: Phaser.GameObjects.Rectangle; tags: Phaser.GameObjects.Text }[] = [];
   private diffButtons: { d: Difficulty; t: Phaser.GameObjects.Text }[] = [];
@@ -34,6 +36,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     if (data.playerId) this.picks.player = ROSTER.find((f) => f.id === data.playerId) ?? this.picks.player;
     if (data.enemyId) this.picks.enemy = ROSTER.find((f) => f.id === data.enemyId) ?? this.picks.enemy;
     if (data.difficulty) this.difficulty = data.difficulty;
+    this.training = !!data.training;
     this.active = 'player';
     this.cards = [];
     this.diffButtons = [];
@@ -41,9 +44,14 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   create(): void {
     fitCamera(this.cameras.main);
-    this.add.text(GAME_WIDTH / 2, 36, 'CHOOSE YOUR FIGHTERS', impactStyle(34)).setOrigin(0.5);
+    this.add.text(GAME_WIDTH / 2, 36, this.training ? 'TRAINING: CHOOSE YOUR FIGHTER' : 'CHOOSE YOUR FIGHTERS', impactStyle(34)).setOrigin(0.5);
     this.add
-      .text(GAME_WIDTH / 2, 70, 'Pick your fighter, then the opponent. Click a side panel to change it.', textStyle(13, COLORS.muted))
+      .text(
+        GAME_WIDTH / 2,
+        70,
+        this.training ? 'Pick a fighter to test. You fight a dummy with infinite energy.' : 'Pick your fighter, then the opponent. Click a side panel to change it.',
+        textStyle(13, COLORS.muted),
+      )
       .setOrigin(0.5);
 
     ROSTER.forEach((def, i) => {
@@ -68,10 +76,10 @@ export class CharacterSelectScene extends Phaser.Scene {
       enemy: this.add.container(GAME_WIDTH - 20 - PANEL_W / 2, 300),
     };
 
-    // Difficulty
+    // Difficulty (not in training: the dummy doesn't fight back)
     const dy = GRID_Y + 2 * (CARD_H + 10) + 10;
-    this.add.text(GAME_WIDTH / 2, dy, 'CPU DIFFICULTY', textStyle(12, COLORS.muted)).setOrigin(0.5);
-    (['easy', 'normal', 'hard'] as Difficulty[]).forEach((d, i) => {
+    if (!this.training) this.add.text(GAME_WIDTH / 2, dy, 'CPU DIFFICULTY', textStyle(12, COLORS.muted)).setOrigin(0.5);
+    (this.training ? [] : (['easy', 'normal', 'hard'] as Difficulty[])).forEach((d, i) => {
       const t = this.add
         .text(GAME_WIDTH / 2 + (i - 1) * 100, dy + 26, d.toUpperCase(), impactStyle(18))
         .setOrigin(0.5)
@@ -84,7 +92,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     });
 
     const fight = this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 50, 'FIGHT!', impactStyle(40, COLORS.ult))
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 50, this.training ? 'START TRAINING' : 'FIGHT!', impactStyle(this.training ? 34 : 40, COLORS.ult))
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     fight.on('pointerover', () => fight.setScale(1.08));
@@ -101,7 +109,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   private pick(def: FighterDef): void {
     sfx(this).play('click');
     this.picks[this.active] = def;
-    if (this.active === 'player') this.active = 'enemy';
+    if (this.active === 'player' && !this.training) this.active = 'enemy';
     this.refresh();
   }
 
@@ -112,6 +120,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       enemyId: this.picks.enemy.id,
       difficulty: this.difficulty,
       seed: newSeed(),
+      ...(this.training ? { training: true } : {}),
     };
     this.scene.start('Battle', setup);
   }
@@ -119,7 +128,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   private refresh(): void {
     for (const { def, frame, tags } of this.cards) {
       const isP = this.picks.player === def;
-      const isE = this.picks.enemy === def;
+      const isE = !this.training && this.picks.enemy === def;
       frame.setStrokeStyle(isP || isE ? 3 : 2, isP ? COLORS.energy : isE ? COLORS.danger : COLORS.border);
       tags.setText([isP ? 'YOU' : '', isE ? 'CPU' : ''].filter(Boolean).join(' / '));
       tags.setColor(isP ? hex(COLORS.energy) : hex(COLORS.danger));
@@ -129,7 +138,37 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.drawPanel('enemy');
   }
 
+  private drawDummyPanel(): void {
+    const c = this.panels.enemy;
+    c.removeAll(true);
+    c.add(this.add.rectangle(0, 0, PANEL_W, 380, 0x2a1d1a).setStrokeStyle(1, COLORS.border));
+    c.add(this.add.text(0, -170, 'DUMMY', impactStyle(18, COLORS.danger)).setOrigin(0.5));
+    c.add(this.add.circle(0, -95, 44, 0xe8553a).setStrokeStyle(4, 0xffffff));
+    c.add(this.add.circle(0, -95, 28, 0xffffff));
+    c.add(this.add.circle(0, -95, 13, 0xe8553a));
+    c.add(this.add.text(0, -30, 'TRAINING DUMMY', impactStyle(22)).setOrigin(0.5));
+    const lines = [
+      'Never fights back and can',
+      "never be knocked out.",
+      '',
+      'You have infinite energy and',
+      'a full ultimate meter, and you',
+      'can use your form any time.',
+      '',
+      'In the fight:',
+      'R  reset the field and stats',
+      'C  skills with no cooldown',
+      'D  dummy: still / pacing / strafing',
+      'T  form on / off',
+    ];
+    c.add(this.add.text(-PANEL_W / 2 + 14, -2, lines.join('\n'), textStyle(12, COLORS.text, { lineSpacing: 3 })).setOrigin(0, 0));
+  }
+
   private drawPanel(slot: Slot): void {
+    if (this.training && slot === 'enemy') {
+      this.drawDummyPanel();
+      return;
+    }
     const c = this.panels[slot];
     c.removeAll(true);
     const def = this.picks[slot];

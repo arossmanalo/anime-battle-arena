@@ -36,8 +36,17 @@ export class MainMenuScene extends Phaser.Scene {
 
     const start = this.add
       .text(cx, 320, 'PRESS ENTER OR CLICK TO START', impactStyle(26, COLORS.ult))
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
     this.tweens.add({ targets: start, alpha: 0.35, duration: 650, yoyo: true, repeat: -1 });
+
+    const training = this.add
+      .text(cx, 372, 'TRAINING MODE  (T)', impactStyle(20, COLORS.energy))
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    training.on('pointerover', () => training.setScale(1.06));
+    training.on('pointerout', () => training.setScale(1));
+    this.add.text(cx, 400, 'a dummy to test any move on, with infinite energy', textStyle(12, COLORS.muted)).setOrigin(0.5);
 
     this.add
       .text(
@@ -49,8 +58,14 @@ export class MainMenuScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const go = () => this.scene.start('CharacterSelect');
+    const train = () => this.scene.start('CharacterSelect', { training: true });
     this.input.keyboard?.once('keydown-ENTER', go);
     this.input.keyboard?.once('keydown-SPACE', go);
-    this.input.once('pointerdown', go);
+    this.input.keyboard?.once('keydown-T', train);
+    training.once('pointerdown', train);
+    // Clicking anywhere else starts a normal match.
+    this.input.once('pointerdown', (_p: Phaser.Input.Pointer, over: unknown[]) => {
+      if (!over.includes(training)) go();
+    });
   }
 }

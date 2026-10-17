@@ -107,7 +107,7 @@ export class SkillBar {
           s.bg.setStrokeStyle(2, form.color);
         } else {
           const ready = f.canTransform;
-          s.cost.setText(`${form.energyCost} EN · <${Math.round(form.hpThreshold * 100)}% HP`).setColor(hex(ready ? COLORS.energy : COLORS.muted));
+          s.cost.setText(f.sandbox ? 'ANY TIME' : `${form.energyCost} EN · <${Math.round(form.hpThreshold * 100)}% HP`).setColor(hex(ready ? COLORS.energy : COLORS.muted));
           s.shade.setVisible(!ready).setScale(1, 1);
           s.bg.setStrokeStyle(ready ? 3 : 2, ready ? form.color : COLORS.border);
         }

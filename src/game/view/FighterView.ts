@@ -64,6 +64,12 @@ export class FighterView {
       this.headY = r * 0.85 - r * SPRITE_SCALE * CHARACTER_HEIGHT;
       this.body.add(this.sprite);
       this.playAnim('idle');
+    } else if (f.def.id === 'dummy') {
+      // The training dummy: a bullseye ball.
+      this.headY = -r - 9;
+      this.body.add(scene.add.circle(0, 0, r, f.def.color).setStrokeStyle(3, f.def.accent));
+      this.body.add(scene.add.circle(0, 0, r * 0.64, 0xffffff));
+      this.body.add(scene.add.circle(0, 0, r * 0.3, f.def.color));
     } else {
       this.headY = -r - 9;
       this.body.add(scene.add.circle(0, 0, r, f.def.color).setStrokeStyle(3, f.def.accent));
@@ -86,7 +92,7 @@ export class FighterView {
 
     this.hpBar = scene.add.graphics();
     const tag = scene.add
-      .text(0, this.headY - 13, isPlayer ? 'YOU' : 'CPU', textStyle(9, isPlayer ? COLORS.energy : COLORS.danger, { fontStyle: 'bold' }))
+      .text(0, this.headY - 13, f.def.id === 'dummy' ? 'DUMMY' : isPlayer ? 'YOU' : 'CPU', textStyle(9, isPlayer ? COLORS.energy : COLORS.danger, { fontStyle: 'bold' }))
       .setOrigin(0.5);
     this.status = scene.add.text(0, this.headY - 25, '', textStyle(11, 0xffffff, { fontStyle: 'bold' })).setOrigin(0.5);
 
@@ -193,8 +199,11 @@ export class FighterView {
     // Overhead HP bar.
     const frac = f.hp / f.maxHp;
     this.hpBar.clear();
-    this.hpBar.fillStyle(0x000000, 0.6).fillRect(-BAR_W / 2 - 1, this.headY - 4, BAR_W + 2, 6);
-    this.hpBar.fillStyle(hpColor(frac)).fillRect(-BAR_W / 2, this.headY - 3, BAR_W * frac, 4);
+    // The dummy can't be hurt, so it gets no health bar.
+    if (this.f.def.id !== 'dummy') {
+      this.hpBar.fillStyle(0x000000, 0.6).fillRect(-BAR_W / 2 - 1, this.headY - 4, BAR_W + 2, 6);
+      this.hpBar.fillStyle(hpColor(frac)).fillRect(-BAR_W / 2, this.headY - 3, BAR_W * frac, 4);
+    }
   }
 
   /**

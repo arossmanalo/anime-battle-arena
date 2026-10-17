@@ -71,6 +71,10 @@ export class Fighter {
   dash: Dash | null = null;
   channel: Channel | null = null;
   form: FormDef | null = null;
+  /** Training mode player: infinite energy, can't be hurt, can transform or revert any time. */
+  sandbox = false;
+  /** Where the training dummy stands when it isn't being knocked around. */
+  home: Vec = vec();
   /** Seconds until the default attack can start again. */
   attackCd = 0;
   /** A default attack in its wind-up. Cancelled by stuns and by casting a skill. */
@@ -171,6 +175,7 @@ export class Fighter {
   /** True when the transformation is available right now. */
   get canTransform(): boolean {
     const f = this.def.form;
+    if (this.sandbox) return !!f && this.alive;
     return (
       !!f &&
       !this.form &&

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TRAINING_DUMMY } from '../src/data/dummy';
 import { ROSTER, fighterById } from '../src/data/fighters';
 import { applyEffects, gainUlt, takeDamage } from '../src/sim/effects';
 import { Rng } from '../src/sim/rng';
@@ -418,5 +419,92 @@ describe('default attacks', () => {
       expect(a.range).toBeGreaterThan(0);
       if (a.style === 'ranged') expect(a.speed).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('training mode', () => {
+  function training(id = 'gojo') {
+    return new Simulation({
+      seed: 1,
+      idleFallback: 0,
+      training: true,
+      teams: [[{ def: fighterById(id), controller: 'player' }], [{ def: TRAINING_DUMMY, controller: 'dummy' }]],
+    });
+  }
+
+  it('gives the player infinite energy and a full ultimate meter', () => {
+    const sim = training();
+    const [p] = sim.fighters;
+    p.energy = 0;
+    p.ult = 0;
+    sim.step();
+    expect(p.energy).toBe(p.maxEnergy);
+    expect(p.ult).toBe(p.maxUlt);
+    expect(sim.tryCast(p, 4)).toBeNull();
+    sim.step();
+    expect(p.ult).toBe(p.maxUlt);
+  });
+
+  it('never ends, and the dummy cannot be killed', () => {
+    const sim = training();
+    const [p, d] = sim.fighters;
+    p.invuln = 0;
+    applyEffects(ctx, p, d, [{ type: 'damage', amount: 99999 }], p.skill(0), p.pos);
+    sim.step();
+    expect(d.hp).toBe(d.maxHp);
+    expect(d.alive).toBe(true);
+    for (let i = 0; i < 60 * 120; i++) sim.step();
+    expect(sim.over).toBe(false);
+    expect(sim.winnerTeam).toBe(-1);
+  });
+
+  it('the dummy stays put, returns after a knockback and can pace', () => {
+    const sim = training();
+    const [, d] = sim.fighters;
+    const home = { ...d.home };
+    d.knock = { x: 900, y: 0 };
+    for (let i = 0; i < 60 * 3; i++) sim.step();
+    expect(Math.hypot(d.pos.x - home.x, d.pos.y - home.y)).toBeLessThan(8);
+    sim.dummyMode = 'pace';
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < 60 * 8; i++) {
+      sim.step();
+      minY = Math.min(minY, d.pos.y);
+      maxY = Math.max(maxY, d.pos.y);
+    }
+    expect(maxY - minY).toBeGreaterThan(80);
+  });
+
+  it('can transform any time, and again to turn the form off', () => {
+    const sim = training('goku');
+    const [p] = sim.fighters;
+    expect(p.canTransform).toBe(true);
+    sim.tryTransform(p);
+    expect(p.transformed).toBe(true);
+    expect(p.canTransform).toBe(true);
+    sim.tryTransform(p);
+    expect(p.transformed).toBe(false);
+  });
+
+  it('can switch cooldowns off and reset everything', () => {
+    const sim = training('naruto');
+    const [p, d] = sim.fighters;
+    sim.tryCast(p, 0);
+    expect(p.cooldown(p.skill(0))).toBeGreaterThan(0);
+    sim.noCooldowns = true;
+    sim.step();
+    expect(p.cooldown(p.skill(0))).toBe(0);
+    d.stats.damageTaken = 50;
+    d.pos = { x: 10, y: 10 };
+    sim.resetTraining();
+    expect(d.stats.damageTaken).toBe(0);
+    expect(d.pos).toEqual(d.home);
+  });
+
+  it('is not used by normal matches', () => {
+    const sim = duel('naruto', 'goku');
+    expect(sim.training).toBe(false);
+    expect(sim.fighters.every((f) => !f.sandbox)).toBe(true);
   });
 });

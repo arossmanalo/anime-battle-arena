@@ -16,6 +16,8 @@ Pick your fighter and a CPU opponent. Both fighters move and dodge on their own.
 | `M` | Mute / unmute |
 | `Esc` | Pause |
 
+**Training mode** (`T` on the title screen, or the Training button): pick a fighter and test it on a bullseye dummy that never fights back or dies. You get infinite energy and a full ultimate meter, can use your form any time (`T` again turns it off), and a panel shows total damage, last hit, best hit and DPS. Keys: `R` reset the field and stats, `C` toggle skills having no cooldown, `D` dummy still / pacing / strafing.
+
 Skills can have their own effect sprites (`public/assets/fx/<skill id>/`), imported with `npm run import-fx`; see [docs/FX_SPEC.md](docs/FX_SPEC.md). Anything without art uses the generic effect.
 
 Fighters also use a **default attack** automatically whenever an enemy is in reach (a punch/slash combo for melee fighters, a weak energy bolt for Vegeta and Gojo). It costs no energy and skills can interrupt it. Tune it in the `attack` block of each fighter file.

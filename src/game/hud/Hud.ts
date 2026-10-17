@@ -128,7 +128,8 @@ export class Hud {
   ) {
     // 1v1 for now: first fighter of each team. Tag teams will stack extra mini-panels here.
     const [left, right] = [0, 1].map((t) => sim.fighters.find((f) => f.team === t)!);
-    this.panels = [new SidePanel(scene, left, parent, 1), new SidePanel(scene, right, parent, -1)];
+    // Training has no opponent panel (the training panel takes its place) and no clock.
+    this.panels = sim.training ? [new SidePanel(scene, left, parent, 1)] : [new SidePanel(scene, left, parent, 1), new SidePanel(scene, right, parent, -1)];
     const box = scene.add.rectangle(GAME_WIDTH / 2, 30, 64, 46, COLORS.panel).setStrokeStyle(2, COLORS.border);
     this.timer = scene.add.text(GAME_WIDTH / 2, 30, '99', impactStyle(30)).setOrigin(0.5);
     parent.add([box, this.timer]);
@@ -137,7 +138,7 @@ export class Hud {
   update(dt: number): void {
     this.panels.forEach((p) => p.update(dt));
     const left = Math.ceil(this.sim.timeLeft);
-    this.timer.setText(String(left));
-    this.timer.setColor(left <= 10 ? hex(COLORS.danger) : hex(COLORS.text));
+    this.timer.setText(this.sim.training ? '∞' : String(left));
+    this.timer.setColor(!this.sim.training && left <= 10 ? hex(COLORS.danger) : hex(COLORS.text));
   }
 }
