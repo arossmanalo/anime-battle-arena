@@ -27,7 +27,7 @@ export const naruto: FighterDef = {
   initials: 'NU',
   color: 0xff8a1f,
   accent: 0x1b2a6b,
-  hp: 330,
+  hp: 332,
   speed: 175,
   radius: 18,
   energyRegen: 7,
