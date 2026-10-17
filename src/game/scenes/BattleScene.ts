@@ -9,7 +9,7 @@ import { Announcer } from '../hud/Announcer';
 import { Hud } from '../hud/Hud';
 import { SkillBar } from '../hud/SkillBar';
 import { PlayerController } from '../input/PlayerController';
-import { ARENA_HEIGHT, ARENA_WIDTH, ARENA_X, ARENA_Y, GAME_HEIGHT, GAME_WIDTH } from '../layout';
+import { ARENA_HEIGHT, ARENA_WIDTH, ARENA_X, ARENA_Y, fitCamera, GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from '../layout';
 import type { MatchResult, MatchSetup } from '../match';
 import { COLORS, impactStyle, shade, textStyle } from '../theme';
 import { FighterView } from '../view/FighterView';
@@ -77,7 +77,9 @@ export class BattleScene extends Phaser.Scene {
     // so camera zoom/shake moves the arena but never the HUD.
     this.world = this.add.container(ARENA_X, ARENA_Y);
     this.ui = this.add.container(0, 0);
-    this.uiCam = this.cameras.add(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    fitCamera(this.cameras.main);
+    this.uiCam = this.cameras.add(0, 0, GAME_WIDTH * RENDER_SCALE, GAME_HEIGHT * RENDER_SCALE);
+    fitCamera(this.uiCam);
     this.cameras.main.ignore(this.ui);
     this.uiCam.ignore(this.world);
 
@@ -309,10 +311,10 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.killTweensOf(this);
     this.timeScale = slow;
     cam.pan(ARENA_X + f.pos.x, ARENA_Y + f.pos.y, 200, 'Sine.easeOut', true);
-    cam.zoomTo(zoom, 200, 'Sine.easeOut', true);
+    cam.zoomTo(zoom * RENDER_SCALE, 200, 'Sine.easeOut', true);
     this.time.delayedCall(durationMs, () => {
       cam.pan(GAME_WIDTH / 2, GAME_HEIGHT / 2, 300, 'Sine.easeInOut', true);
-      cam.zoomTo(1, 300, 'Sine.easeInOut', true);
+      cam.zoomTo(RENDER_SCALE, 300, 'Sine.easeInOut', true);
       this.tweens.add({ targets: this, timeScale: 1, duration: 300 });
     });
   }

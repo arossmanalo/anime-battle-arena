@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { ROSTER } from '../../data/fighters';
 import type { Difficulty, FighterDef } from '../../sim/types';
 import { sfx } from '../audio/Sfx';
-import { GAME_HEIGHT, GAME_WIDTH } from '../layout';
+import { GAME_HEIGHT, GAME_WIDTH, fitCamera } from '../layout';
 import { newSeed, type MatchSetup } from '../match';
 import { COLORS, hex, impactStyle, shade, textStyle } from '../theme';
 import { makePortrait } from '../view/portrait';
@@ -40,6 +40,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
 
   create(): void {
+    fitCamera(this.cameras.main);
     this.add.text(GAME_WIDTH / 2, 36, 'CHOOSE YOUR FIGHTERS', impactStyle(34)).setOrigin(0.5);
     this.add
       .text(GAME_WIDTH / 2, 70, 'Pick your fighter, then the opponent. Click a side panel to change it.', textStyle(13, COLORS.muted))

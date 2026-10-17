@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { fighterById } from '../../data/fighters';
 import { sfx } from '../audio/Sfx';
-import { GAME_HEIGHT, GAME_WIDTH } from '../layout';
+import { GAME_HEIGHT, GAME_WIDTH, fitCamera } from '../layout';
 import { newSeed, type MatchResult } from '../match';
 import { COLORS, hex, impactStyle, textStyle } from '../theme';
 import { makePortrait } from '../view/portrait';
@@ -18,6 +18,7 @@ export class ResultsScene extends Phaser.Scene {
   }
 
   create(): void {
+    fitCamera(this.cameras.main);
     const r = this.result;
     const cx = GAME_WIDTH / 2;
     const playerWon = r.winnerTeam === 0;

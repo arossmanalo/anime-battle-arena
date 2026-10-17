@@ -1,4 +1,5 @@
 import type Phaser from 'phaser';
+import { RENDER_SCALE } from './layout';
 
 /** Fonts, colours and text styles shared by every scene. */
 export const FONT_UI = '"Trebuchet MS", "Segoe UI", Arial, sans-serif';
@@ -43,6 +44,8 @@ export const textStyle = (size: number, color = COLORS.text, extra: Phaser.Types
   fontFamily: FONT_UI,
   fontSize: `${size}px`,
   color: hex(color),
+  // Rasterise text at the render scale so it stays crisp when the camera zooms it up.
+  resolution: RENDER_SCALE,
   ...extra,
 });
 
@@ -52,4 +55,5 @@ export const impactStyle = (size: number, color = COLORS.text, stroke = 0x000000
   color: hex(color),
   stroke: hex(stroke),
   strokeThickness: Math.max(3, Math.round(size / 8)),
+  resolution: RENDER_SCALE,
 });

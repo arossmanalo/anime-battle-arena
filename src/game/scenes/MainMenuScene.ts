@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { ROSTER } from '../../data/fighters';
-import { GAME_HEIGHT, GAME_WIDTH } from '../layout';
+import { GAME_HEIGHT, GAME_WIDTH, fitCamera } from '../layout';
 import { COLORS, impactStyle, textStyle } from '../theme';
 
 export class MainMenuScene extends Phaser.Scene {
@@ -9,6 +9,7 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   create(): void {
+    fitCamera(this.cameras.main);
     const cx = GAME_WIDTH / 2;
 
     // Drifting fighter-coloured embers behind the title.

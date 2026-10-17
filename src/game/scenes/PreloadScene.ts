@@ -13,7 +13,7 @@ import {
   type SfxName,
   type SheetInfo,
 } from '../assets';
-import { GAME_HEIGHT, GAME_WIDTH } from '../layout';
+import { GAME_HEIGHT, GAME_WIDTH, fitCamera } from '../layout';
 import { COLORS, textStyle } from '../theme';
 
 /**
@@ -26,6 +26,7 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   create(): void {
+    fitCamera(this.cameras.main);
     void this.loadManifest().then((manifest) => this.loadAssets(manifest));
   }
 
