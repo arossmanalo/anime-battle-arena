@@ -1,0 +1,199 @@
+import { baseDamage } from '../effects';
+import type { Fighter } from '../Fighter';
+import type { Simulation } from '../Simulation';
+import type { AiProfile, Difficulty, SkillDef, SkillSlot, Vec } from '../types';
+import { add, dist, distToSegment, norm, perp, scale, sub } from '../vec';
+
+interface DifficultyParams {
+  /** Seconds between decisions — lower reacts faster. */
+  think: number;
+  /** ± fraction of random noise on skill scores. */
+  noise: number;
+  /** Chance to notice and dodge an incoming attack on a given decision. */
+  dodge: number;
+}
+
+const DIFFICULTY: Record<Difficulty, DifficultyParams> = {
+  easy: { think: 0.45, noise: 0.5, dodge: 0.25 },
+  normal: { think: 0.25, noise: 0.25, dodge: 0.55 },
+  hard: { think: 0.12, noise: 0.1, dodge: 0.85 },
+};
+
+/** Preferred distance to the target, on top of both fighters' radii. */
+const PREFERRED_RANGE: Record<AiProfile, number> = {
+  rushdown: 30,
+  balanced: 140,
+  zoner: 240,
+};
+
+const RANGE_SLACK = 40;
+const WALL_MARGIN = 50;
+const DANGER_RADIUS = 180;
+/** Skills scoring below this are held back. */
+const MIN_SCORE = 6;
+
+type MoveMode = 'approach' | 'retreat' | 'strafe' | 'dodge';
+
+/**
+ * Utility AI: moves every tick, re-decides every `think` seconds. Movement is always AI-driven;
+ * skills are only chosen when the Simulation allows it (AI fighters, or a player on Auto / idle).
+ */
+export class UtilityAI {
+  mode: MoveMode = 'approach';
+  private thinkTimer = 0;
+  private strafeDir: 1 | -1 = 1;
+  private dodgeDir: Vec = { x: 0, y: 0 };
+  private readonly params: DifficultyParams;
+
+  constructor(
+    private readonly f: Fighter,
+    private readonly sim: Simulation,
+    difficulty: Difficulty,
+  ) {
+    this.params = DIFFICULTY[difficulty];
+    this.strafeDir = sim.rng.chance(0.5) ? 1 : -1;
+  }
+
+  update(dt: number, allowSkills: boolean): void {
+    const target = this.sim.nearestEnemy(this.f);
+    if (!target) {
+      this.f.vel = { x: 0, y: 0 };
+      return;
+    }
+
+    this.thinkTimer -= dt;
+    if (this.thinkTimer <= 0) {
+      this.thinkTimer = this.params.think;
+      this.decideMove(target);
+      if (allowSkills && !this.f.stunned) {
+        if (this.f.canTransform) this.sim.tryTransform(this.f);
+        else if (!this.f.busy) {
+          const slot = this.chooseSkill(target);
+          if (slot !== null) this.sim.tryCast(this.f, slot);
+        }
+      }
+    }
+    this.steer(target);
+  }
+
+  private decideMove(target: Fighter): void {
+    const threat = this.incomingThreat();
+    if (threat && this.sim.rng.chance(this.params.dodge)) {
+      this.mode = 'dodge';
+      // Step sideways out of the attack's path, away from the nearer wall.
+      let d = perp(threat);
+      const probe = add(this.f.pos, scale(d, 60));
+      if (this.nearWall(probe)) d = scale(d, -1);
+      this.dodgeDir = d;
+      return;
+    }
+
+    const gap = dist(this.f.pos, target.pos) - this.f.def.radius - target.def.radius;
+    const preferred = PREFERRED_RANGE[this.f.def.aiProfile];
+    if (gap > preferred + RANGE_SLACK) this.mode = 'approach';
+    else if (gap < preferred - RANGE_SLACK && this.f.def.aiProfile !== 'rushdown') this.mode = 'retreat';
+    else this.mode = 'strafe';
+
+    if (this.sim.rng.chance(0.15) || this.nearWall(this.f.pos)) this.strafeDir = this.strafeDir === 1 ? -1 : 1;
+  }
+
+  private steer(target: Fighter): void {
+    const toTarget = norm(sub(target.pos, this.f.pos));
+    let dir: Vec;
+    switch (this.mode) {
+      case 'approach':
+        dir = add(toTarget, scale(perp(toTarget), 0.3 * this.strafeDir));
+        break;
+      case 'retreat':
+        dir = add(scale(toTarget, -1), scale(perp(toTarget), 0.6 * this.strafeDir));
+        break;
+      case 'strafe':
+        dir = scale(perp(toTarget), this.strafeDir);
+        break;
+      case 'dodge':
+        dir = this.dodgeDir;
+        break;
+    }
+    dir = norm(add(norm(dir), this.wallRepulsion()));
+    this.f.vel = scale(dir, this.f.speed);
+    if (Math.abs(toTarget.x) > 0.1) this.f.facing = toTarget.x > 0 ? 1 : -1;
+  }
+
+  /** Direction of the most dangerous incoming projectile or beam, if any. */
+  private incomingThreat(): Vec | null {
+    const me = this.f;
+    for (const p of this.sim.projectiles) {
+      if (p.owner.team === me.team) continue;
+      const toMe = sub(me.pos, p.pos);
+      if (Math.hypot(toMe.x, toMe.y) > DANGER_RADIUS) continue;
+      const heading = norm(p.vel);
+      const ahead = add(p.pos, scale(heading, DANGER_RADIUS));
+      if (distToSegment(me.pos, p.pos, ahead) < me.def.radius + p.radius + 12) return heading;
+    }
+    for (const b of this.sim.beams) {
+      if (b.owner.team === me.team) continue;
+      const end = add(b.owner.pos, scale(b.dir, b.length));
+      if (distToSegment(me.pos, b.owner.pos, end) < b.halfWidth + me.def.radius + 20) return b.dir;
+    }
+    for (const e of this.sim.enemiesOf(me)) {
+      // A wind-up aimed at us is a threat too.
+      if (e.casting && dist(e.pos, me.pos) < e.casting.skill.range) return norm(sub(me.pos, e.pos));
+    }
+    return null;
+  }
+
+  private chooseSkill(target: Fighter): SkillSlot | null {
+    const d = dist(this.f.pos, target.pos);
+    let best: SkillSlot | null = null;
+    let bestScore = MIN_SCORE;
+    for (const slot of [0, 1, 2, 3, 4] as SkillSlot[]) {
+      const skill = this.f.skill(slot);
+      if (this.f.cooldown(skill) > 0 || !this.f.canAfford(skill)) continue;
+      const score = this.score(skill, target, d) * (1 + this.sim.rng.range(-1, 1) * this.params.noise);
+      if (score > bestScore) {
+        bestScore = score;
+        best = slot;
+      }
+    }
+    return best;
+  }
+
+  private score(skill: SkillDef, target: Fighter, d: number): number {
+    if (skill.kind === 'buff') {
+      const buffs = (skill.selfEffects ?? []).map((e) => e.type);
+      const active = this.f.statuses.some((s) => (buffs as string[]).includes(s.type));
+      if (active) return 0;
+      return 14 + (this.f.hp < this.f.maxHp * 0.5 ? 10 : 0) + (d < 200 ? 4 : 0);
+    }
+
+    let expected = baseDamage(skill) * (skill.count ?? 1);
+    if ((skill.kind === 'beam' || skill.kind === 'zone') && skill.duration && skill.tickInterval) {
+      // Assume a moving target only eats about half the ticks.
+      expected *= (skill.duration / skill.tickInterval) * 0.5;
+    }
+    if (skill.effects.some((e) => e.type === 'stun')) expected += 6;
+
+    const reach = skill.range + target.def.radius;
+    const rangeFit = d <= reach ? 1 : d <= reach * 1.4 ? 0.35 : 0.05;
+    const stunnedBonus = target.stunned ? 1.4 : 1;
+    const ultBonus = skill.ultimate ? 1.3 : 1;
+    // Mild preference for cheaper skills so energy stays available.
+    const costPenalty = 1 / (1 + skill.energyCost / 80);
+    return expected * rangeFit * stunnedBonus * ultBonus * costPenalty;
+  }
+
+  private nearWall(p: Vec): boolean {
+    const { width, height } = this.sim.arena;
+    return p.x < WALL_MARGIN || p.y < WALL_MARGIN || p.x > width - WALL_MARGIN || p.y > height - WALL_MARGIN;
+  }
+
+  private wallRepulsion(): Vec {
+    const { width, height } = this.sim.arena;
+    const p = this.f.pos;
+    const push = (dist: number) => (dist < WALL_MARGIN ? (1 - dist / WALL_MARGIN) * 1.5 : 0);
+    return {
+      x: push(p.x) - push(width - p.x),
+      y: push(p.y) - push(height - p.y),
+    };
+  }
+}

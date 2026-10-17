@@ -21,6 +21,7 @@ export interface SkillDef {
   id: string;
   name: string;
   kind: SkillKind;
+  /** Energy spent on cast. Ultimates ignore this and spend the full ultimate meter instead. */
   energyCost: number;
   /** Seconds. */
   cooldown: number;
