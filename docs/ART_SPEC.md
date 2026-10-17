@@ -30,7 +30,7 @@ Frame counts are recommendations. A row can have any number of frames up to the 
 
 **Frame rules**
 
-- **64×64 px** per frame (change it in `sheet.json` if needed), on a **transparent background**.
+- **64×64 px** per frame (or any square size set in `sheet.json`; `import-sheet` uses 128×128), on a **transparent background**. Larger frames are drawn at the same on-screen size.
 - **Top-down 3/4 view, facing right.** The game mirrors the sprite when the fighter faces left.
 - Character about **48 px tall**, centred horizontally, **feet at y ≈ 56** (8 px above the bottom edge). The game lines the feet up with the shadow.
 - Leave a few pixels of margin. Nothing should touch the frame edges, or it will bleed between frames.
@@ -58,9 +58,30 @@ Without `frames`, every row is assumed to be filled to the sheet's full width.
 
 `arena/floor.png`: a seamless tile (64×64 to 256×256), top-down, mid-dark so the effects stay readable. The game tiles it across the 900×372 arena.
 
+## Making sprites with ChatGPT (recommended)
+
+Gojo's current sprite was made this way. ChatGPT keeps a character's design consistent across frames well; its layout is never pixel-exact, so `import-sheet` cleans that up.
+
+1. Get a design you like, then ask for the sheet with this prompt:
+
+   > Create a pixel-art sprite sheet of the same character (keep the exact same design, colours and proportions as before).
+   > - Transparent background. No text, no labels, no borders.
+   > - Every frame shows the character from a side / three-quarter view **facing right**.
+   > - Arrange it as a grid: **5 rows**, up to 6 frames per row, all cells the same size, character centred in each cell, **feet on the same baseline** in every frame, same scale in every frame.
+   > - Row 1: idle fighting stance (4 frames). Row 2: running (6 frames). Row 3: casting an attack with one hand forward (4 frames). Row 4: recoiling from a hit (2 frames). Row 5: falling down knocked out (4 frames).
+   > - No energy effects, swirls, speed lines or particles. Character only.
+
+2. Save the image (PNG or WebP) and import it:
+   ```
+   npm run import-sheet -- path/to/image.webp gojo --copy-to "C:/Users/<you>/Pictures/ABA Sprites/Characters/Gojo"
+   ```
+   It removes the background (transparent, or a flat colour flood-filled from the edges), finds each sprite, groups them into the five rows, scales every frame by one shared factor into 128×128 cells with the feet on a common baseline, and writes `sheet.png`, `sheet.json` and a head-crop `portrait.png`. `--copy-to` also saves those plus the source image elsewhere.
+3. If it reports the wrong number of rows, the image probably has text, effects or frames that overlap vertically; regenerate or tidy it up and run again.
+4. Restart `npm run dev`.
+
 ## Making sprites with the LPC generator (no drawing needed)
 
-The [Universal LPC Spritesheet Character Generator](https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/) builds a fully animated top-down character from dropdowns. Gojo was made this way.
+The [Universal LPC Spritesheet Character Generator](https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/) builds a fully animated top-down character from dropdowns. Gojo's first sprite was made this way (see git history).
 
 1. Build the character in the generator, then click **Spritesheet (PNG)**.
 2. Run the importer with the downloaded file and the fighter id:
@@ -68,7 +89,7 @@ The [Universal LPC Spritesheet Character Generator](https://liberatedpixelcup.gi
    npm run import-lpc -- path/to/download.png sasuke
    ```
    It writes `sheet.png`, `sheet.json` and a cropped `portrait.png` into `public/assets/fighters/<id>/`, taking the right-facing combat-idle, run and spellcast rows plus the hurt row.
-3. Copy the generator's credits into `public/assets/CREDITS.md` (see Gojo's entry for the format) and save the generator URL there, so the character can be rebuilt.
+3. Copy the generator's credits into `public/assets/CREDITS.md` (list each layer's authors and licences) and save the generator URL there, so the character can be rebuilt.
 4. Restart `npm run dev`.
 
 LPC art is CC-BY-SA / OGA-BY / GPL. Always credit the authors.

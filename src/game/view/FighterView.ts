@@ -6,8 +6,10 @@ import { COLORS, hpColor, impactStyle, shade, textStyle } from '../theme';
 const BAR_W = 40;
 /** How long the hit animation holds after taking damage, in seconds. */
 const HIT_ANIM_TIME = 0.18;
-/** Sprite frames are 64px; draw them a bit larger than the fighter's collision circle. */
-const SPRITE_SCALE = 3.6;
+/** A frame is drawn this many radii wide; the character fills ~75% of it, so it stands taller than its collision circle. */
+const SPRITE_SCALE = 5;
+/** Fraction of a frame's height the standing character fills (48/64 in the spec). */
+const CHARACTER_HEIGHT = 0.75;
 
 /**
  * Draws one fighter: shadow, aura, body (sprite when available, placeholder disc otherwise),
@@ -29,6 +31,11 @@ export class FighterView {
   private lastX: number;
   private lastY: number;
   private koPlayed = false;
+  /** Top of the drawn body (sprite head or placeholder disc); overhead UI stacks above it. */
+  readonly headY: number;
+  /** Centre and half-height of the drawn body, for rings and bubbles that wrap it. */
+  private readonly bodyY: number;
+  private readonly bodyRadius: number;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -51,22 +58,34 @@ export class FighterView {
     if (scene.textures.exists(key)) {
       // Feet sit on the shadow; see docs/ART_SPEC.md for the frame layout.
       this.sprite = scene.add.sprite(0, r * 0.85, key).setOrigin(0.5, 0.875).setDisplaySize(r * SPRITE_SCALE, r * SPRITE_SCALE);
+      this.headY = r * 0.85 - r * SPRITE_SCALE * CHARACTER_HEIGHT;
       this.body.add(this.sprite);
       this.playAnim('idle');
     } else {
+      this.headY = -r - 9;
       this.body.add(scene.add.circle(0, 0, r, f.def.color).setStrokeStyle(3, f.def.accent));
       this.body.add(scene.add.circle(-r * 0.3, -r * 0.35, r * 0.28, shade(f.def.color, 0.5), 0.6));
       this.body.add(scene.add.text(0, 1, f.def.initials, impactStyle(13, 0xffffff)).setOrigin(0.5));
     }
     this.facingMark = scene.add.triangle(r + 5, 0, 0, -5, 0, 5, 7, 0, f.def.accent).setStrokeStyle(1, 0xffffff);
     this.flash = scene.add.circle(0, 0, r + 1, 0xffffff, 0.9).setVisible(false);
-    this.shield = scene.add.circle(0, 0, r + 7).setStrokeStyle(2, 0x9fd8ff, 0.9).setFillStyle(0x9fd8ff, 0.12).setVisible(false);
+    // The shield bubble wraps whatever is drawn: the disc, or the full height of a sprite.
+    const bodyTop = this.sprite ? this.headY : -r;
+    const bodyBottom = this.sprite ? r * 0.85 : r;
+    this.bodyY = (bodyTop + bodyBottom) / 2;
+    this.bodyRadius = (bodyBottom - bodyTop) / 2;
+    this.aura.setY(this.bodyY);
+    this.shield = scene.add
+      .circle(0, this.bodyY, this.bodyRadius + 7)
+      .setStrokeStyle(2, 0x9fd8ff, 0.9)
+      .setFillStyle(0x9fd8ff, 0.12)
+      .setVisible(false);
 
     this.hpBar = scene.add.graphics();
     const tag = scene.add
-      .text(0, -r - 22, isPlayer ? 'YOU' : 'CPU', textStyle(9, isPlayer ? COLORS.energy : COLORS.danger, { fontStyle: 'bold' }))
+      .text(0, this.headY - 13, isPlayer ? 'YOU' : 'CPU', textStyle(9, isPlayer ? COLORS.energy : COLORS.danger, { fontStyle: 'bold' }))
       .setOrigin(0.5);
-    this.status = scene.add.text(0, -r - 34, '', textStyle(11, 0xffffff, { fontStyle: 'bold' })).setOrigin(0.5);
+    this.status = scene.add.text(0, this.headY - 25, '', textStyle(11, 0xffffff, { fontStyle: 'bold' })).setOrigin(0.5);
 
     // With a real sprite the art itself shows facing and the hit flash tints the sprite instead.
     if (this.sprite) this.facingMark.setVisible(false);
@@ -130,11 +149,11 @@ export class FighterView {
       const p = 1 - f.casting.remaining / Math.max(0.01, f.casting.skill.castTime);
       this.charge.lineStyle(3, f.casting.skill.color, 0.9);
       this.charge.beginPath();
-      this.charge.arc(0, 0, f.def.radius + 9, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p);
+      this.charge.arc(0, this.bodyY, this.bodyRadius + 9, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p);
       this.charge.strokePath();
       if (f.casting.skill.ultimate) {
         this.charge.fillStyle(f.casting.skill.color, 0.15 + 0.25 * p);
-        this.charge.fillCircle(0, 0, f.def.radius + 14 + 30 * p);
+        this.charge.fillCircle(0, this.bodyY, this.bodyRadius + 14 + 30 * p);
       }
     }
 
@@ -155,11 +174,10 @@ export class FighterView {
     this.status.setText(marks.join(' '));
 
     // Overhead HP bar.
-    const r = f.def.radius;
     const frac = f.hp / f.maxHp;
     this.hpBar.clear();
-    this.hpBar.fillStyle(0x000000, 0.6).fillRect(-BAR_W / 2 - 1, -r - 13, BAR_W + 2, 6);
-    this.hpBar.fillStyle(hpColor(frac)).fillRect(-BAR_W / 2, -r - 12, BAR_W * frac, 4);
+    this.hpBar.fillStyle(0x000000, 0.6).fillRect(-BAR_W / 2 - 1, this.headY - 4, BAR_W + 2, 6);
+    this.hpBar.fillStyle(hpColor(frac)).fillRect(-BAR_W / 2, this.headY - 3, BAR_W * frac, 4);
   }
 
   /** Picks the animation from sim state: hit > cast > run > idle. */

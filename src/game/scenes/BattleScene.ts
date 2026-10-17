@@ -203,12 +203,12 @@ export class BattleScene extends Phaser.Scene {
         case 'skillCast': {
           const f = this.sim.fighter(e.uid)!;
           if (e.skill.ultimate) {
-            this.announcer.callout(f.pos.x, f.pos.y, e.skill.name, e.skill.color, true);
+            this.announcer.callout(f.pos.x, this.calloutY(f), e.skill.name, e.skill.color, true);
             this.cinematic(f, 0.35, 900, 1.25);
             // The wind-up plays in slow motion, so stretch the charge sound to match.
             this.sfx.play('charge', { duration: e.skill.castTime / 0.35 });
           } else {
-            this.announcer.callout(f.pos.x, f.pos.y, e.skill.name, e.skill.color);
+            this.announcer.callout(f.pos.x, this.calloutY(f), e.skill.name, e.skill.color);
           }
           break;
         }
@@ -294,6 +294,11 @@ export class BattleScene extends Phaser.Scene {
       case 'aoe':
         break; // its impact event plays the explosion
     }
+  }
+
+  /** Anchor for a skill callout: just above the fighter's head and overhead bar. */
+  private calloutY(f: Fighter): number {
+    return f.pos.y + (this.views.get(f.uid)?.headY ?? -f.def.radius) + 18;
   }
 
   /** Slow-motion plus a zoom toward a fighter, then back to normal. */

@@ -1,11 +1,11 @@
 {
-  "frameWidth": 64,
-  "frameHeight": 64,
+  "frameWidth": 128,
+  "frameHeight": 128,
   "frames": {
-    "idle": 2,
-    "run": 8,
-    "cast": 7,
+    "idle": 4,
+    "run": 6,
+    "cast": 4,
     "hit": 2,
-    "ko": 6
+    "ko": 4
   }
 }
