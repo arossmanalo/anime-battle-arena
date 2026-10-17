@@ -81,7 +81,7 @@ Gojo's current sprite was made this way. ChatGPT keeps a character's design cons
    ```
    npm run import-sheet -- path/to/form.webp naruto --form
    ```
-3. If it reports the wrong number of rows, the image probably has text, effects or frames that overlap vertically; regenerate or tidy it up and run again.
+3. A sheet with only 4 rows (hit and ko merged) is accepted: the first 2 ko frames double as the hit animation. If it reports the wrong number of rows, the image probably has text, effects or frames that overlap vertically; regenerate or tidy it up and run again.
 4. Restart `npm run dev`.
 
 ## Making sprites with the LPC generator (no drawing needed)

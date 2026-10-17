@@ -38,6 +38,8 @@ interface Box {
   area: number;
   /** Sum of x over opaque pixels, for the centre of mass. */
   sumX: number;
+  /** Component labels that make up this sprite. */
+  ids: number[];
 }
 
 const width = (b: Box) => b.right - b.left + 1;
@@ -87,13 +89,13 @@ function removeBackground(data: Buffer, w: number, h: number): string {
 }
 
 /** 8-connected opaque regions. */
-function findComponents(data: Buffer, w: number, h: number): Box[] {
+function findComponents(data: Buffer, w: number, h: number): { boxes: Box[]; label: Int32Array } {
   const label = new Int32Array(w * h).fill(-1);
   const boxes: Box[] = [];
   const stack: number[] = [];
   for (let start = 0; start < w * h; start++) {
     if (label[start] !== -1 || data[start * 4 + 3] === 0) continue;
-    const box: Box = { left: w, top: h, right: 0, bottom: 0, area: 0, sumX: 0 };
+    const box: Box = { left: w, top: h, right: 0, bottom: 0, area: 0, sumX: 0, ids: [boxes.length] };
     label[start] = boxes.length;
     stack.push(start);
     while (stack.length) {
@@ -121,7 +123,7 @@ function findComponents(data: Buffer, w: number, h: number): Box[] {
     }
     boxes.push(box);
   }
-  return boxes;
+  return { boxes, label };
 }
 
 /** How much of the smaller box lies inside the larger one (0-1). Neighbouring frames that merely touch score ~0. */
@@ -140,6 +142,7 @@ function merge(a: Box, b: Box): Box {
     bottom: Math.max(a.bottom, b.bottom),
     area: a.area + b.area,
     sumX: a.sumX + b.sumX,
+    ids: [...a.ids, ...b.ids],
   };
 }
 
@@ -202,8 +205,15 @@ async function main(): Promise<void> {
   const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const { width: w, height: h } = info;
   const bgNote = removeBackground(data, w, h);
-  const { sprites, dropped } = toSprites(findComponents(data, w, h), w * h * MIN_AREA_FRACTION);
+  const { boxes, label } = findComponents(data, w, h);
+  const { sprites, dropped } = toSprites(boxes, w * h * MIN_AREA_FRACTION);
   const rows = toRows(sprites);
+
+  // Sheets with no separate hit row (hit and ko merged into one row of falling frames): reuse the first two ko frames as hit.
+  if (rows.length === ANIMS.length - 1) {
+    rows.splice(ANIMS.indexOf('hit'), 0, rows[ANIMS.indexOf('hit')].slice(0, 2));
+    console.log('Only 4 rows found: using the first 2 frames of the last row as the hit animation too.');
+  }
 
   if (rows.length !== ANIMS.length) {
     console.error(`Found ${rows.length} rows, expected ${ANIMS.length} (${ANIMS.join(', ')}).`);
@@ -225,9 +235,16 @@ async function main(): Promise<void> {
     for (const [c, s] of row.entries()) {
       const sw = Math.max(1, Math.round(width(s) * scale));
       const sh = Math.max(1, Math.round(height(s) * scale));
-      const frame = await source
-        .clone()
-        .extract({ left: s.left, top: s.top, width: width(s), height: height(s) })
+      // Keep only this sprite's own pixels, so a neighbouring sprite that overlaps its box doesn't bleed in.
+      const own = new Set(s.ids);
+      const piece = Buffer.alloc(width(s) * height(s) * 4);
+      for (let y = 0; y < height(s); y++) {
+        for (let x = 0; x < width(s); x++) {
+          const from = (s.top + y) * w + s.left + x;
+          if (own.has(label[from])) data.copy(piece, (y * width(s) + x) * 4, from * 4, from * 4 + 4);
+        }
+      }
+      const frame = await sharp(piece, { raw: { width: width(s), height: height(s), channels: 4 } })
         .resize(sw, sh, { kernel: 'lanczos3' })
         .png()
         .toBuffer();
