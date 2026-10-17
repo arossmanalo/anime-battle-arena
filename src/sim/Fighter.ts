@@ -71,6 +71,13 @@ export class Fighter {
   dash: Dash | null = null;
   channel: Channel | null = null;
   form: FormDef | null = null;
+  /** Seconds until the default attack can start again. */
+  attackCd = 0;
+  /** A default attack in its wind-up. Cancelled by stuns and by casting a skill. */
+  swing: { remaining: number; finisher: boolean } | null = null;
+  /** Index of the next hit in the current combo, and how long until the combo is dropped. */
+  combo = 0;
+  comboTimer = 0;
   /** Seconds of invulnerability left (transform cinematic). */
   invuln = 0;
   auto: boolean;
@@ -127,6 +134,10 @@ export class Fighter {
 
   get stunned(): boolean {
     return this.hasStatus('stun');
+  }
+
+  get swinging(): boolean {
+    return this.swing !== null;
   }
 
   /** Busy fighters cannot start another skill. */

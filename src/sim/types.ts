@@ -85,6 +85,30 @@ export type PassiveEffect =
 
 export type PassiveDef = { id: string; name: string; description: string } & PassiveEffect;
 
+/**
+ * A fighter's default attack: used automatically whenever an enemy is in reach, costs no energy and
+ * works alongside skills. Melee swings need the enemy within `range`; ranged ones fire a weak projectile.
+ */
+export interface AttackDef {
+  name: string;
+  style: 'melee' | 'ranged';
+  /** Damage per hit. The last hit of a combo deals 1.5x and adds knockback. */
+  damage: number;
+  /** melee: reach beyond both fighters' radii. ranged: how far the projectile flies. */
+  range: number;
+  /** Seconds between attacks (the combo finisher takes 1.5x as long to recover). */
+  cooldown: number;
+  /** Seconds from starting the swing to the hit landing. */
+  windup: number;
+  /** Hits in the chain (1 = no combo). */
+  combo: number;
+  /** Knockback on the combo finisher (or on every hit if combo is 1). */
+  knockback?: number;
+  /** ranged: projectile speed (px/s). */
+  speed?: number;
+  color: number;
+}
+
 export type AiProfile = 'rushdown' | 'balanced' | 'zoner';
 
 export interface VoiceLines {
@@ -110,6 +134,7 @@ export interface FighterDef {
   aiProfile: AiProfile;
   skills: [SkillDef, SkillDef, SkillDef, SkillDef];
   ultimate: SkillDef;
+  attack: AttackDef;
   passive: PassiveDef;
   form?: FormDef;
   voiceLines: VoiceLines;
@@ -155,6 +180,7 @@ export type SimEvent =
   | { type: 'castFailed'; uid: number; reason: CastFailReason }
   | { type: 'hit'; source: number; target: number; damage: number; x: number; y: number; skill: SkillDef }
   | { type: 'impact'; x: number; y: number; radius: number; color: number }
+  | { type: 'attack'; uid: number; attack: AttackDef; finisher: boolean }
   | { type: 'passive'; uid: number; passive: PassiveDef; proc: PassiveProc; x: number; y: number }
   | { type: 'ko'; uid: number }
   | { type: 'transform'; uid: number; form: FormDef }

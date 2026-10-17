@@ -27,7 +27,7 @@ export const naruto: FighterDef = {
   initials: 'NU',
   color: 0xff8a1f,
   accent: 0x1b2a6b,
-  hp: 332,
+  hp: 540,
   speed: 175,
   radius: 18,
   energyRegen: 7,
@@ -108,6 +108,7 @@ export const naruto: FighterDef = {
     heal: 0.1,
     color: 0xffc23d,
   },
+  attack: { name: 'Punch Combo', style: 'melee', damage: 4, range: 48, cooldown: 0.5, windup: 0.12, combo: 3, knockback: 160, color: 0xffd9a0 },
   passive: {
     id: 'naruto.kurama-vitality',
     name: "Kurama's Vitality",

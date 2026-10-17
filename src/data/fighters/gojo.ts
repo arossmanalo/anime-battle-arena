@@ -7,7 +7,7 @@ export const gojo: FighterDef = {
   initials: 'GJ',
   color: 0xe8f0ff,
   accent: 0x1a1a2e,
-  hp: 310,
+  hp: 505,
   speed: 162,
   radius: 18,
   energyRegen: 7.5,
@@ -120,6 +120,7 @@ export const gojo: FighterDef = {
       },
     },
   },
+  attack: { name: 'Cursed Bolt', style: 'ranged', damage: 6, range: 300, cooldown: 0.9, windup: 0.15, combo: 1, speed: 500, color: 0xb79bff },
   passive: {
     id: 'gojo.limitless',
     name: 'Limitless',

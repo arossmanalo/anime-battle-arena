@@ -95,6 +95,7 @@ export function applyEffects(
         // A stun interrupts wind-ups and channels.
         target.casting = null;
         target.channel = null;
+        target.swing = null;
         break;
       case 'burn':
         addStatus(target, 'burn', e.duration, e.dps, source.uid);

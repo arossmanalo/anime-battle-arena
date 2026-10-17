@@ -7,7 +7,7 @@ export const tanjiro: FighterDef = {
   initials: 'TJ',
   color: 0x1f7a4d,
   accent: 0x111111,
-  hp: 330,
+  hp: 535,
   speed: 190,
   radius: 18,
   energyRegen: 7,
@@ -100,6 +100,7 @@ export const tanjiro: FighterDef = {
     heal: 0.1,
     color: 0xff4d2d,
   },
+  attack: { name: 'Sword Slash', style: 'melee', damage: 5, range: 50, cooldown: 0.55, windup: 0.14, combo: 3, knockback: 180, color: 0xbfe9ff },
   passive: {
     id: 'tanjiro.resolve',
     name: 'Unbreakable Resolve',

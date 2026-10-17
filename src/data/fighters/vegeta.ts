@@ -7,7 +7,7 @@ export const vegeta: FighterDef = {
   initials: 'VG',
   color: 0x2d4fd6,
   accent: 0xf2f2f2,
-  hp: 340,
+  hp: 550,
   speed: 175,
   radius: 18,
   energyRegen: 7,
@@ -107,6 +107,7 @@ export const vegeta: FighterDef = {
     heal: 0.08,
     color: 0xffe14d,
   },
+  attack: { name: 'Ki Bolt', style: 'ranged', damage: 9.5, range: 320, cooldown: 0.9, windup: 0.15, combo: 1, speed: 520, color: 0x9fd0ff },
   passive: {
     id: 'vegeta.elite',
     name: 'Saiyan Elite',

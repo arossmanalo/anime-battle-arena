@@ -204,7 +204,7 @@ export class FighterView {
     const running = !f.stunned && !f.channel && Math.hypot(f.vel.x, f.vel.y) > 1;
     let anim: AnimName = 'idle';
     if (this.hitTimer > 0) anim = 'hit';
-    else if (f.busy) anim = 'cast';
+    else if (f.busy || f.swinging) anim = 'cast';
     else if (running) anim = 'run';
     this.syncFormSprites();
     this.playAnim(anim);

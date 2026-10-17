@@ -7,7 +7,7 @@ export const sasuke: FighterDef = {
   initials: 'SU',
   color: 0x3a3f8f,
   accent: 0xb3a3ff,
-  hp: 308,
+  hp: 500,
   speed: 180,
   radius: 18,
   energyRegen: 7,
@@ -103,6 +103,7 @@ export const sasuke: FighterDef = {
     heal: 0.08,
     color: 0xb07cff,
   },
+  attack: { name: 'Kunai Slash', style: 'melee', damage: 3.5, range: 48, cooldown: 0.5, windup: 0.12, combo: 3, knockback: 160, color: 0xc9d4ff },
   passive: {
     id: 'sasuke.sharingan',
     name: 'Sharingan',

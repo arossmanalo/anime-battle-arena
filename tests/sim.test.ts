@@ -238,6 +238,7 @@ describe('passives', () => {
     const [n, g] = sim.fighters;
     const p = g.def.passive;
     if (p.kind !== 'barrier') throw new Error('Gojo should have a barrier passive');
+    sim.tryAttack = () => false; // keep the AI's default attacks out of the way
     g.invuln = 0;
     for (let i = 0; i < p.hits; i++) applyEffects(ctx, n, g, hit, skill(`s${i}`), n.pos);
     expect(g.hp).toBe(g.maxHp);
@@ -321,5 +322,101 @@ describe('passives', () => {
     const ids = ROSTER.map((f) => f.passive.id);
     expect(new Set(ids).size).toBe(ROSTER.length);
     for (const f of ROSTER) expect(f.passive.description.length).toBeGreaterThan(5);
+  });
+});
+
+describe('default attacks', () => {
+  /** Two fighters; the AI's own attacks are switched off so the tests start swings by hand via `tryAttack`. */
+  function setup(a: string, b: string) {
+    const sim = duel(a, b);
+    const tryAttack = sim.tryAttack.bind(sim);
+    sim.tryAttack = () => false;
+    const [x, y] = sim.fighters;
+    for (const f of sim.fighters) f.auto = false; // no AI skill casts either
+    return { sim, x, y, tryAttack };
+  }
+  const settle = (sim: Simulation, ticks: number) => {
+    for (let i = 0; i < ticks; i++) {
+      sim.step();
+    }
+  };
+
+  it('does not start without an enemy in reach', () => {
+    const { x, y, tryAttack } = setup('naruto', 'goku');
+    y.pos = { x: x.pos.x + 300, y: x.pos.y };
+    expect(tryAttack(x)).toBe(false);
+  });
+
+  it('a melee swing lands after its wind-up and chains into a stronger finisher', () => {
+    const { sim, x, y, tryAttack } = setup('tanjiro', 'goku');
+    y.pos = { x: x.pos.x + 40, y: x.pos.y };
+    y.invuln = 0;
+    const a = x.def.attack;
+    const damages: number[] = [];
+    for (let hit = 0; hit < a.combo; hit++) {
+      x.attackCd = 0;
+      const before = y.hp;
+      expect(tryAttack(x)).toBe(true);
+      expect(y.hp).toBe(before); // nothing yet: still winding up
+      stepCollect(sim, Math.ceil(a.windup / DT) + 2);
+      damages.push(before - y.hp);
+    }
+    expect(damages[0]).toBeGreaterThan(0);
+    expect(damages[a.combo - 1]).toBeGreaterThan(damages[0]);
+    expect(x.combo).toBe(0); // finisher resets the chain
+  });
+
+  it('a whiff drops the combo', () => {
+    const { sim, x, y, tryAttack } = setup('tanjiro', 'goku');
+    y.pos = { x: x.pos.x + 40, y: x.pos.y };
+    tryAttack(x);
+    y.pos = { x: x.pos.x + 400, y: x.pos.y };
+    settle(sim, 20);
+    expect(x.combo).toBe(0);
+  });
+
+  it('casting a skill cancels a swing, and stun does too', () => {
+    const { sim, x, y, tryAttack } = setup('tanjiro', 'goku');
+    y.pos = { x: x.pos.x + 40, y: x.pos.y };
+    x.energy = 100;
+    tryAttack(x);
+    expect(x.swinging).toBe(true);
+    expect(sim.tryCast(x, 0)).toBeNull();
+    expect(x.swinging).toBe(false);
+
+    x.casting = null;
+    x.attackCd = 0;
+    tryAttack(x);
+    applyEffects(ctx, y, x, [{ type: 'stun', duration: 1 }], x.skill(0), y.pos);
+    expect(x.swinging).toBe(false);
+  });
+
+  it('a ranged attack fires a projectile', () => {
+    const { sim, x, y, tryAttack } = setup('vegeta', 'goku');
+    y.pos = { x: x.pos.x + 200, y: x.pos.y };
+    expect(tryAttack(x)).toBe(true);
+    settle(sim, Math.ceil(x.def.attack.windup / DT) + 2);
+    expect(sim.projectiles.some((p) => p.owner === x)).toBe(true);
+  });
+
+  it('default attacks go through passives and damage buffs', () => {
+    const { sim, x, y, tryAttack } = setup('tanjiro', 'gojo');
+    y.pos = { x: x.pos.x + 40, y: x.pos.y };
+    y.invuln = 0;
+    tryAttack(x);
+    settle(sim, Math.ceil(x.def.attack.windup / DT) + 2);
+    expect(y.hp).toBe(y.maxHp); // Limitless blocked it
+    expect(y.passive.hitsLeft).toBe(1);
+  });
+
+  it('every fighter has a sensible default attack', () => {
+    for (const f of ROSTER) {
+      const a = f.attack;
+      expect(a.damage).toBeGreaterThan(0);
+      expect(a.cooldown).toBeGreaterThan(0);
+      expect(a.combo).toBeGreaterThanOrEqual(1);
+      expect(a.range).toBeGreaterThan(0);
+      if (a.style === 'ranged') expect(a.speed).toBeGreaterThan(0);
+    }
   });
 });

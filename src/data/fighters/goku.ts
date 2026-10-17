@@ -25,7 +25,7 @@ export const goku: FighterDef = {
   initials: 'GK',
   color: 0xff6a00,
   accent: 0x1f4fbf,
-  hp: 310,
+  hp: 505,
   speed: 175,
   radius: 18,
   energyRegen: 7,
@@ -120,6 +120,7 @@ export const goku: FighterDef = {
       },
     },
   },
+  attack: { name: 'Punch & Kick', style: 'melee', damage: 6.6, range: 52, cooldown: 0.45, windup: 0.12, combo: 3, knockback: 180, color: 0xffb347 },
   passive: {
     id: 'goku.zenkai',
     name: 'Zenkai',

@@ -27,6 +27,9 @@ const PREFERRED_RANGE: Record<AiProfile, number> = {
 };
 
 const RANGE_SLACK = 40;
+/** A melee fighter closing in stops at this fraction of its reach, with a tighter slack so it stays in range. */
+const MELEE_CLOSE = 0.4;
+const MELEE_SLACK = 25;
 /** Horizontal share of movement needed before a running fighter turns to face it. */
 const TURN_THRESHOLD = 0.35;
 /** Minimum seconds between turns while running, so quick direction changes don't flicker the sprite. */
@@ -80,6 +83,8 @@ export class UtilityAI {
       }
     }
     this.steer(target);
+    // The default attack is automatic: swing whenever something is in reach.
+    this.sim.tryAttack(this.f);
   }
 
   private decideMove(target: Fighter): void {
@@ -95,12 +100,28 @@ export class UtilityAI {
     }
 
     const gap = dist(this.f.pos, target.pos) - this.f.def.radius - target.def.radius;
-    const preferred = PREFERRED_RANGE[this.f.def.aiProfile];
-    if (gap > preferred + RANGE_SLACK) this.mode = 'approach';
-    else if (gap < preferred - RANGE_SLACK && this.f.def.aiProfile !== 'rushdown') this.mode = 'retreat';
+    const melee = this.wantsMelee(gap);
+    const preferred = melee ? this.f.def.attack.range * MELEE_CLOSE : PREFERRED_RANGE[this.f.def.aiProfile];
+    const slack = melee ? MELEE_SLACK : RANGE_SLACK;
+    if (gap > preferred + slack) this.mode = 'approach';
+    else if (gap < preferred - slack && !melee && this.f.def.aiProfile !== 'rushdown') this.mode = 'retreat';
     else this.mode = 'strafe';
 
     if (this.sim.rng.chance(0.15) || this.nearWall(this.f.pos)) this.strafeDir = this.strafeDir === 1 ? -1 : 1;
+  }
+
+  /**
+   * Whether to fight at punching range. Rushdown fighters always do; all-rounders do when an enemy is already
+   * close, or when none of their damaging skills is ready (so they trade blows while waiting); zoners and ranged attackers never do.
+   */
+  private wantsMelee(gap: number): boolean {
+    const { attack, aiProfile } = this.f.def;
+    if (attack.style !== 'melee' || aiProfile === 'zoner') return false;
+    if (aiProfile === 'rushdown' || gap <= attack.range * 2) return true;
+    return !([0, 1, 2, 3, 4] as SkillSlot[]).some((slot) => {
+      const skill = this.f.skill(slot);
+      return skill.kind !== 'buff' && this.f.cooldown(skill) <= 0 && this.f.canAfford(skill);
+    });
   }
 
   private steer(target: Fighter): void {

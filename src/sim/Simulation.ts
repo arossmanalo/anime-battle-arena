@@ -1,4 +1,5 @@
 import { UtilityAI } from './ai/UtilityAI';
+import { attackSkill, COMBO_WINDOW, FINISHER_MULT, isFinisher, REACH_LEEWAY } from './attacks';
 import { tickPassive } from './passives';
 import { applyEffects as applyEffectsTo, gainUlt, takeDamage, ULT_REGEN, type EffectContext } from './effects';
 import type { Beam, Projectile, Zone } from './entities';
@@ -24,6 +25,7 @@ export const DEFAULT_ARENA = { width: 900, height: 372 };
 export const DEFAULT_TIME_LIMIT = 99;
 
 const CAST_MOVE_MULT = 0.35;
+const SWING_MOVE_MULT = 0.6;
 const KNOCK_DECAY = 8;
 const TRANSFORM_INVULN = 1.2;
 const LOW_HP_LINE = 0.3;
@@ -150,6 +152,7 @@ export class Simulation {
         f.auto || (f.controller === 'player' && this.idleFallback > 0 && f.idleTime >= this.idleFallback);
       this.ai.get(f.uid)!.update(DT, allowSkills);
       this.updateCasting(f);
+      this.updateSwing(f);
       this.move(f);
     }
     this.separateFighters();
@@ -193,6 +196,7 @@ export class Simulation {
     if (!f.canAfford(skill)) return 'energy';
 
     f.pay(skill);
+    f.swing = null;
     f.cooldowns.set(skill.id, skill.cooldown);
     f.casting = { skill, remaining: skill.castTime };
     f.stats.skillsUsed++;
@@ -209,6 +213,7 @@ export class Simulation {
     f.hp = Math.min(f.maxHp, f.hp + Math.round(f.maxHp * form.heal));
     f.invuln = TRANSFORM_INVULN;
     f.casting = null;
+    f.swing = null;
     this.emit({ type: 'transform', uid: f.uid, form });
     this.voice(f, 'transform');
     return true;
@@ -222,6 +227,8 @@ export class Simulation {
     gainUlt(f, ULT_REGEN * DT);
     f.invuln = Math.max(0, f.invuln - DT);
     f.idleTime += DT;
+    f.attackCd = Math.max(0, f.attackCd - DT);
+    if (f.comboTimer > 0 && (f.comboTimer -= DT) <= 0) f.combo = 0;
     tickPassive(f, DT);
 
     for (const s of f.statuses) {
@@ -234,6 +241,57 @@ export class Simulation {
       }
     }
     f.statuses = f.statuses.filter((s) => s.remaining > 0);
+  }
+
+  /** Gap between two fighters' edges. */
+  private gap(a: Fighter, b: Fighter): number {
+    return dist(a.pos, b.pos) - a.def.radius - b.def.radius;
+  }
+
+  /** Starts the default attack if an enemy is in reach and the fighter is free. Returns whether it started. */
+  tryAttack(f: Fighter): boolean {
+    const a = f.def.attack;
+    if (!f.alive || f.stunned || f.busy || f.swing || f.attackCd > 0) return false;
+    const target = this.nearestEnemy(f);
+    if (!target || this.gap(f, target) > a.range) return false;
+    const finisher = isFinisher(a, f.combo);
+    f.swing = { remaining: a.windup, finisher };
+    f.attackCd = a.cooldown * (finisher && a.combo > 1 ? FINISHER_MULT : 1);
+    if (Math.abs(target.pos.x - f.pos.x) > 1) f.facing = target.pos.x > f.pos.x ? 1 : -1;
+    this.emit({ type: 'attack', uid: f.uid, attack: a, finisher });
+    return true;
+  }
+
+  private updateSwing(f: Fighter): void {
+    if (!f.swing) return;
+    if (f.stunned) {
+      f.swing = null;
+      return;
+    }
+    f.swing.remaining -= DT;
+    if (f.swing.remaining > 0) return;
+    const { finisher } = f.swing;
+    f.swing = null;
+    this.landAttack(f, finisher);
+  }
+
+  private landAttack(f: Fighter, finisher: boolean): void {
+    const a = f.def.attack;
+    const target = this.nearestEnemy(f);
+    const skill = attackSkill(f.def, finisher);
+    let landed = false;
+    if (target && a.style === 'ranged') {
+      const dir = norm(sub(target.pos, f.pos));
+      this.spawnProjectile(f, skill, add(f.pos, scale(dir, f.def.radius + 4)), scale(dir, a.speed ?? 480));
+      landed = true;
+    } else if (target && this.gap(f, target) <= a.range + REACH_LEEWAY) {
+      this.applyEffects(f, target, skill.effects, skill, f.pos);
+      this.emit({ type: 'impact', x: target.pos.x, y: target.pos.y, radius: finisher && a.combo > 1 ? 28 : 18, color: a.color });
+      landed = true;
+    }
+    // A whiff drops the combo.
+    f.combo = landed && !finisher ? f.combo + 1 : 0;
+    f.comboTimer = landed ? COMBO_WINDOW : 0;
   }
 
   private updateCasting(f: Fighter): void {
@@ -267,7 +325,7 @@ export class Simulation {
       }
       if (d.remaining <= 0 || this.outOfBounds(f.pos, f.def.radius)) f.dash = null;
     } else if (!f.stunned && !f.channel) {
-      const mult = f.casting ? CAST_MOVE_MULT : 1;
+      const mult = f.casting ? CAST_MOVE_MULT : f.swing ? SWING_MOVE_MULT : 1;
       f.pos = add(f.pos, scale(f.vel, DT * mult));
     }
     f.pos = add(f.pos, scale(f.knock, DT));
@@ -443,6 +501,7 @@ export class Simulation {
         f.casting = null;
         f.dash = null;
         f.channel = null;
+        f.swing = null;
         f.statuses = [];
         this.emit({ type: 'ko', uid: f.uid });
       } else if (f.alive && f.hp <= f.maxHp * LOW_HP_LINE && !this.lowHpWarned.has(f.uid)) {
