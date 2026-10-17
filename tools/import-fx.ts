@@ -12,6 +12,7 @@
  *   --grid CxR        split the image into equal cells instead of detecting frames (e.g. --grid 4x1)
  *   --frames N        expected number of frames: if detection finds more (a frame made of separate pieces), the
  *                     closest neighbours are merged until N remain
+ *   --pick A-B       use only frames A to B (1-based, in reading order), so one image can hold several effects
  *   --cell N | WxH    frame size in px (default: just big enough for the largest frame, at most 512)
  *   --fill            stretch each frame to the whole cell (backgrounds such as a domain; use with --grid and --bg none)
  *   --fps N           frame rate        --loop | --once      override the default for this part
@@ -28,7 +29,10 @@ import { basename, extname, join } from 'node:path';
 import sharp, { type OverlayOptions } from 'sharp';
 import { FX_DEFAULTS, FX_PARTS, type FxConfig, type FxPart } from '../src/game/assets';
 
-const ALPHA_CUTOFF = 24;
+/** Pixels fainter than this don't count as content when looking for frames (dim haze and noise can bridge the gaps). */
+const ALPHA_CUTOFF = 56;
+/** Detected frames are grown by this much so the faint edge of a glow isn't cropped. */
+const FRAME_PAD = 10;
 /** Gaps narrower than this between frames (px) don't separate them. */
 const MIN_GAP = 6;
 const MAX_CELL = 512;
@@ -171,7 +175,14 @@ function detectFrames(data: Buffer, w: number, h: number): Rect[] {
           }
         }
       }
-      frames.push({ left: x0, top, width: x1 - x0 + 1, height: bottom - top + 1 });
+      const left = Math.max(0, x0 - FRAME_PAD);
+      const topPad = Math.max(0, top - FRAME_PAD);
+      frames.push({
+        left,
+        top: topPad,
+        width: Math.min(w, x1 + 1 + FRAME_PAD) - left,
+        height: Math.min(h, bottom + 1 + FRAME_PAD) - topPad,
+      });
     }
   }
   return frames;
@@ -205,7 +216,26 @@ async function main(): Promise<void> {
   } else {
     frames = detectFrames(data, w, h);
   }
-  if (opts.frames) frames = mergeTo(frames, Number(opts.frames));
+  if (opts.frames) {
+    const want = Number(opts.frames);
+    // Fewer than expected: faint glow is joining neighbouring frames. A single row of evenly spaced frames can
+    // still be split into equal columns across the content.
+    if (frames.length < want && !opts.grid) {
+      const left = Math.min(...frames.map((f) => f.left));
+      const right = Math.max(...frames.map((f) => f.left + f.width));
+      const top = Math.min(...frames.map((f) => f.top));
+      const bottom = Math.max(...frames.map((f) => f.top + f.height));
+      const colW = (right - left) / want;
+      frames = Array.from({ length: want }, (_, i) => ({ left: Math.round(left + i * colW), top, width: Math.round(colW), height: bottom - top }));
+      console.log(`Frames were joined by faint glow: split the content into ${want} equal columns.`);
+    }
+    frames = mergeTo(frames, want);
+  }
+  console.log(`Found ${frames.length} frame(s) in the image.`);
+  if (opts.pick) {
+    const [a, b] = String(opts.pick).split('-').map(Number);
+    frames = frames.slice(a - 1, b ?? a);
+  }
   if (!frames.length) {
     console.error('No frames found. Is the image empty, or the background not removed? Try --bg black, --bg flat or --grid CxR.');
     process.exit(1);
