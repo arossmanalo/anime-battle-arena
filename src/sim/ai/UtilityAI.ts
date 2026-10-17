@@ -27,6 +27,10 @@ const PREFERRED_RANGE: Record<AiProfile, number> = {
 };
 
 const RANGE_SLACK = 40;
+/** Horizontal share of movement needed before a running fighter turns to face it. */
+const TURN_THRESHOLD = 0.35;
+/** Minimum seconds between turns while running, so quick direction changes don't flicker the sprite. */
+const TURN_DELAY = 0.15;
 const WALL_MARGIN = 50;
 const DANGER_RADIUS = 180;
 /** Skills scoring below this are held back. */
@@ -41,6 +45,7 @@ type MoveMode = 'approach' | 'retreat' | 'strafe' | 'dodge';
 export class UtilityAI {
   mode: MoveMode = 'approach';
   private thinkTimer = 0;
+  private turnLock = 0;
   private strafeDir: 1 | -1 = 1;
   private dodgeDir: Vec = { x: 0, y: 0 };
   private readonly params: DifficultyParams;
@@ -62,6 +67,7 @@ export class UtilityAI {
     }
 
     this.thinkTimer -= dt;
+    this.turnLock -= dt;
     if (this.thinkTimer <= 0) {
       this.thinkTimer = this.params.think;
       this.decideMove(target);
@@ -116,7 +122,17 @@ export class UtilityAI {
     }
     dir = norm(add(norm(dir), this.wallRepulsion()));
     this.f.vel = scale(dir, this.f.speed);
-    if (Math.abs(toTarget.x) > 0.1) this.f.facing = toTarget.x > 0 ? 1 : -1;
+    // Busy (winding up, channelling, dashing): face the enemy. Otherwise face where we're running, so
+    // kiting or retreating doesn't play the run cycle backwards. Mostly-vertical moves keep the current facing.
+    if (this.f.busy) {
+      if (Math.abs(toTarget.x) > 0.1) this.f.facing = toTarget.x > 0 ? 1 : -1;
+    } else if (Math.abs(dir.x) > TURN_THRESHOLD && this.turnLock <= 0) {
+      const facing = dir.x > 0 ? 1 : -1;
+      if (facing !== this.f.facing) {
+        this.f.facing = facing;
+        this.turnLock = TURN_DELAY;
+      }
+    }
   }
 
   /** Direction of the most dangerous incoming projectile or beam, if any. */

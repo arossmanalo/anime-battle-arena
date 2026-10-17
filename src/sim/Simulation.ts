@@ -26,6 +26,8 @@ const CAST_MOVE_MULT = 0.35;
 const KNOCK_DECAY = 8;
 const TRANSFORM_INVULN = 1.2;
 const LOW_HP_LINE = 0.3;
+/** Movement per tick below which a fighter counts as standing still (matches the view's idle threshold). */
+const IDLE_MOVE = 0.4;
 
 export class Simulation {
   readonly rng: Rng;
@@ -247,6 +249,7 @@ export class Simulation {
   }
 
   private move(f: Fighter): void {
+    const before = { ...f.pos };
     if (f.dash) {
       const d = f.dash;
       const speed = d.skill.speed ?? 900;
@@ -267,6 +270,13 @@ export class Simulation {
     f.pos = add(f.pos, scale(f.knock, DT));
     f.knock = scale(f.knock, Math.exp(-KNOCK_DECAY * DT));
     this.clamp(f);
+
+    // Standing still (pinned, stunned, rooted): turn back toward the enemy. While running, the AI
+    // faces the way it's moving instead (see UtilityAI.steer).
+    const target = this.nearestEnemy(f);
+    if (target && dist(before, f.pos) < IDLE_MOVE && Math.abs(target.pos.x - f.pos.x) > 1) {
+      f.facing = target.pos.x > f.pos.x ? 1 : -1;
+    }
   }
 
   private outOfBounds(p: Vec, r: number): boolean {
