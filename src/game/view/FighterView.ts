@@ -28,8 +28,6 @@ export class FighterView {
   private sprite?: Phaser.GameObjects.Sprite;
   private trailTimer = 0;
   private hitTimer = 0;
-  private lastX: number;
-  private lastY: number;
   private koPlayed = false;
   /** Top of the drawn body (sprite head or placeholder disc); overhead UI stacks above it. */
   readonly headY: number;
@@ -44,8 +42,6 @@ export class FighterView {
     isPlayer: boolean,
   ) {
     const r = f.def.radius;
-    this.lastX = f.pos.x;
-    this.lastY = f.pos.y;
     this.root = scene.add.container(f.pos.x, f.pos.y);
     parent.add(this.root);
 
@@ -117,7 +113,11 @@ export class FighterView {
     this.scene.tweens.add({ targets: ring, scale: 4, alpha: 0, duration: 500, onComplete: () => ring.destroy() });
   }
 
-  update(dt: number, trailLayer: Phaser.GameObjects.Container): void {
+  /**
+   * @param animSpeed playback rate for sprite animations: 0 freezes them (hit-stop), below 1 is
+   * slow motion. `dt` is already scaled by the caller.
+   */
+  update(dt: number, trailLayer: Phaser.GameObjects.Container, animSpeed = 1): void {
     const f = this.f;
     this.root.setPosition(f.pos.x, f.pos.y);
     this.root.setDepth(f.pos.y);
@@ -129,7 +129,7 @@ export class FighterView {
 
     // Only real sprites flip; the placeholder keeps its initials readable and uses the facing marker.
     this.sprite?.setFlipX(f.facing < 0);
-    this.updateAnim(dt);
+    this.updateAnim(dt, animSpeed);
     this.facingMark.setX(f.facing * (f.def.radius + 5)).setScale(f.facing, 1);
 
     // Aura: form colour while transformed, skill colour while buffed.
@@ -180,18 +180,24 @@ export class FighterView {
     this.hpBar.fillStyle(hpColor(frac)).fillRect(-BAR_W / 2, this.headY - 3, BAR_W * frac, 4);
   }
 
-  /** Picks the animation from sim state: hit > cast > run > idle. */
-  private updateAnim(dt: number): void {
+  /**
+   * Picks the animation from sim state: hit > cast > run > idle. "Running" comes from the fighter's
+   * velocity, not from how far it moved since the last render frame — the sim steps at a fixed 60 Hz,
+   * so on high-refresh screens most render frames see no movement and the run cycle would keep restarting.
+   */
+  private updateAnim(dt: number, animSpeed: number): void {
     const f = this.f;
-    const moved = Math.hypot(f.pos.x - this.lastX, f.pos.y - this.lastY);
-    this.lastX = f.pos.x;
-    this.lastY = f.pos.y;
     this.hitTimer -= dt;
     if (!this.sprite) return;
-    if (this.hitTimer > 0) this.playAnim('hit');
-    else if (f.busy) this.playAnim('cast');
-    else if (moved > 0.4) this.playAnim('run');
-    else this.playAnim('idle');
+    const running = !f.stunned && !f.channel && Math.hypot(f.vel.x, f.vel.y) > 1;
+    let anim: AnimName = 'idle';
+    if (this.hitTimer > 0) anim = 'hit';
+    else if (f.busy) anim = 'cast';
+    else if (running) anim = 'run';
+    this.playAnim(anim);
+    // The run cycle speeds up and slows down with the fighter (buffs, slows), so feet don't slide.
+    const pace = anim === 'run' ? f.speed / f.def.speed : 1;
+    this.sprite.anims.timeScale = animSpeed * pace;
   }
 
   private playKo(): void {

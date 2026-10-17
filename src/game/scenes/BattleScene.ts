@@ -185,7 +185,9 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    for (const v of this.views.values()) v.update(dt * this.timeScale, this.trailLayer);
+    // Sprite animations freeze during hit-stop and slow down with slow motion.
+    const animSpeed = this.hitstop > 0 ? 0 : this.timeScale;
+    for (const v of this.views.values()) v.update(dt * this.timeScale, this.trailLayer, animSpeed);
     this.fightersLayer.sort('y');
     this.vfx.syncProjectiles(this.sim.projectiles);
     this.vfx.drawBeams(this.sim.beams);
