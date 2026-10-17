@@ -36,7 +36,7 @@ Which parts a skill can use: projectile = `cast`, `start`, `body`, `impact` · z
 | `--frames N` | how many frames are in the (single-row) image. The tool cuts the row at the N-1 emptiest places, which also works when frames touch or are joined by glow. Use it whenever you know the count |
 | `--crop L,T,R,B` | use only part of the image (pixels, or fractions like `0,0,0.3,1`). Lets one image hold several effects (cast, flight and impact of one skill in a single row) |
 | `--pick A-B` | use only frames A to B of what was found (1-based) |
-| `--grid CxR` | cut into equal cells instead of detecting frames |
+| `--grid CxR`, `--trim N` | cut into equal cells instead of detecting frames; `--trim` drops N px from each cell edge (divider lines) |
 | `--size PX` | width on screen in arena pixels. The arena is 900 wide and a fighter is about 90 |
 | `--fps N`, `--loop`, `--once` | frame rate, and whether it loops |
 | `--blend add\|normal` | `add` makes it glow (default for black backgrounds) |

@@ -88,7 +88,7 @@ npm run import-fx -- purple-impact.png gojo.purple impact --frames 8 --size 320
 
 A background that fills the whole arena for 3 seconds. This one is **not** on black and it is **opaque**: generate **4 frames in a 2x2 grid** of a wide cosmic void, each frame with a **2.4 : 1** wide aspect (like 900x372): *"an endless dark space of deep indigo and black, countless white and pale-blue stars and tiny glowing points, faint swirling nebula bands in purple, a bright pale-blue vortex of light streaks converging toward the centre. Frame to frame the stars drift slightly and the streaks rotate a little, so it loops smoothly. No characters, no text."*
 ```
-npm run import-fx -- void.png gojo.void body --grid 2x2 --fill --bg none --cell 900x372 --blend normal --fps 6
+npm run import-fx -- void.png gojo.void body --grid 2x2 --trim 14 --fill --bg none --cell 900x372 --blend normal --fps 6
 ```
 
 ---

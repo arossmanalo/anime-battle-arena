@@ -10,6 +10,7 @@
  *   --bg auto|black|transparent|flat   how to remove the background (default auto: transparent, black or a flat colour)
  *                                      black = the image is glow-on-black; brightness becomes opacity (best for energy FX)
  *   --grid CxR        split the image into equal cells instead of detecting frames (e.g. --grid 4x1)
+ *   --trim N         with --grid: cut N px off every edge of each cell (to drop divider lines between frames)
  *   --frames N        how many frames are in the (single-row) image. Cuts it at the emptiest places, which also works when
  *                     frames touch, overlap or are joined by glow. Recommended whenever you know the count
  *   --crop L,T,R,B    only use this part of the image (pixels, or fractions 0-1 of its size), e.g. --crop 0,0,0.32,1
@@ -264,7 +265,13 @@ async function main(): Promise<void> {
     frames = [];
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        frames.push({ left: Math.floor((c * w) / cols), top: Math.floor((r * h) / rows), width: Math.floor(w / cols), height: Math.floor(h / rows) });
+        const t = Number(opts.trim ?? 0);
+        frames.push({
+          left: Math.floor((c * w) / cols) + t,
+          top: Math.floor((r * h) / rows) + t,
+          width: Math.floor(w / cols) - 2 * t,
+          height: Math.floor(h / rows) - 2 * t,
+        });
       }
     }
   } else {
