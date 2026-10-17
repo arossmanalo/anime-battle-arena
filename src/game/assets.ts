@@ -7,6 +7,7 @@
  *   fighters/<id>/sheet.json               optional: frame size and frame count per row (see SheetConfig)
  *   fighters/<id>/portrait.png             square portrait for HUD / menus
  *   fighters/<id>/form/sheet.png (+ .json) optional sheet used while transformed (same layout)
+ *   fx/<skill id>/<part>.png (+ .json)     custom effect sprites for a skill (see FX_PARTS and docs/FX_SPEC.md)
  *   arena/floor.png                        tileable floor texture
  *   sfx/<name>.(ogg|mp3|wav)               overrides the synthesized sound of the same name
  */
@@ -53,6 +54,52 @@ export interface SheetConfig {
 
 export const DEFAULT_FRAME_SIZE = 64;
 
+/**
+ * Custom effect sprites, one folder per skill (or passive / default attack) id: fx/<id>/<part>.png, a single row of frames.
+ *   cast    plays on the caster during the wind-up (looping until the skill fires), or once
+ *   body    projectile: flies with it (faces the heading) | zone: fills the area | buff: surrounds the caster while it lasts
+ *   start   one-shot where the skill fires (muzzle flash, blink-out puff)
+ *   impact  one-shot where it hits (or, for a passive, where it triggers)
+ * Anything missing falls back to the built-in generic effect.
+ */
+export const FX_PARTS = ['cast', 'body', 'start', 'impact'] as const;
+export type FxPart = (typeof FX_PARTS)[number];
+
+/** Optional fx/<id>/<part>.json. */
+export interface FxConfig {
+  /** Frame size; defaults to a square the height of the image. */
+  frameWidth?: number;
+  frameHeight?: number;
+  /** Frames in the row; defaults to as many as fit. */
+  frames?: number;
+  frameRate?: number;
+  loop?: boolean;
+  /** On-screen width in arena pixels (the arena is 900 wide, a fighter about 90). Defaults depend on the skill. */
+  size?: number;
+  /** 'add' lights up (good for energy and glows); 'normal' draws opaque pixels as they are. */
+  blend?: 'add' | 'normal';
+  /** Projectile bodies turn to face where they're going (art drawn facing right). Default true. */
+  rotate?: boolean;
+}
+
+export interface FxInfo {
+  frameWidth: number;
+  frameHeight: number;
+  frames: number;
+  frameRate: number;
+  loop: boolean;
+  size?: number;
+  blend: 'add' | 'normal';
+  rotate: boolean;
+}
+
+export const FX_DEFAULTS: Record<FxPart, { loop: boolean; frameRate: number }> = {
+  cast: { loop: true, frameRate: 14 },
+  body: { loop: true, frameRate: 14 },
+  start: { loop: false, frameRate: 18 },
+  impact: { loop: false, frameRate: 18 },
+};
+
 export interface SheetInfo {
   frameWidth: number;
   frameHeight: number;
@@ -62,17 +109,20 @@ export interface SheetInfo {
 
 export interface AssetManifest {
   fighters: Record<string, { sheet: SheetInfo | null; portrait: boolean; formSheet?: SheetInfo | null }>;
+  /** Custom effect sprites by skill id. */
+  fx?: Record<string, Partial<Record<FxPart, FxInfo>>>;
   floor: boolean;
   /** Sound name → file path relative to public/assets/. */
   sfx: Partial<Record<SfxName, string>>;
 }
 
-export const EMPTY_MANIFEST: AssetManifest = { fighters: {}, floor: false, sfx: {} };
+export const EMPTY_MANIFEST: AssetManifest = { fighters: {}, floor: false, sfx: {}, fx: {} };
 
 export const ASSET_ROOT = 'assets/';
 /** `form` selects the transformed variant (fighters/<id>/form/). */
 export const fighterSheetKey = (id: string, form = false) => `fighter_${id}${form ? '_form' : ''}`;
 export const portraitKey = (id: string) => `portrait_${id}`;
 export const animKey = (id: string, anim: AnimName, form = false) => `${id}${form ? '_form' : ''}_${anim}`;
+export const fxKey = (id: string, part: FxPart) => `fx_${id}_${part}`;
 export const FLOOR_KEY = 'arena_floor';
 export const sfxKey = (name: SfxName) => `sfx_${name}`;

@@ -7,9 +7,11 @@ import {
   FLOOR_KEY,
   animKey,
   fighterSheetKey,
+  fxKey,
   portraitKey,
   sfxKey,
   type AssetManifest,
+  type FxPart,
   type SfxName,
   type SheetInfo,
 } from '../assets';
@@ -62,6 +64,14 @@ export class PreloadScene extends Phaser.Scene {
       }
       if (f.portrait) this.load.image(portraitKey(id), `${dir}portrait.png`);
     }
+    for (const [id, parts] of Object.entries(manifest.fx ?? {})) {
+      for (const [part, info] of Object.entries(parts)) {
+        this.load.spritesheet(fxKey(id, part as FxPart), `${ASSET_ROOT}fx/${id}/${part}.png`, {
+          frameWidth: info.frameWidth,
+          frameHeight: info.frameHeight,
+        });
+      }
+    }
     if (manifest.floor) this.load.image(FLOOR_KEY, `${ASSET_ROOT}arena/floor.png`);
     for (const [name, path] of Object.entries(manifest.sfx)) this.load.audio(sfxKey(name as SfxName), `${ASSET_ROOT}${path}`);
 
@@ -84,6 +94,18 @@ export class PreloadScene extends Phaser.Scene {
     for (const [id, f] of Object.entries(manifest.fighters)) {
       if (f.sheet) this.createAnims(id, f.sheet, false);
       if (f.formSheet) this.createAnims(id, f.formSheet, true);
+    }
+    for (const [id, parts] of Object.entries(manifest.fx ?? {})) {
+      for (const [part, info] of Object.entries(parts)) {
+        const key = fxKey(id, part as FxPart);
+        if (!this.textures.exists(key)) continue;
+        this.anims.create({
+          key,
+          frames: this.anims.generateFrameNumbers(key, { start: 0, end: info.frames - 1 }),
+          frameRate: info.frameRate,
+          repeat: info.loop ? -1 : 0,
+        });
+      }
     }
     this.scene.start('MainMenu');
   }

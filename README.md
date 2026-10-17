@@ -16,6 +16,8 @@ Pick your fighter and a CPU opponent. Both fighters move and dodge on their own.
 | `M` | Mute / unmute |
 | `Esc` | Pause |
 
+Skills can have their own effect sprites (`public/assets/fx/<skill id>/`), imported with `npm run import-fx`; see [docs/FX_SPEC.md](docs/FX_SPEC.md). Anything without art uses the generic effect.
+
 Fighters also use a **default attack** automatically whenever an enemy is in reach (a punch/slash combo for melee fighters, a weak energy bolt for Vegeta and Gojo). It costs no energy and skills can interrupt it. Tune it in the `attack` block of each fighter file.
 
 Every fighter also has a **passive** that works on its own, with no key to press: Gojo's Limitless blocks his next 2 attacks (then recharges), Sasuke's Sharingan evades 15% of attacks, Goku's Zenkai raises his damage as his HP drops, Naruto heals while low on HP, Vegeta charges his ultimate faster, and Tanjiro survives one lethal hit. Passives are defined in each fighter's data file (see `PassiveEffect` in `src/sim/types.ts`).

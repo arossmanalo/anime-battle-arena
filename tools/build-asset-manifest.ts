@@ -5,10 +5,22 @@
  */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ANIMS, DEFAULT_FRAME_SIZE, SFX_NAMES, type AssetManifest, type SheetConfig, type SheetInfo } from '../src/game/assets';
+import {
+  ANIMS,
+  DEFAULT_FRAME_SIZE,
+  FX_DEFAULTS,
+  FX_PARTS,
+  SFX_NAMES,
+  type AssetManifest,
+  type FxConfig,
+  type FxInfo,
+  type FxPart,
+  type SheetConfig,
+  type SheetInfo,
+} from '../src/game/assets';
 
 const root = join(import.meta.dirname, '..', 'public', 'assets');
-const manifest: AssetManifest = { fighters: {}, floor: existsSync(join(root, 'arena', 'floor.png')), sfx: {} };
+const manifest: AssetManifest = { fighters: {}, floor: existsSync(join(root, 'arena', 'floor.png')), sfx: {}, fx: {} };
 const problems: string[] = [];
 
 /** Width and height from a PNG's IHDR chunk. */
@@ -50,6 +62,35 @@ if (existsSync(fightersDir)) {
   }
 }
 
+const fxDir = join(root, 'fx');
+if (existsSync(fxDir)) {
+  for (const id of readdirSync(fxDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)) {
+    const parts: Partial<Record<FxPart, FxInfo>> = {};
+    for (const part of FX_PARTS) {
+      const png = join(fxDir, id, `${part}.png`);
+      if (!existsSync(png)) continue;
+      const json = join(fxDir, id, `${part}.json`);
+      const cfg: FxConfig = existsSync(json) ? (JSON.parse(readFileSync(json, 'utf8')) as FxConfig) : {};
+      const { width, height } = pngSize(png);
+      const frameHeight = cfg.frameHeight ?? height;
+      const frameWidth = cfg.frameWidth ?? frameHeight;
+      const frames = Math.max(1, Math.min(cfg.frames ?? Math.floor(width / frameWidth), Math.floor(width / frameWidth)));
+      if (height % frameHeight) problems.push(`fx/${id}/${part}.png is ${width}x${height}, not a row of ${frameWidth}x${frameHeight} frames`);
+      parts[part] = {
+        frameWidth,
+        frameHeight,
+        frames,
+        frameRate: cfg.frameRate ?? FX_DEFAULTS[part].frameRate,
+        loop: cfg.loop ?? FX_DEFAULTS[part].loop,
+        size: cfg.size,
+        blend: cfg.blend ?? 'normal',
+        rotate: cfg.rotate ?? true,
+      };
+    }
+    if (Object.keys(parts).length) manifest.fx![id] = parts;
+  }
+}
+
 const sfxDir = join(root, 'sfx');
 if (existsSync(sfxDir)) {
   const files = readdirSync(sfxDir);
@@ -65,6 +106,6 @@ const fighters = Object.entries(manifest.fighters)
   .join(', ');
 console.log(
   `assets: ${Object.keys(manifest.fighters).length} fighter(s)${fighters ? ` [${fighters}]` : ''}, ` +
-    `floor ${manifest.floor ? 'yes' : 'no'}, ${Object.keys(manifest.sfx).length} sfx override(s)`,
+    `${Object.keys(manifest.fx ?? {}).length} skill fx set(s), floor ${manifest.floor ? 'yes' : 'no'}, ${Object.keys(manifest.sfx).length} sfx override(s)`,
 );
 for (const p of problems) console.warn(`  warning: ${p}`);

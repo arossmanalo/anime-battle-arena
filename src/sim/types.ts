@@ -179,7 +179,7 @@ export type SimEvent =
   | { type: 'skillFired'; uid: number; skill: SkillDef; x: number; y: number }
   | { type: 'castFailed'; uid: number; reason: CastFailReason }
   | { type: 'hit'; source: number; target: number; damage: number; x: number; y: number; skill: SkillDef }
-  | { type: 'impact'; x: number; y: number; radius: number; color: number }
+  | { type: 'impact'; x: number; y: number; radius: number; color: number; skillId?: string }
   | { type: 'attack'; uid: number; attack: AttackDef; finisher: boolean }
   | { type: 'passive'; uid: number; passive: PassiveDef; proc: PassiveProc; x: number; y: number }
   | { type: 'ko'; uid: number }

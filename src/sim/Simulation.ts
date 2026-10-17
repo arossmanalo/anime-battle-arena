@@ -286,7 +286,7 @@ export class Simulation {
       landed = true;
     } else if (target && this.gap(f, target) <= a.range + REACH_LEEWAY) {
       this.applyEffects(f, target, skill.effects, skill, f.pos);
-      this.emit({ type: 'impact', x: target.pos.x, y: target.pos.y, radius: finisher && a.combo > 1 ? 28 : 18, color: a.color });
+      this.emit({ type: 'impact', x: target.pos.x, y: target.pos.y, radius: finisher && a.combo > 1 ? 28 : 18, color: a.color, skillId: skill.id });
       landed = true;
     }
     // A whiff drops the combo.
@@ -320,7 +320,7 @@ export class Simulation {
         if (d.hit.has(e.uid) || dist(f.pos, e.pos) > f.def.radius + e.def.radius + 6) continue;
         d.hit.add(e.uid);
         this.applyEffects(f, e, d.skill.effects, d.skill, f.pos);
-        this.emit({ type: 'impact', x: e.pos.x, y: e.pos.y, radius: 30, color: d.skill.color });
+        this.emit({ type: 'impact', x: e.pos.x, y: e.pos.y, radius: 30, color: d.skill.color, skillId: d.skill.id });
         d.remaining = 0;
       }
       if (d.remaining <= 0 || this.outOfBounds(f.pos, f.def.radius)) f.dash = null;
@@ -422,7 +422,7 @@ export class Simulation {
     for (const e of this.enemiesOf(owner)) {
       if (dist(center, e.pos) <= radius + e.def.radius) this.applyEffects(owner, e, skill.effects, skill, center);
     }
-    this.emit({ type: 'impact', x: center.x, y: center.y, radius, color: skill.color });
+    this.emit({ type: 'impact', x: center.x, y: center.y, radius, color: skill.color, skillId: skill.id });
   }
 
   private updateProjectiles(): void {
@@ -437,7 +437,7 @@ export class Simulation {
           if (p.skill.impactRadius) this.burst(p.owner, p.skill, p.pos, p.skill.impactRadius);
           else {
             this.applyEffects(p.owner, e, p.skill.effects, p.skill, p.pos);
-            this.emit({ type: 'impact', x: p.pos.x, y: p.pos.y, radius: p.radius * 1.5, color: p.skill.color });
+            this.emit({ type: 'impact', x: p.pos.x, y: p.pos.y, radius: p.radius * 1.5, color: p.skill.color, skillId: p.skill.id });
           }
           alive = false;
           break;

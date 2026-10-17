@@ -92,6 +92,7 @@ export class BattleScene extends Phaser.Scene {
     this.world.add([floor, zones, this.trailLayer, this.fightersLayer, fx]);
 
     this.vfx = new Vfx(this, { floor, zones, fx });
+    this.vfx.setClock(() => this.sim.time);
     for (const f of this.sim.fighters) {
       this.views.set(f.uid, new FighterView(this, f, this.fightersLayer, f === this.player));
     }
@@ -194,6 +195,7 @@ export class BattleScene extends Phaser.Scene {
     this.vfx.syncProjectiles(this.sim.projectiles);
     this.vfx.drawBeams(this.sim.beams);
     this.vfx.drawZones(this.sim.zones);
+    this.vfx.syncAttached();
     this.hud.update(dt);
     this.bar.update();
     this.announcer.update();
@@ -206,6 +208,7 @@ export class BattleScene extends Phaser.Scene {
       switch (e.type) {
         case 'skillCast': {
           const f = this.sim.fighter(e.uid)!;
+          this.vfx.cast(f, e.skill);
           if (e.skill.ultimate) {
             this.announcer.callout(f.pos.x, this.calloutY(f), e.skill.name, e.skill.color, true);
             this.cinematic(f, 0.35, 900, 1.25);
@@ -219,9 +222,10 @@ export class BattleScene extends Phaser.Scene {
         case 'skillFired': {
           const f = this.sim.fighter(e.uid)!;
           this.playFireSound(e.skill);
+          this.vfx.fired(f, e.skill, e.x, e.y);
           if (e.skill.kind === 'buff') {
             this.views.get(e.uid)?.pulse(e.skill.color);
-            this.vfx.aura(f.pos.x, f.pos.y, e.skill.color);
+            if (!this.vfx.hasFx(e.skill.id, 'body')) this.vfx.aura(f.pos.x, f.pos.y, e.skill.color);
           }
           if (e.skill.domain) {
             this.announcer.banner('DOMAIN EXPANSION', 0xb79bff, e.skill.name.toUpperCase(), 1300);
@@ -246,7 +250,7 @@ export class BattleScene extends Phaser.Scene {
           break;
         }
         case 'impact':
-          this.vfx.impact(e.x, e.y, e.radius, e.color);
+          this.vfx.impact(e.x, e.y, e.radius, e.color, e.skillId);
           if (e.radius >= 60) this.sfx.play('explosion');
           break;
         case 'transform': {
@@ -268,7 +272,7 @@ export class BattleScene extends Phaser.Scene {
           const f = this.sim.fighter(e.uid)!;
           const text = { block: 'BLOCKED', dodge: 'EVADED', lastStand: 'RESOLVE', recharged: `${e.passive.name} READY` }[e.proc];
           this.announcer.callout(f.pos.x, this.calloutY(f), text, f.def.color);
-          if (e.proc !== 'recharged') this.vfx.impact(e.x, e.y, 40, f.def.color);
+          if (e.proc !== 'recharged') this.vfx.impact(e.x, e.y, 36, f.def.color, e.passive.id);
           if (e.proc === 'lastStand') this.cameras.main.shake(300, 0.008);
           break;
         }
