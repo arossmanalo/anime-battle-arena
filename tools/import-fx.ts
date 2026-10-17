@@ -149,7 +149,9 @@ function splitByValleys(data: Buffer, w: number, h: number, count: number): Rect
     for (let k = -4; k <= 4; k++) sum += profile[Math.min(w - 1, Math.max(0, x + k))];
     return sum / 9;
   });
-  const xs = [...smooth.keys()].filter((x) => smooth[x] > 0);
+  // Ignore faint columns (a thin divider line or noise adds a little everywhere) when finding where the content starts and ends.
+  const floor = Math.max(...smooth) * 0.03;
+  const xs = [...smooth.keys()].filter((x) => smooth[x] > floor);
   const left = xs.length ? xs[0] : 0;
   const right = xs.length ? xs[xs.length - 1] : w - 1;
   const minDist = Math.max(4, Math.round((right - left) / count / 3));
