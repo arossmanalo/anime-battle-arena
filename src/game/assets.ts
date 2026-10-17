@@ -11,7 +11,8 @@
  *   sfx/<name>.(ogg|mp3|wav)               overrides the synthesized sound of the same name
  */
 
-export const ANIMS = ['idle', 'run', 'cast', 'hit', 'ko'] as const;
+/** Sheet rows, top to bottom. `attack` (the default-attack swing) is optional: sheets without it fall back to `cast`. */
+export const ANIMS = ['idle', 'run', 'cast', 'hit', 'ko', 'attack'] as const;
 export type AnimName = (typeof ANIMS)[number];
 
 /** Frame rate and looping per animation. */
@@ -21,6 +22,7 @@ export const ANIM_CONFIG: Record<AnimName, { frameRate: number; loop: boolean }>
   cast: { frameRate: 12, loop: true },
   hit: { frameRate: 12, loop: false },
   ko: { frameRate: 8, loop: false },
+  attack: { frameRate: 14, loop: false },
 };
 
 export const SFX_NAMES = [

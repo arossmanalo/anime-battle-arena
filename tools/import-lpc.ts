@@ -36,6 +36,7 @@ const LAYOUTS: Record<number, { name: string; anims: Record<AnimName, Source>; f
       cast: { row: 0 + RIGHT, start: 0, count: 7 }, // spellcast
       hit: { row: 20, start: 0, count: 2 }, // hurt (only drawn facing down)
       ko: { row: 20, start: 0, count: 6 },
+      attack: { row: 12 + RIGHT, start: 0, count: 6 }, // slash
     },
     front: { row: 22 + DOWN, start: 0, count: 1 },
   },
@@ -48,6 +49,7 @@ const LAYOUTS: Record<number, { name: string; anims: Record<AnimName, Source>; f
       cast: { row: 0 + RIGHT, start: 0, count: 7 },
       hit: { row: 20, start: 0, count: 2 },
       ko: { row: 20, start: 0, count: 6 },
+      attack: { row: 12 + RIGHT, start: 0, count: 6 }, // slash
     },
     front: { row: 8 + DOWN, start: 0, count: 1 },
   },

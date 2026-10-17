@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
 import type { Fighter } from '../../sim/Fighter';
-import { animKey, fighterSheetKey, type AnimName, type AssetManifest } from '../assets';
+import { ANIM_CONFIG, animKey, fighterSheetKey, type AnimName, type AssetManifest } from '../assets';
 import { COLORS, hpColor, impactStyle, shade, textStyle } from '../theme';
 
 const BAR_W = 40;
 /** How long the hit animation holds after taking damage, in seconds. */
 const HIT_ANIM_TIME = 0.18;
+/** The swing animation lasts this many times the attack's wind-up, so the strike frame lines up with the hit. */
+const ATTACK_ANIM_FACTOR = 2.5;
 /** A frame is drawn this many radii wide; the character fills ~75% of it, so it stands taller than its collision circle. */
 const SPRITE_SCALE = 5;
 /** Fraction of a frame's height the standing character fills (48/64 in the spec). */
@@ -30,6 +32,9 @@ export class FighterView {
   private formSprites = false;
   private trailTimer = 0;
   private hitTimer = 0;
+  private attackTimer = 0;
+  private attackDuration = 0.3;
+  private wasSwinging = false;
   private koPlayed = false;
   /** Top of the drawn body (sprite head or placeholder disc); overhead UI stacks above it. */
   readonly headY: number;
@@ -91,9 +96,9 @@ export class FighterView {
     this.root.add([shadow, this.aura, this.charge, this.body, this.facingMark, this.flash, this.shield, this.hpBar, tag, this.status]);
   }
 
-  private playAnim(anim: AnimName): void {
+  private playAnim(anim: AnimName, restart = false): void {
     const key = animKey(this.f.def.id, anim, this.formSprites);
-    if (this.sprite && this.scene.anims.exists(key)) this.sprite.play(key, true);
+    if (this.sprite && this.scene.anims.exists(key)) this.sprite.play(key, !restart);
   }
 
   /** Swaps to the transformed sheet (fighters/<id>/form/) when the fighter transforms, if one exists. */
@@ -200,17 +205,31 @@ export class FighterView {
   private updateAnim(dt: number, animSpeed: number): void {
     const f = this.f;
     this.hitTimer -= dt;
+    this.attackTimer -= dt;
+    const swingStarted = f.swinging && !this.wasSwinging;
+    this.wasSwinging = f.swinging;
+    if (swingStarted) {
+      this.attackDuration = f.def.attack.windup * ATTACK_ANIM_FACTOR;
+      this.attackTimer = this.attackDuration;
+    }
     if (!this.sprite) return;
     const running = !f.stunned && !f.channel && Math.hypot(f.vel.x, f.vel.y) > 1;
     let anim: AnimName = 'idle';
     if (this.hitTimer > 0) anim = 'hit';
-    else if (f.busy || f.swinging) anim = 'cast';
+    else if (f.busy) anim = 'cast';
+    else if (this.attackTimer > 0) anim = 'attack';
     else if (running) anim = 'run';
     this.syncFormSprites();
-    this.playAnim(anim);
+    this.playAnim(anim, anim === 'attack' && swingStarted);
     // The run cycle speeds up and slows down with the fighter (buffs, slows), so feet don't slide.
     const pace = anim === 'run' ? f.speed / f.def.speed : 1;
-    this.sprite.anims.timeScale = animSpeed * pace;
+    let timeScale = animSpeed * pace;
+    if (anim === 'attack') {
+      // Fit however many frames the row has into the swing's duration.
+      const frames = this.sprite.anims.currentAnim?.frames.length ?? 1;
+      timeScale *= frames / ANIM_CONFIG.attack.frameRate / this.attackDuration;
+    }
+    this.sprite.anims.timeScale = timeScale;
   }
 
   private playKo(): void {

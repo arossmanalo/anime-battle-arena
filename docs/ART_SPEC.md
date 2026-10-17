@@ -26,8 +26,9 @@ A grid of equal-sized frames, with **one row per animation in this exact order**
 | 3 | `cast` | 4 | yes | winding up, channelling a beam, dashing |
 | 4 | `hit` | 2 | no | just took damage |
 | 5 | `ko` | 4 | no | knocked out (holds the last frame) |
+| 6 | `attack` | 4 | no | the default attack (punch, kick or sword slash), shown for about 2.5x its wind-up |
 
-Frame counts are recommendations. A row can have any number of frames up to the sheet width. An empty row falls back to `idle`. If there's no `ko` row, the placeholder spin-out is used instead.
+Frame counts are recommendations. A row can have any number of frames up to the sheet width. An empty row falls back to `idle`; a missing `attack` row falls back to the `cast` pose, so older 5-row sheets keep working. If there's no `ko` row, the placeholder spin-out is used instead.
 
 **Frame rules**
 
@@ -37,7 +38,9 @@ Frame counts are recommendations. A row can have any number of frames up to the 
 - Leave a few pixels of margin. Nothing should touch the frame edges, or it will bleed between frames.
 - Keep the same palette and line weight across all characters so the roster reads as one game.
 
-A complete sheet with the recommended counts is 6 frames wide × 5 rows, so **384×320 px**.
+A complete sheet with the recommended counts is 6 frames wide × 6 rows, so **384×384 px**.
+
+The `attack` row should read as one quick swing: **wind-up, strike, follow-through, recover** (frame 2 is the moment the hit lands). Melee fighters throw a punch/kick or a sword slash; ranged ones (Vegeta, Gojo) push a hand forward to fire a bolt. Keep the same size and baseline as the other rows; long blades may extend toward the frame edge but must stay inside the cell.
 
 **sheet.json** (all fields optional):
 
@@ -45,7 +48,7 @@ A complete sheet with the recommended counts is 6 frames wide × 5 rows, so **38
 {
   "frameWidth": 64,
   "frameHeight": 64,
-  "frames": { "idle": 4, "run": 6, "cast": 4, "hit": 2, "ko": 4 }
+  "frames": { "idle": 4, "run": 6, "cast": 4, "hit": 2, "ko": 4, "attack": 4 }
 }
 ```
 
@@ -68,21 +71,31 @@ Gojo's current sprite was made this way. ChatGPT keeps a character's design cons
    > Create a pixel-art sprite sheet of the same character (keep the exact same design, colours and proportions as before).
    > - Transparent background. No text, no labels, no borders.
    > - Every frame shows the character from a side / three-quarter view **facing right**.
-   > - Arrange it as a grid: **5 rows**, up to 6 frames per row, all cells the same size, character centred in each cell, **feet on the same baseline** in every frame, same scale in every frame.
-   > - Row 1: idle fighting stance (4 frames). Row 2: running (6 frames). Row 3: casting an attack with one hand forward (4 frames). Row 4: recoiling from a hit (2 frames). Row 5: falling down knocked out (4 frames).
+   > - Arrange it as a grid: **6 rows**, up to 6 frames per row, all cells the same size, character centred in each cell, **feet on the same baseline** in every frame, same scale in every frame.
+   > - Row 1: idle fighting stance (4 frames). Row 2: running (6 frames). Row 3: casting an attack with one hand forward (4 frames). Row 4: recoiling from a hit (2 frames). Row 5: falling down knocked out (4 frames). Row 6: a quick basic attack (4 frames: wind-up, strike, follow-through, recover), e.g. a punch or a sword slash.
    > - No energy effects, swirls, speed lines or particles. Character only.
 
 2. Save the image (PNG or WebP) and import it:
    ```
    npm run import-sheet -- path/to/image.webp gojo --copy-to "C:/Users/<you>/Pictures/ABA Sprites/Characters/Gojo"
    ```
-   It removes the background (transparent, or a flat colour flood-filled from the edges), finds each sprite, groups them into the five rows, scales every frame by one shared factor into 128×128 cells with the feet on a common baseline, and writes `sheet.png`, `sheet.json` and a head-crop `portrait.png`. `--copy-to` also saves those plus the source image elsewhere.
+   It removes the background (transparent, or a flat colour flood-filled from the edges), finds each sprite, groups them into the rows (idle, run, cast, hit, ko, attack), scales every frame by one shared factor into 128×128 cells with the feet on a common baseline, and writes `sheet.png`, `sheet.json` and a head-crop `portrait.png`. `--copy-to` also saves those plus the source image elsewhere.
    For a transformation (Nine-Tails Chakra Mode, Super Saiyan, ...), make a second sheet with the same layout and add `--form`; the game swaps to it when the fighter transforms:
    ```
    npm run import-sheet -- path/to/form.webp naruto --form
    ```
-3. A sheet with only 4 rows (hit and ko merged) is accepted: the first 2 ko frames double as the hit animation. If it reports the wrong number of rows, the image probably has text, effects or frames that overlap vertically; regenerate or tidy it up and run again.
-4. Restart `npm run dev`.
+3. Sheets with 4 rows (hit and ko merged) or 5 rows (no attack) are accepted too: the first 2 ko frames double as the hit animation, and without an attack row the `cast` pose plays during attacks. the first 2 ko frames double as the hit animation. If it reports the wrong number of rows, the image probably has text, effects or frames that overlap vertically; regenerate or tidy it up and run again.
+4. **Adding the attack row to a sheet you already imported** (so you don't have to regenerate everything): ask ChatGPT for a small two-row image of the same character, with the same prompt rules as above:
+
+   > Row 1: the idle fighting stance (2 frames, same size and design as the existing sprite). Row 2: a quick basic attack, facing right (4 frames: wind-up, strike, follow-through, recover).
+
+   Row 1 is only used to match the scale of the existing sheet and is then discarded. Import it with `--attack` (add `--form` for the transformed sheet):
+   ```
+   npm run import-sheet -- path/to/attack.webp gojo --attack
+   npm run import-sheet -- path/to/attack-form.webp naruto --attack --form
+   ```
+   Everything else in the existing sheet is kept.
+5. Restart `npm run dev`.
 
 ## Making sprites with the LPC generator (no drawing needed)
 

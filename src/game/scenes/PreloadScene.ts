@@ -88,7 +88,7 @@ export class PreloadScene extends Phaser.Scene {
     this.scene.start('MainMenu');
   }
 
-  /** Builds <id>[_form]_<anim> animations: row N of the sheet is ANIMS[N]. Empty rows fall back to idle. */
+  /** Builds <id>[_form]_<anim> animations: row N of the sheet is ANIMS[N]. Empty rows fall back to idle (attack: to cast). */
   private createAnims(id: string, sheet: SheetInfo, form: boolean): void {
     const key = fighterSheetKey(id, form);
     if (!this.textures.exists(key)) return;
@@ -99,7 +99,7 @@ export class PreloadScene extends Phaser.Scene {
       const cfg = ANIM_CONFIG[anim];
       this.anims.create({
         key: animKey(id, anim, form),
-        frames: count ? row(i, count) : idle,
+        frames: count ? row(i, count) : anim === 'attack' && sheet.frames.cast ? row(ANIMS.indexOf('cast'), sheet.frames.cast) : idle,
         frameRate: cfg.frameRate,
         repeat: cfg.loop ? -1 : 0,
       });
