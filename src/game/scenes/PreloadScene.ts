@@ -54,6 +54,12 @@ export class PreloadScene extends Phaser.Scene {
           frameHeight: f.sheet.frameHeight,
         });
       }
+      if (f.formSheet) {
+        this.load.spritesheet(fighterSheetKey(id, true), `${dir}form/sheet.png`, {
+          frameWidth: f.formSheet.frameWidth,
+          frameHeight: f.formSheet.frameHeight,
+        });
+      }
       if (f.portrait) this.load.image(portraitKey(id), `${dir}portrait.png`);
     }
     if (manifest.floor) this.load.image(FLOOR_KEY, `${ASSET_ROOT}arena/floor.png`);
@@ -75,13 +81,16 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   private done(manifest: AssetManifest): void {
-    for (const [id, f] of Object.entries(manifest.fighters)) if (f.sheet) this.createAnims(id, f.sheet);
+    for (const [id, f] of Object.entries(manifest.fighters)) {
+      if (f.sheet) this.createAnims(id, f.sheet, false);
+      if (f.formSheet) this.createAnims(id, f.formSheet, true);
+    }
     this.scene.start('MainMenu');
   }
 
-  /** Builds <id>_<anim> animations: row N of the sheet is ANIMS[N]. Empty rows fall back to idle. */
-  private createAnims(id: string, sheet: SheetInfo): void {
-    const key = fighterSheetKey(id);
+  /** Builds <id>[_form]_<anim> animations: row N of the sheet is ANIMS[N]. Empty rows fall back to idle. */
+  private createAnims(id: string, sheet: SheetInfo, form: boolean): void {
+    const key = fighterSheetKey(id, form);
     if (!this.textures.exists(key)) return;
     const row = (i: number, count: number) => this.anims.generateFrameNumbers(key, { start: i * sheet.columns, end: i * sheet.columns + count - 1 });
     const idle = sheet.frames.idle ? row(0, sheet.frames.idle) : this.anims.generateFrameNumbers(key, { start: 0, end: 0 });
@@ -89,7 +98,7 @@ export class PreloadScene extends Phaser.Scene {
       const count = sheet.frames[anim];
       const cfg = ANIM_CONFIG[anim];
       this.anims.create({
-        key: animKey(id, anim),
+        key: animKey(id, anim, form),
         frames: count ? row(i, count) : idle,
         frameRate: cfg.frameRate,
         repeat: cfg.loop ? -1 : 0,

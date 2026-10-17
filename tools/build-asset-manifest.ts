@@ -45,7 +45,8 @@ if (existsSync(fightersDir)) {
     const dir = join(fightersDir, id);
     const sheet = readSheet(id, dir);
     const portrait = existsSync(join(dir, 'portrait.png'));
-    if (sheet || portrait) manifest.fighters[id] = { sheet, portrait };
+    const formSheet = readSheet(`${id} (form)`, join(dir, 'form'));
+    if (sheet || portrait) manifest.fighters[id] = { sheet, portrait, formSheet };
   }
 }
 
@@ -60,7 +61,7 @@ if (existsSync(sfxDir)) {
 
 writeFileSync(join(root, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 const fighters = Object.entries(manifest.fighters)
-  .map(([id, f]) => `${id}${f.sheet ? '' : ' (portrait only)'}`)
+  .map(([id, f]) => `${id}${f.sheet ? '' : ' (portrait only)'}${f.formSheet ? ' +form' : ''}`)
   .join(', ');
 console.log(
   `assets: ${Object.keys(manifest.fighters).length} fighter(s)${fighters ? ` [${fighters}]` : ''}, ` +

@@ -6,6 +6,7 @@
  *   fighters/<id>/sheet.png                sprite sheet: a grid with one row per animation, in ANIMS order
  *   fighters/<id>/sheet.json               optional: frame size and frame count per row (see SheetConfig)
  *   fighters/<id>/portrait.png             square portrait for HUD / menus
+ *   fighters/<id>/form/sheet.png (+ .json) optional sheet used while transformed (same layout)
  *   arena/floor.png                        tileable floor texture
  *   sfx/<name>.(ogg|mp3|wav)               overrides the synthesized sound of the same name
  */
@@ -58,7 +59,7 @@ export interface SheetInfo {
 }
 
 export interface AssetManifest {
-  fighters: Record<string, { sheet: SheetInfo | null; portrait: boolean }>;
+  fighters: Record<string, { sheet: SheetInfo | null; portrait: boolean; formSheet?: SheetInfo | null }>;
   floor: boolean;
   /** Sound name → file path relative to public/assets/. */
   sfx: Partial<Record<SfxName, string>>;
@@ -67,8 +68,9 @@ export interface AssetManifest {
 export const EMPTY_MANIFEST: AssetManifest = { fighters: {}, floor: false, sfx: {} };
 
 export const ASSET_ROOT = 'assets/';
-export const fighterSheetKey = (id: string) => `fighter_${id}`;
+/** `form` selects the transformed variant (fighters/<id>/form/). */
+export const fighterSheetKey = (id: string, form = false) => `fighter_${id}${form ? '_form' : ''}`;
 export const portraitKey = (id: string) => `portrait_${id}`;
-export const animKey = (id: string, anim: AnimName) => `${id}_${anim}`;
+export const animKey = (id: string, anim: AnimName, form = false) => `${id}${form ? '_form' : ''}_${anim}`;
 export const FLOOR_KEY = 'arena_floor';
 export const sfxKey = (name: SfxName) => `sfx_${name}`;

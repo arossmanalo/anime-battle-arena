@@ -26,6 +26,8 @@ export class FighterView {
   private readonly status: Phaser.GameObjects.Text;
   private readonly facingMark: Phaser.GameObjects.Triangle;
   private sprite?: Phaser.GameObjects.Sprite;
+  /** True while the transformed-form sheet is shown. */
+  private formSprites = false;
   private trailTimer = 0;
   private hitTimer = 0;
   private koPlayed = false;
@@ -90,8 +92,18 @@ export class FighterView {
   }
 
   private playAnim(anim: AnimName): void {
-    const key = animKey(this.f.def.id, anim);
+    const key = animKey(this.f.def.id, anim, this.formSprites);
     if (this.sprite && this.scene.anims.exists(key)) this.sprite.play(key, true);
+  }
+
+  /** Swaps to the transformed sheet (fighters/<id>/form/) when the fighter transforms, if one exists. */
+  private syncFormSprites(): void {
+    if (!this.sprite) return;
+    const want = this.f.transformed && this.scene.textures.exists(fighterSheetKey(this.f.def.id, true));
+    if (want === this.formSprites) return;
+    const { displayWidth, displayHeight } = this.sprite;
+    this.formSprites = want;
+    this.sprite.setTexture(fighterSheetKey(this.f.def.id, want), 0).setDisplaySize(displayWidth, displayHeight);
   }
 
   hitFlash(): void {
@@ -194,6 +206,7 @@ export class FighterView {
     if (this.hitTimer > 0) anim = 'hit';
     else if (f.busy) anim = 'cast';
     else if (running) anim = 'run';
+    this.syncFormSprites();
     this.playAnim(anim);
     // The run cycle speeds up and slows down with the fighter (buffs, slows), so feet don't slide.
     const pace = anim === 'run' ? f.speed / f.def.speed : 1;
@@ -209,7 +222,9 @@ export class FighterView {
     this.shield.setVisible(false);
     this.status.setText('');
     const manifest = this.scene.registry.get('manifest') as AssetManifest | undefined;
-    if (this.sprite && manifest?.fighters[this.f.def.id]?.sheet?.frames.ko) {
+    const entry = manifest?.fighters[this.f.def.id];
+    const sheet = this.formSprites ? entry?.formSheet : entry?.sheet;
+    if (this.sprite && sheet?.frames.ko) {
       this.playAnim('ko');
       this.scene.tweens.add({ targets: this.body, alpha: 0.6, duration: 900 });
     } else {

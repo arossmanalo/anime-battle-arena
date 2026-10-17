@@ -7,6 +7,7 @@ public/assets/
   fighters/<id>/sheet.png      sprite sheet (required for a sprite)
   fighters/<id>/sheet.json     optional sheet settings
   fighters/<id>/portrait.png   optional square portrait
+  fighters/<id>/form/sheet.png optional sheet used while transformed (+ sheet.json)
   arena/floor.png              optional tileable floor
   sfx/<name>.ogg|mp3|wav       optional sound overrides
   CREDITS.md                   where every third-party file came from
@@ -76,6 +77,10 @@ Gojo's current sprite was made this way. ChatGPT keeps a character's design cons
    npm run import-sheet -- path/to/image.webp gojo --copy-to "C:/Users/<you>/Pictures/ABA Sprites/Characters/Gojo"
    ```
    It removes the background (transparent, or a flat colour flood-filled from the edges), finds each sprite, groups them into the five rows, scales every frame by one shared factor into 128×128 cells with the feet on a common baseline, and writes `sheet.png`, `sheet.json` and a head-crop `portrait.png`. `--copy-to` also saves those plus the source image elsewhere.
+   For a transformation (Nine-Tails Chakra Mode, Super Saiyan, ...), make a second sheet with the same layout and add `--form`; the game swaps to it when the fighter transforms:
+   ```
+   npm run import-sheet -- path/to/form.webp naruto --form
+   ```
 3. If it reports the wrong number of rows, the image probably has text, effects or frames that overlap vertically; regenerate or tidy it up and run again.
 4. Restart `npm run dev`.
 

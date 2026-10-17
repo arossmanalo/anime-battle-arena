@@ -4,7 +4,7 @@ Every third-party file in `public/assets/` goes here. See [docs/ART_SPEC.md](../
 
 All sound effects are synthesized in code; no third-party audio is used yet.
 
-## fighters/gojo/ (sheet.png, portrait.png)
+## fighters/gojo/ and fighters/naruto/ (sheet.png, portrait.png, naruto/form/)
 
 Generated with ChatGPT image generation (OpenAI) from the project owner's prompts, then converted with `npm run import-sheet`. Fan art of a character owned by its rights holders, used in this non-commercial fan project only.
 
