@@ -116,17 +116,14 @@ export class Vfx {
     return true;
   }
 
-  /** Cast sprite on the caster while its skill winds up (looping art stays until the skill fires). */
+  /** Cast sprite on the caster during the wind-up. Plays (or loops) until the skill fires, then goes. */
   cast(f: Fighter, skill: SkillDef): void {
     const info = this.fx(skill.id, 'cast');
     if (!info) return;
     const s = this.createFxSprite(skill.id, 'cast', info, skill.ultimate ? 150 : 90).setPosition(f.pos.x, f.pos.y - BODY_LIFT);
     this.layers.fx.add(s);
-    if (info.loop) this.attached.push({ sprite: s, fighter: f, alive: () => f.alive && f.casting?.skill === skill });
-    else {
-      s.once('animationcomplete', () => s.destroy());
-      this.attached.push({ sprite: s, fighter: f, alive: () => s.active });
-    }
+    // Looping art repeats and one-shot art holds its last frame; either way it stays until the skill fires.
+    this.attached.push({ sprite: s, fighter: f, alive: () => f.alive && f.casting?.skill === skill });
   }
 
   /** A skill just went off: muzzle / blink-out sprite at the caster, and a lasting aura for buffs. */

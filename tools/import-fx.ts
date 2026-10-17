@@ -10,8 +10,9 @@
  *   --bg auto|black|transparent|flat   how to remove the background (default auto: transparent, black or a flat colour)
  *                                      black = the image is glow-on-black; brightness becomes opacity (best for energy FX)
  *   --grid CxR        split the image into equal cells instead of detecting frames (e.g. --grid 4x1)
- *   --frames N        expected number of frames: if detection finds more (a frame made of separate pieces), the
- *                     closest neighbours are merged until N remain
+ *   --frames N        how many frames are in the (single-row) image. Cuts it at the emptiest places, which also works when
+ *                     frames touch, overlap or are joined by glow. Recommended whenever you know the count
+ *   --crop L,T,R,B    only use this part of the image (pixels, or fractions 0-1 of its size), e.g. --crop 0,0,0.32,1
  *   --pick A-B       use only frames A to B (1-based, in reading order), so one image can hold several effects
  *   --cell N | WxH    frame size in px (default: just big enough for the largest frame, at most 512)
  *   --fill            stretch each frame to the whole cell (backgrounds such as a domain; use with --grid and --bg none)
@@ -123,35 +124,79 @@ function runs(length: number, on: (i: number) => boolean): [number, number][] {
   return out;
 }
 
-/** Merges the closest neighbouring frames (same row, side by side) until `count` remain. */
-function mergeTo(frames: Rect[], count: number): Rect[] {
-  const out = [...frames];
-  while (out.length > count) {
-    let best = -1;
-    let bestGap = Infinity;
-    for (let i = 0; i + 1 < out.length; i++) {
-      const a = out[i];
-      const b = out[i + 1];
-      const sameRow = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top) > 0;
-      const gap = b.left - (a.left + a.width);
-      if (sameRow && gap < bestGap) {
-        best = i;
-        bestGap = gap;
+/**
+ * Splits a single row of `count` frames. Frames that touch or are joined by faint glow can't be found by looking for
+ * empty gaps, so this cuts at the `count - 1` columns with the least content (each at least a third of an even
+ * frame width from the others and from the edges), then tightens each frame to its own content.
+ */
+function splitByValleys(data: Buffer, w: number, h: number, count: number): Rect[] {
+  const profile = new Float64Array(w);
+  let top = h;
+  let bottom = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const a = data[(y * w + x) * 4 + 3];
+      profile[x] += a;
+      if (a >= 40) {
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
       }
     }
+  }
+  const smooth = profile.map((_, x) => {
+    let sum = 0;
+    for (let k = -4; k <= 4; k++) sum += profile[Math.min(w - 1, Math.max(0, x + k))];
+    return sum / 9;
+  });
+  const xs = [...smooth.keys()].filter((x) => smooth[x] > 0);
+  const left = xs.length ? xs[0] : 0;
+  const right = xs.length ? xs[xs.length - 1] : w - 1;
+  const minDist = Math.max(4, Math.round((right - left) / count / 3));
+  const cuts: number[] = [];
+  while (cuts.length < count - 1) {
+    let best = -1;
+    for (let x = left + minDist; x <= right - minDist; x++) {
+      if (cuts.some((c) => Math.abs(c - x) < minDist)) continue;
+      if (best < 0 || smooth[x] < smooth[best]) best = x;
+    }
     if (best < 0) break;
-    const a = out[best];
-    const b = out[best + 1];
-    const left = Math.min(a.left, b.left);
-    const top = Math.min(a.top, b.top);
-    out.splice(best, 2, { left, top, width: Math.max(a.left + a.width, b.left + b.width) - left, height: Math.max(a.top + a.height, b.top + b.height) - top });
+    cuts.push(best);
+  }
+  cuts.sort((a, b) => a - b);
+  const bounds = [left, ...cuts, right + 1];
+  const out: Rect[] = [];
+  for (let i = 0; i + 1 < bounds.length; i++) {
+    const x0 = bounds[i];
+    const x1 = bounds[i + 1];
+    // Tight box around this frame's own content, kept inside its span.
+    let l = x1;
+    let r = x0;
+    let t = bottom;
+    let b = top;
+    for (let y = top; y <= bottom; y++) {
+      for (let x = x0; x < x1; x++) {
+        if (data[(y * w + x) * 4 + 3] >= 40) {
+          l = Math.min(l, x);
+          r = Math.max(r, x);
+          t = Math.min(t, y);
+          b = Math.max(b, y);
+        }
+      }
+    }
+    if (r < l) continue;
+    const pad = 6;
+    const fl = Math.max(x0, l - pad);
+    const ft = Math.max(0, t - pad);
+    out.push({ left: fl, top: ft, width: Math.min(x1, r + 1 + pad) - fl, height: Math.min(h, b + 1 + pad) - ft });
   }
   return out;
 }
 
 /** Finds frames by projection: horizontal bands of content are rows, vertical bands inside a row are frames. */
-function detectFrames(data: Buffer, w: number, h: number): Rect[] {
-  const opaque = (x: number, y: number) => data[(y * w + x) * 4 + 3] >= ALPHA_CUTOFF;
+function detectFrames(data: Buffer, w: number, h: number, cutoff = ALPHA_CUTOFF): Rect[] {
+  const opaque = (x: number, y: number) => data[(y * w + x) * 4 + 3] >= cutoff;
+  // The brighter the cutoff, the more of a glow's edge falls outside the box, so grow the box to compensate.
+  const pad = FRAME_PAD + Math.round((cutoff - ALPHA_CUTOFF) / 4);
   const frames: Rect[] = [];
   const rowBands = runs(h, (y) => {
     for (let x = 0; x < w; x++) if (opaque(x, y)) return true;
@@ -175,13 +220,13 @@ function detectFrames(data: Buffer, w: number, h: number): Rect[] {
           }
         }
       }
-      const left = Math.max(0, x0 - FRAME_PAD);
-      const topPad = Math.max(0, top - FRAME_PAD);
+      const left = Math.max(0, x0 - pad);
+      const topPad = Math.max(0, top - pad);
       frames.push({
         left,
         top: topPad,
-        width: Math.min(w, x1 + 1 + FRAME_PAD) - left,
-        height: Math.min(h, bottom + 1 + FRAME_PAD) - topPad,
+        width: Math.min(w, x1 + 1 + pad) - left,
+        height: Math.min(h, bottom + 1 + pad) - topPad,
       });
     }
   }
@@ -195,7 +240,16 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  let image = sharp(input).ensureAlpha();
+  if (opts.crop) {
+    const meta = await sharp(input).metadata();
+    const [l, t, r, b] = String(opts.crop).split(',').map(Number);
+    const px = (v: number, size: number) => Math.round(v <= 1 ? v * size : v);
+    const left = px(l, meta.width!);
+    const top = px(t, meta.height!);
+    image = sharp(await sharp(input).extract({ left, top, width: px(r, meta.width!) - left, height: px(b, meta.height!) - top }).png().toBuffer()).ensureAlpha();
+  }
+  const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
   const { width: w, height: h } = info;
   const bgMode = String(opts.bg ?? 'auto');
   const bg = bgMode === 'none' ? { note: 'background kept', keyed: false } : removeBackground(data, w, h, bgMode);
@@ -216,20 +270,9 @@ async function main(): Promise<void> {
   } else {
     frames = detectFrames(data, w, h);
   }
-  if (opts.frames) {
-    const want = Number(opts.frames);
-    // Fewer than expected: faint glow is joining neighbouring frames. A single row of evenly spaced frames can
-    // still be split into equal columns across the content.
-    if (frames.length < want && !opts.grid) {
-      const left = Math.min(...frames.map((f) => f.left));
-      const right = Math.max(...frames.map((f) => f.left + f.width));
-      const top = Math.min(...frames.map((f) => f.top));
-      const bottom = Math.max(...frames.map((f) => f.top + f.height));
-      const colW = (right - left) / want;
-      frames = Array.from({ length: want }, (_, i) => ({ left: Math.round(left + i * colW), top, width: Math.round(colW), height: bottom - top }));
-      console.log(`Frames were joined by faint glow: split the content into ${want} equal columns.`);
-    }
-    frames = mergeTo(frames, want);
+  if (opts.frames && !opts.grid) {
+    // The frame count is known: cut a single row of frames at the N-1 emptiest places between them.
+    frames = splitByValleys(data, w, h, Number(opts.frames));
   }
   console.log(`Found ${frames.length} frame(s) in the image.`);
   if (opts.pick) {

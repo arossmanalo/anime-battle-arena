@@ -10,7 +10,7 @@ Each part is a **single row of frames** (`<part>.png`) plus an optional `<part>.
 
 | Part | When it plays | Notes |
 | --- | --- | --- |
-| `cast` | on the caster while the skill winds up | loops until the skill fires. Centred on the fighter |
+| `cast` | on the caster while the skill winds up | loops until the skill fires (or plays once and holds its last frame with `--once`). Centred on the fighter |
 | `body` | **projectile**: flies with it | faces the direction it travels (draw it facing **right**) |
 | | **zone** (Lapse: Blue): fills the area, centred on it | a domain stretches over the whole arena |
 | | **buff** (Infinity): around the caster while the buff lasts | fades out at the end |
@@ -33,7 +33,9 @@ Which parts a skill can use: projectile = `cast`, `start`, `body`, `impact` · z
 | Option | Meaning |
 | --- | --- |
 | `--bg auto\|black\|transparent\|flat\|none` | how the background goes. `black` turns brightness into opacity, so glows fade smoothly (best for energy). `auto` picks transparent, black or a flat colour. `none` keeps it opaque |
-| `--frames N` | the frame count you asked for. If the tool sees more (a frame made of separate pieces), it merges the closest ones |
+| `--frames N` | how many frames are in the (single-row) image. The tool cuts the row at the N-1 emptiest places, which also works when frames touch or are joined by glow. Use it whenever you know the count |
+| `--crop L,T,R,B` | use only part of the image (pixels, or fractions like `0,0,0.3,1`). Lets one image hold several effects (cast, flight and impact of one skill in a single row) |
+| `--pick A-B` | use only frames A to B of what was found (1-based) |
 | `--grid CxR` | cut into equal cells instead of detecting frames |
 | `--size PX` | width on screen in arena pixels. The arena is 900 wide and a fighter is about 90 |
 | `--fps N`, `--loop`, `--once` | frame rate, and whether it loops |
