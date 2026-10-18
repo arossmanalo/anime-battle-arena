@@ -1310,3 +1310,137 @@ describe('Erwin commander', () => {
   });
 });
 
+describe('Lelouch strategist', () => {
+  function squad(): Simulation {
+    const sim = new Simulation({
+      seed: 9,
+      idleFallback: 0,
+      teams: [
+        ['lelouch', 'vegeta'].map((id) => ({ def: fighterById(id), controller: 'ai' as const })),
+        ['goku', 'sukuna'].map((id) => ({ def: fighterById(id), controller: 'ai' as const })),
+      ],
+    });
+    for (const f of sim.fighters) f.statuses.push({ type: 'stun', remaining: 99, value: 0, source: 0 });
+    return sim;
+  }
+
+  it('Geass stops an enemy that is in range and looking at him, once per enemy per match', () => {
+    const sim = squad();
+    const [lel, , foe] = sim.fighters;
+    const geass = lel.def.skills[2];
+    foe.statuses = [];
+    lel.pos = { x: 300, y: 200 };
+    foe.pos = { x: 500, y: 200 };
+    foe.facing = 1; // looking away from him
+    sim.applyEffects(lel, foe, geass.effects, geass, lel.pos);
+    expect(foe.stunned).toBe(false);
+    expect(foe.geassBy.has(lel.uid)).toBe(false);
+    foe.facing = -1; // looking at him
+    sim.applyEffects(lel, foe, geass.effects, geass, lel.pos);
+    expect(foe.stunned).toBe(true);
+    expect(foe.geassBy.has(lel.uid)).toBe(true);
+    // The second time it is only a slow and a mark.
+    foe.statuses = [];
+    sim.applyEffects(lel, foe, geass.effects, geass, lel.pos);
+    expect(foe.stunned).toBe(false);
+    expect(foe.hasStatus('slow')).toBe(true);
+    expect(foe.hasStatus('marked')).toBe(true);
+  });
+
+  it('Geass does nothing to an enemy out of range', () => {
+    const sim = squad();
+    const [lel, , foe] = sim.fighters;
+    const geass = lel.def.skills[2];
+    foe.statuses = [];
+    lel.pos = { x: 100, y: 200 };
+    foe.pos = { x: 800, y: 200 };
+    foe.facing = -1;
+    sim.applyEffects(lel, foe, geass.effects, geass, lel.pos);
+    expect(foe.stunned).toBe(false);
+  });
+
+  it('Checkmate Protocol gives a rescue heal and speed under 30% HP, and a plain heal above it', () => {
+    const sim = squad();
+    const [lel, ally] = sim.fighters;
+    const cm = lel.def.skills[3];
+    ally.statuses = [];
+    ally.hp = ally.maxHp * 0.5;
+    const before = ally.hp;
+    sim.applyEffects(lel, ally, cm.support!.effects, cm, lel.pos);
+    const plain = ally.hp - before;
+    expect(ally.hasStatus('speedBuff')).toBe(false);
+    ally.statuses = [];
+    ally.hp = ally.maxHp * 0.15;
+    const low = ally.hp;
+    sim.applyEffects(lel, ally, cm.support!.effects, cm, lel.pos);
+    expect(ally.hp - low).toBeGreaterThan(plain);
+    expect(ally.hasStatus('speedBuff')).toBe(true);
+    expect(ally.hasStatus('shield')).toBe(true);
+  });
+
+  it('the beacon heals once on cast and then regenerates, not a full heal every tick', () => {
+    const sim = squad();
+    const [lel, ally] = sim.fighters;
+    const beacon = lel.def.skills[1];
+    lel.pos = { x: 300, y: 200 };
+    ally.pos = { x: 340, y: 200 };
+    ally.hp = ally.maxHp * 0.4;
+    const start = ally.hp;
+    sim.spawnZone(lel, beacon, { ...lel.pos });
+    for (let i = 0; i < Math.ceil(3 / DT); i++) {
+      sim.step();
+      ally.pos = { x: 340, y: 200 };
+    }
+    // Three seconds of 5 HP/s is about 15, far less than a 28 heal per tick would give.
+    expect(ally.hp - start).toBeLessThan(40);
+    expect(ally.hp).toBeGreaterThan(start);
+  });
+
+  it('Tactical Advantage: charges fill from support actions, are capped, and are spent by an empowered ability', () => {
+    const sim = squad();
+    const [lel, ally] = sim.fighters;
+    expect(lel.passive.charges).toBe(0);
+    ally.hp = ally.maxHp * 0.2;
+    // A big stream of support gains, one per cooldown window, fills the one stored charge and no more.
+    for (let i = 0; i < 12; i++) {
+      lel.passive.gainCd = 0;
+      sim.applyEffects(lel, ally, [{ type: 'heal', amount: 30 }], lel.skill(1), lel.pos);
+      ally.hp = ally.maxHp * 0.2;
+    }
+    expect(lel.passive.charges).toBe(1);
+    expect(lel.passive.meter).toBeLessThan(100.0001);
+    const orders = lel.skill(0);
+    ally.statuses = [];
+    lel.statuses = [];
+    lel.energy = 100;
+    sim.tryCast(lel, 0);
+    lel.statuses = lel.statuses.filter((x) => x.type !== 'stun');
+    for (let i = 0; i < Math.ceil(0.5 / DT); i++) sim.step();
+    expect(lel.passive.charges).toBe(0);
+    expect(orders.empower).toBeDefined();
+  });
+
+  it('the gain cooldown stops a burst of heals from filling the meter at once', () => {
+    const sim = squad();
+    const [lel, ally] = sim.fighters;
+    ally.hp = ally.maxHp * 0.2;
+    lel.passive.gainCd = 0;
+    for (let i = 0; i < 20; i++) sim.applyEffects(lel, ally, [{ type: 'heal', amount: 20 }], lel.skill(1), lel.pos);
+    expect(lel.passive.meter).toBeLessThan(15);
+  });
+
+  it('awakens into the Emperor: pure support with two stored charges and imperial skills', () => {
+    const sim = squad();
+    const [lel] = sim.fighters;
+    lel.statuses = [];
+    lel.passive.meter = 100;
+    expect(sim.tryTransform(lel)).toBe(true);
+    expect(lel.skill(0).id).toBe('lelouch.orders.awakened');
+    expect(lel.skill(2).id).toBe('lelouch.geass.awakened');
+    expect(lel.skill(4).id).toBe('lelouch.strategy.awakened');
+    expect(lel.passiveDef.kind === 'awakening' && lel.passiveDef.charges?.max).toBe(2);
+    expect(lel.maxHp).toBe(lel.def.hp);
+    expect(roleScores({ roles: lel.form!.roles }).support).toBe(1);
+  });
+});
+

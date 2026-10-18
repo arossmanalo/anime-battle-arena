@@ -72,7 +72,7 @@ class SidePanel {
       case 'lastStand':
         return `${def.name.toUpperCase()}  ${p.used ? 'spent' : 'ready'}`;
       case 'awakening':
-        return this.f.form ? def.name.toUpperCase() : `${def.name.toUpperCase()}  ${Math.floor(p.meter)}%`;
+        return `${def.name.toUpperCase()}${this.f.form ? '' : `  ${Math.floor(p.meter)}%`}${def.charges ? `  ${'◆'.repeat(p.charges)}${'◇'.repeat(Math.max(0, def.charges.max - p.charges))}` : ''}`;
       default:
         return def.name.toUpperCase();
     }

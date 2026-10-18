@@ -28,6 +28,13 @@ export type Effect =
   | { type: 'mark'; amount: number; duration: number }
   /** For `duration` seconds the target deals a little extra damage to marked enemies (Focused Assault). */
   | { type: 'focus'; duration: number }
+  /**
+   * An order that only works if the target is within the skill's range and facing the caster. It stops the target for `duration`
+   * seconds, but only ONCE per enemy per match: after that `fallback` effects apply instead.
+   */
+  | { type: 'geass'; duration: number; fallback: Effect[] }
+  /** An emergency save: a target under `threshold` of max HP also gets `heal` more HP and a `speed` boost for `duration` seconds. */
+  | { type: 'rescue'; threshold: number; heal: number; speed: number; duration: number }
   /** For `duration` seconds nothing the target has (a barrier, a dodge) can stop an attack: every hit on it lands. */
   | { type: 'expose'; duration: number }
   | { type: 'speedBuff'; factor: number; duration: number }
@@ -55,6 +62,8 @@ export interface SupportDef {
   /** Teammates must be within this distance (default 400). */
   range?: number;
   effects: Effect[];
+  /** Applied once when the skill is cast, on top of `effects` (a zone applies `effects` again every tick, `initial` never). */
+  initial?: Effect[];
 }
 
 export interface SkillDef {
@@ -98,6 +107,8 @@ export interface SkillDef {
   outer?: { from: number; effects: Effect[] };
   /** Healing a badly hurt ally can enlarge the next use (see the awakening passive's `radiusBonus`). */
   boostable?: boolean;
+  /** Extra effects (on the same targets) that spend one Tactical Advantage charge when the caster has one. */
+  empower?: Effect[];
   /** Projectile: how many times it ricochets off walls and enemies (each enemy hit redirects it to another enemy). */
   bounces?: number;
   /** Zone: enemies inside are pulled toward the centre at this speed (px/s). */
@@ -191,6 +202,11 @@ export type PassiveEffect =
       interruptGain?: number;
       /** Assisting a teammate (a buff, a guard) gives this fighter a short speed boost. */
       assistSpeed?: { factor: number; duration: number };
+      /** Meter gained when this fighter buffs a teammate / saves a badly hurt one. */
+      buffGain?: number;
+      saveGain?: number;
+      /** Tactical Advantage: a charge every `every` meter gained, up to `max` stored. Charges power the next `empower` skill. */
+      charges?: { every: number; max: number };
     };
 
 export type PassiveDef = { id: string; name: string; description: string } & PassiveEffect;

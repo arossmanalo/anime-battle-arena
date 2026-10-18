@@ -37,7 +37,7 @@ export function supportTargets(sim: Simulation, f: Fighter, skill: SkillDef): Fi
 
 function applySupport(sim: Simulation, f: Fighter, skill: SkillDef): void {
   for (const ally of supportTargets(sim, f, skill)) {
-    sim.applyEffects(f, ally, skill.support!.effects, skill, f.pos);
+    sim.applyEffects(f, ally, skill.support!.initial ? [...skill.support!.effects, ...skill.support!.initial] : skill.support!.effects, skill, f.pos);
     // Area skills already show their own burst; only buffs need a mark on each teammate.
     if (skill.kind === 'buff') {
       // `uid` and `duration` let the view put the skill's lasting aura art on the teammate for as long as the effect lasts.
@@ -52,6 +52,12 @@ export function fireSkill(sim: Simulation, f: Fighter, skill: SkillDef): void {
   const target = sim.nearestEnemy(f);
   if (skill.selfEffects) sim.applyEffects(f, f, skill.selfEffects, skill, f.pos);
   if (skill.support) applySupport(sim, f, skill);
+  // Tactical Advantage: a stored charge empowers the next ability that has an `empower` set.
+  if (skill.empower && f.passive.charges > 0) {
+    f.passive.charges--;
+    const targets = skill.support ? supportTargets(sim, f, skill) : [f];
+    for (const t of targets) sim.applyEffects(f, t, skill.empower, skill, f.pos);
+  }
 
   switch (skill.kind) {
     case 'projectile': {

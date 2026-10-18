@@ -112,24 +112,47 @@ export const BRACE_COUNTER: SkillDef = {
 /** What the awakening meter gains from one kind of event (does nothing without that passive, or once awakened). */
 export function awakenGain(f: Fighter, kind: 'dealt' | 'taken' | 'support', amount: number): void {
   const p = f.passiveDef;
-  if (p.kind !== 'awakening' || f.form || amount <= 0) return;
+  if (p.kind !== 'awakening' || amount <= 0) return;
+  const rate = kind === 'dealt' ? p.perDamage : kind === 'taken' ? p.perTaken : p.perSupport;
+  addMeter(f, amount * rate);
+}
+
+/** Adds raw meter (respecting the internal cooldown). A transformed fighter only keeps earning Tactical Advantage charges. */
+function addMeter(f: Fighter, gained: number): void {
+  const p = f.passiveDef;
+  if (p.kind !== 'awakening' || gained <= 0) return;
+  if (f.form && !p.charges) return;
   if (p.icd) {
     if (f.passive.gainCd > 0) return;
     f.passive.gainCd = p.icd;
   }
-  const rate = kind === 'dealt' ? p.perDamage : kind === 'taken' ? p.perTaken : p.perSupport;
-  f.passive.meter = Math.min(100, f.passive.meter + amount * rate);
+  if (!f.form) f.passive.meter = Math.min(100, f.passive.meter + gained);
+  if (p.charges) {
+    f.passive.chargeProgress += gained;
+    while (f.passive.chargeProgress >= p.charges.every) {
+      f.passive.chargeProgress -= p.charges.every;
+      f.passive.charges = Math.min(p.charges.max, f.passive.charges + 1);
+    }
+  }
+}
+
+/** A buff or guard went to a teammate. */
+export function awakenBuff(f: Fighter): void {
+  const p = f.passiveDef;
+  if (p.kind === 'awakening' && p.buffGain) addMeter(f, p.buffGain);
+}
+
+/** A badly hurt teammate was healed. */
+export function awakenSave(f: Fighter): void {
+  const p = f.passiveDef;
+  if (p.kind === 'awakening' && p.saveGain) addMeter(f, p.saveGain);
 }
 
 /** An enemy was stunned by this fighter: some passives pay out for interrupting. */
 export function awakenInterrupt(f: Fighter): void {
   const p = f.passiveDef;
-  if (p.kind !== 'awakening' || f.form || !p.interruptGain) return;
-  if (p.icd) {
-    if (f.passive.gainCd > 0) return;
-    f.passive.gainCd = p.icd;
-  }
-  f.passive.meter = Math.min(100, f.passive.meter + p.interruptGain);
+  if (p.kind !== 'awakening' || !p.interruptGain) return;
+  addMeter(f, p.interruptGain);
 }
 
 /** The extra hit a consumed set of marks deals. Shown like any other hit (damage number, sound). */

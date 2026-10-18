@@ -61,6 +61,9 @@ export interface PassiveState {
   boost: number;
   /** Seconds until the awakening meter may gain again (see `icd`). */
   gainCd: number;
+  /** Tactical Advantage charges stored, and progress towards the next one. */
+  charges: number;
+  chargeProgress: number;
 }
 
 /** Runtime state of one fighter in a match. Pure data plus small helpers — the Simulation drives it. */
@@ -131,6 +134,8 @@ export class Fighter {
       calm: 0,
       boost: 0,
       gainCd: 0,
+      charges: 0,
+      chargeProgress: 0,
     };
   }
 
@@ -209,6 +214,8 @@ export class Fighter {
 
   /** Seconds of free energy left: skills cost nothing. */
   freeEnergy = 0;
+  /** uids of fighters whose Geass has already worked on this one (it works once per enemy). */
+  readonly geassBy = new Set<number>();
 
   canAfford(skill: SkillDef): boolean {
     if (this.freeEnergy > 0 && !skill.ultimate) return true;

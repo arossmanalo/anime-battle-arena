@@ -1,6 +1,6 @@
 import type { Fighter, StatusType } from './Fighter';
 import type { Effect, SkillDef, Vec } from './types';
-import { applyMarks, awakenGain, awakenInterrupt, BRACE_COUNTER, negatesAttack, passiveDamageTaken, passiveKnockbackTaken, passiveUltMult, survivesHit } from './passives';
+import { applyMarks, awakenBuff, awakenGain, awakenInterrupt, awakenSave, BRACE_COUNTER, negatesAttack, passiveDamageTaken, passiveKnockbackTaken, passiveUltMult, survivesHit } from './passives';
 import { norm, scale, sub } from './vec';
 
 /** Energy gained per point of damage dealt / taken. */
@@ -167,6 +167,7 @@ export function applyEffects(
         const rb = source.passiveDef.kind === 'awakening' ? source.passiveDef.radiusBonus : undefined;
         if (rb && source !== target && before < target.maxHp * 0.35 && target.hp > before) source.passive.boost = rb.expire;
         if (target.hp > before) {
+          if (before < target.maxHp * 0.35 && source !== target) awakenSave(source);
           source.stats.healingDone += target.hp - before;
           awakenGain(source, 'support', target.hp - before);
           ctx.onHeal?.(source, target, target.hp - before);
@@ -178,6 +179,7 @@ export function applyEffects(
         break;
       case 'guard':
         addStatus(target, 'guard', e.duration, e.factor, source.uid);
+        if (!self) awakenBuff(source);
         break;
       case 'cleanse': {
         const kept = target.statuses.filter((s) => s.type !== 'stun' && s.type !== 'burn' && s.type !== 'slow');
@@ -214,16 +216,45 @@ export function applyEffects(
         break;
       case 'steady':
         addStatus(target, 'steady', e.duration, e.factor, source.uid);
+        if (!self) awakenBuff(source);
         break;
       case 'counter':
         addStatus(target, 'counter', e.duration, e.damage, source.uid);
         break;
       case 'speedBuff':
         addStatus(target, 'speedBuff', e.duration, e.factor, source.uid);
+        if (!self) awakenBuff(source);
         break;
       case 'damageBuff':
         addStatus(target, 'damageBuff', e.duration, e.factor, source.uid);
+        if (!self) awakenBuff(source);
         break;
+      case 'geass': {
+        if (self) break;
+        // It only takes if the target is in range and looking at the caster; a target that looks away or backs off is untouched.
+        const gap = Math.hypot(source.pos.x - target.pos.x, source.pos.y - target.pos.y);
+        const looking = (source.pos.x - target.pos.x) * target.facing > 0;
+        if (!looking || gap > skill.range + 30) break;
+        if (target.geassBy.has(source.uid)) applyEffects(ctx, source, target, e.fallback, skill, origin);
+        else {
+          target.geassBy.add(source.uid);
+          applyEffects(ctx, source, target, [{ type: 'stun', duration: e.duration }], skill, origin);
+        }
+        break;
+      }
+      case 'rescue': {
+        if (target.hp >= target.maxHp * e.threshold) break;
+        const before = target.hp;
+        const selfMult = source === target ? 0.5 : 1;
+        target.hp = Math.min(target.maxHp, target.hp + Math.round(e.heal * selfMult * (source.form?.healMult ?? 1) * (ctx.healMult?.() ?? 1)));
+        if (target.hp > before) {
+          source.stats.healingDone += target.hp - before;
+          ctx.onHeal?.(source, target, target.hp - before);
+          if (source !== target) awakenSave(source);
+        }
+        addStatus(target, 'speedBuff', e.duration, e.speed, source.uid);
+        break;
+      }
     }
   }
   // Assisting a teammate can give the helper a short burst of speed (Erwin's awakened passive).

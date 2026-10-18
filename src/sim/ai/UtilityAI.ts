@@ -343,6 +343,9 @@ export class UtilityAI {
   private score(skill: SkillDef, target: Fighter, d: number): number {
     // A map-wide finisher that is armed (HP gate met) is always worth firing.
     if (skill.requiresHpBelow) return 60;
+    // Geass: worth casting at an enemy in range (a weaker disruption if it has already worked on them).
+    const geass = skill.effects.find((e) => e.type === 'geass');
+    if (geass) return d <= skill.range ? (target.geassBy.has(this.f.uid) ? 9 : 30) : 0;
     // A signal flare is worth firing at an enemy that is not already marked.
     if (skill.effects.some((e) => e.type === 'mark')) return d <= skill.range + 40 && !target.hasStatus('marked') ? 26 : 0;
     if (skill.support) return this.supportScore(skill) + (skill.selfEffects ? 0 : 0);
