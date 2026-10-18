@@ -46,6 +46,12 @@ A fighter (`FighterDef`, see `src/sim/types.ts`) has: stats, **4 skills**, **1 u
 
 **Form** (optional, `form`): a transformation unlocked at low HP. `hpThreshold` 0.45-0.5, `energyCost` 40 (50 for a domain-style one), `speedMult` 1.1-1.25, `damageMult` 1.15-1.25, `energyRegenMult` 1.3-1.5, `heal` 0.05-0.1. It may replace a skill (`skillOverrides`) or the ultimate. Give it a `color`.
 
+**Roles and team kit (team battles).** Every fighter gets `roles: { tank, damage, support, healer }` (scores 0-1, a hybrid has two high ones) and, if the brief suggests it, a `teamKit` of 0-2 skills that replace a slot only in team matches. Team-only building blocks (see `docs/TEAM_MODE_PLAN.md`):
+- A skill's `support: { to: 'lowestAlly' | 'allAllies' | 'nearestAlly', range?, effects[] }` applies effects to teammates (kind `buff`, `effects: []`, caster effects in `selfEffects`).
+- Effects: `heal` (amount 40-50 for a healer, 20-30 for a hybrid), `shield` (24-40), `guard { factor 0.5-0.7, duration 4 }`, `taunt { duration 3-3.5 }` (an `aoe` with `range: 0`, `radius` about 230, taunt in `effects`), `cleanse`, plus the existing buffs.
+- Tank: `aiProfile: 'rushdown'` or `balanced`, roles `{ tank: 0.7+ }`, a taunt + guard skill in its team kit. Healer: roles `{ healer: 0.7, damage: 0.3-0.5 }`, a heal + cleanse in its team kit, `aiProfile: 'zoner'`. Support: shield/buff for allies. Damage fighters can omit the kit.
+- Run `npm run team-balance -- 2 300` and `-- 4 120`: no fighter or role mix should be far outside about 40-60%, and all-damage teams should lose to a balanced one.
+
 **Voice lines**: 2 each for `intro`, `ultimate`, `transform`, `hurt`, `win`, short and in character (paraphrase, do not quote copyrighted dialogue).
 
 `initials`: 2 letters for the placeholder disc. `series`: the show or game.
@@ -59,6 +65,7 @@ A fighter (`FighterDef`, see `src/sim/types.ts`) has: stats, **4 skills**, **1 u
 ## 3. Verify and balance
 
 - `npx tsc --noEmit` and `npx vitest run` (the "well-formed" test checks ids and costs).
+- `npm run team-balance -- 2 300` (and `-- 4 120`) as described under roles.
 - `npm run balance -- 100`: aim for each fighter's overall win rate within about 40-60% and no matchup outside 25-75%. If the new character is off, tune **their** numbers (damage, cooldown, hp) in small steps and re-run; only touch other characters if the new one is fine and the roster shifted. Report the final table.
 
 ## 4. Art prompts (docs)

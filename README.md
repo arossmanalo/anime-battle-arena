@@ -16,6 +16,8 @@ Pick your fighter and a CPU opponent. Both fighters move and dodge on their own.
 | `M` | Mute / unmute |
 | `Esc` | Pause |
 
+**Team battles** (`B` on the title screen): pick 2, 3 or 4 fighters per side (free pick, or a snake draft against the CPU), set each fighter's FRONT or BACK line, and watch an all-AI fight. Fighters have roles (tank, damage, support, healer, hybrids allowed); healers and supports use skills that target teammates, tanks taunt, and healing weakens and defence drops as the match drags on. The CPU picks its team with a role-aware picker. `S` changes speed. `npm run team-balance -- 2 300` simulates random team matches.
+
 **Training mode** (`T` on the title screen, or the Training button): pick a fighter and test it on a bullseye dummy that never fights back or dies. You get infinite energy and a full ultimate meter, can use your form any time (`T` again turns it off), and a panel shows total damage, last hit, best hit and DPS. Keys: `R` reset the field and stats, `C` toggle skills having no cooldown, `D` dummy still / pacing / strafing.
 
 Skills can have their own effect sprites (`public/assets/fx/<skill id>/`), imported with `npm run import-fx`; see [docs/FX_SPEC.md](docs/FX_SPEC.md). Anything without art uses the generic effect.

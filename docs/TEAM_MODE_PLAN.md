@@ -39,3 +39,9 @@ Main menu -> **Team battle** -> choose size (2v2, 3v3, 4v4) and mode (free pick 
 4. 2v2: team select, draft, formation, team HUD.
 5. 3v3 / 4v4: bigger arena, camera, readability (team rings, effect budget, smaller domains).
 6. Real tank and healer characters (via `/new-character`, updated for roles).
+
+## Status
+
+Done: engine (support skills, taunt, guard, cleanse, decay), roles and team kits for the 7 current fighters, role AI and focus targeting, team simulator, team select (free pick and draft), team HUD, 2v2/3v3/4v4 scaled arenas, team results.
+
+Open: dedicated tank and healer characters (the current roles are hybrids built from existing kits), team-aware domains, more roster (a 4v4 draft needs 8 fighters), real balance passes, PvP.
