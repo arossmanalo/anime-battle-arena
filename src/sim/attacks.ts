@@ -23,7 +23,7 @@ export function attackSkill(def: FighterDef, finisher: boolean, a: AttackDef = d
     const effects: SkillDef['effects'] = [{ type: 'damage', amount: a.damage * (strong ? FINISHER_MULT : 1) }];
     if (a.knockback && (strong || a.combo === 1)) effects.push({ type: 'knockback', force: a.knockback });
     skill = {
-      id: `${def.id}.attack`,
+      id: a.fxId ?? `${def.id}.attack`,
       name: a.name,
       kind: a.style === 'ranged' ? 'projectile' : 'aoe',
       energyCost: 0,

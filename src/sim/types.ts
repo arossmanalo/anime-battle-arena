@@ -138,6 +138,8 @@ export type PassiveDef = { id: string; name: string; description: string } & Pas
  */
 export interface AttackDef {
   name: string;
+  /** Effect-art id when it differs from `<fighter>.attack` (a transformed form with its own hit effect). */
+  fxId?: string;
   style: 'melee' | 'ranged';
   /** Damage per hit. The last hit of a combo deals 1.5x and adds knockback. */
   damage: number;

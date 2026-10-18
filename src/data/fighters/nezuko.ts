@@ -116,7 +116,7 @@ export const nezuko: FighterDef = {
       hpPerSec: 3,
       belowHp: 0.6,
     },
-    attackOverride: { name: 'Demon Fury', style: 'melee', damage: 6, range: 52, cooldown: 0.55, windup: 0.14, combo: 3, knockback: 230, color: 0xff3d7f },
+    attackOverride: { name: 'Demon Fury', fxId: 'nezuko.attack.form', style: 'melee', damage: 6, range: 52, cooldown: 0.55, windup: 0.14, combo: 3, knockback: 230, color: 0xff3d7f },
     skillOverrides: {
       0: {
         id: 'nezuko.explodingblood.awakened',
