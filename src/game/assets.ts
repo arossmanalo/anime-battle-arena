@@ -60,11 +60,12 @@ export const DEFAULT_FRAME_SIZE = 64;
  *   body    projectile: flies with it (faces the heading) | zone: fills the area | buff: surrounds the caster while it lasts
  *   start   one-shot where the skill fires (muzzle flash, blink-out puff)
  *   impact  one-shot where it hits (or, for a passive, where it triggers)
+ *   slash   domain only: a row of different cut sprites (one frame each, horizontal, edge to edge) scattered across the screen
  *   beams:  body = the beam itself, stretched from the caster to the end (draw it horizontally, edge to edge, facing right;
  *           `size` is its thickness) | muzzle = loops on the caster while it lasts | tip = loops at the far end
  * Anything missing falls back to the built-in generic effect.
  */
-export const FX_PARTS = ['cast', 'body', 'start', 'impact', 'muzzle', 'tip'] as const;
+export const FX_PARTS = ['cast', 'body', 'start', 'impact', 'muzzle', 'tip', 'slash'] as const;
 export type FxPart = (typeof FX_PARTS)[number];
 
 /** Optional fx/<id>/<part>.json. */
@@ -102,6 +103,7 @@ export const FX_DEFAULTS: Record<FxPart, { loop: boolean; frameRate: number }> =
   impact: { loop: false, frameRate: 18 },
   muzzle: { loop: true, frameRate: 14 },
   tip: { loop: true, frameRate: 14 },
+  slash: { loop: false, frameRate: 1 },
 };
 
 export interface SheetInfo {

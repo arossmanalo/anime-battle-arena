@@ -61,7 +61,7 @@ export class Vfx {
   private readonly beamSprites = new Map<number, Phaser.GameObjects.Sprite[]>();
   private readonly domains = new Map<number, DomainView>();
   private readonly slashGfx: Phaser.GameObjects.Graphics;
-  private readonly slashes: { x: number; y: number; angle: number; len: number; width: number; born: number; life: number }[] = [];
+  private readonly slashes: { frame: number; x: number; y: number; angle: number; len: number; width: number; born: number; life: number }[] = [];
   private readonly shrines = new Map<number, Phaser.GameObjects.Sprite>();
   private slashAcc = 0;
   /** Simulation time in seconds, so timed effects follow slow motion instead of wall-clock time. */
@@ -456,12 +456,15 @@ export class Vfx {
     const g = this.zoneGfx;
     g.fillStyle(0x2a040c, 0.55 * a).fillRect(-ARENA_X, -ARENA_Y, GAME_WIDTH, GAME_HEIGHT);
     const id = z.skill.id;
-    const castInfo = this.fx(id, 'cast');
+    const loopInfo = this.fx(id, 'body');
+    const castInfo = loopInfo ?? this.fx(id, 'cast');
     let shrine = this.shrines.get(z.id);
     if (!shrine && castInfo) {
-      shrine = this.scene.add.sprite(z.owner.pos.x, z.owner.pos.y + 30, fxKey(id, 'cast'), castInfo.frames - 1);
+      const part = loopInfo ? 'body' : 'cast';
+      shrine = this.scene.add.sprite(z.owner.pos.x, z.owner.pos.y + 30, fxKey(id, part), loopInfo ? 0 : castInfo.frames - 1);
       const w = castInfo.size ?? 200;
-      shrine.setOrigin(0.5, 0.82).setDisplaySize(w * 1.7, w * 1.7 * castInfo.frameHeight / castInfo.frameWidth);
+      shrine.setOrigin(0.5, 0.82).setDisplaySize(loopInfo ? w : w * 1.7, (loopInfo ? w : w * 1.7) * castInfo.frameHeight / castInfo.frameWidth);
+      if (loopInfo) shrine.play(fxKey(id, 'body'));
       if (castInfo.blend === 'add') shrine.setBlendMode(Phaser.BlendModes.ADD);
       this.layers.zones.add(shrine);
       this.shrines.set(z.id, shrine);
@@ -473,6 +476,7 @@ export class Vfx {
     while (this.slashAcc >= 1 / 180) {
       this.slashAcc -= 1 / 180;
       this.slashes.push({
+        frame: Math.floor(Math.random() * 99),
         x: Math.random() * GAME_WIDTH - ARENA_X,
         y: Math.random() * GAME_HEIGHT - ARENA_Y,
         angle: Math.random() * Math.PI,
@@ -484,11 +488,22 @@ export class Vfx {
     }
     const sg = this.slashGfx;
     sg.clear();
+    const slashInfo = this.fx(id, 'slash');
+    const keep = new Set<Phaser.GameObjects.Image>();
     for (let i = this.slashes.length - 1; i >= 0; i--) {
       const s = this.slashes[i];
       const age = (now - s.born) / s.life;
       if (age >= 1) {
         this.slashes.splice(i, 1);
+        continue;
+      }
+      if (slashInfo) {
+        // Sprite slash: one of the supplied cuts, stretched along its length, fading out.
+        const img = this.slashImage(i, s.frame % slashInfo.frames, id);
+        const grow = Math.min(1, age * 5);
+        const k = Math.min(1, (1 - age) * 1.6) * a;
+        img.setPosition(s.x, s.y).setRotation(s.angle).setAlpha(k).setDisplaySize(s.len * grow + 1, (s.len * grow + 1) * (slashInfo.frameHeight / slashInfo.frameWidth));
+        keep.add(img);
         continue;
       }
       const grow = Math.min(1, age * 5);
@@ -498,6 +513,20 @@ export class Vfx {
       sg.lineStyle(s.width * 5, 0xe01838, 0.6 * k).lineBetween(s.x - dx, s.y - dy, s.x + dx, s.y + dy);
       sg.lineStyle(s.width * 1.3, 0xffffff, 1 * k).lineBetween(s.x - dx, s.y - dy, s.x + dx, s.y + dy);
     }
+    for (const img of this.slashPool) img.setVisible(keep.has(img));
+  }
+
+  private readonly slashPool: Phaser.GameObjects.Image[] = [];
+  /** A pooled image for slash number `slot`, showing frame `frame` of the skill's slash sheet. */
+  private slashImage(slot: number, frame: number, id: string): Phaser.GameObjects.Image {
+    let img = this.slashPool[slot];
+    if (!img) {
+      img = this.scene.add.image(0, 0, fxKey(id, 'slash'), frame).setBlendMode(Phaser.BlendModes.ADD);
+      this.layers.fx.add(img);
+      this.slashPool[slot] = img;
+    }
+    img.setFrame(frame);
+    return img;
   }
 
   /** A soft dark-edged vignette, generated once. */
