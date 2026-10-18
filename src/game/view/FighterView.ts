@@ -206,7 +206,8 @@ export class FighterView {
       this.aura.setVisible(true).setTint(auraColor).setScale(0.55 + Math.sin(t * 9) * 0.05).setAlpha(0.85);
     } else this.aura.setVisible(false);
 
-    this.shield.setVisible(f.hasStatus('shield'));
+    // A skill with its own aura art (a dome, a barrier) replaces the generic blue bubble.
+    this.shield.setVisible(f.hasStatus('shield') && !this.customAura());
     this.body.setAlpha(f.invuln > 0 ? 0.6 + Math.sin(this.scene.time.now / 40) * 0.3 : 1);
 
     // Wind-up ring.

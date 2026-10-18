@@ -202,11 +202,21 @@ export class Vfx {
   /** A skill just went off: muzzle / blink-out sprite at the caster, and a lasting aura for buffs. */
   fired(f: Fighter, skill: SkillDef, x: number, y: number): void {
     this.oneShot(skill.id, 'start', x, y - BODY_LIFT, 100);
-    const body = isSelfAura(skill) ? this.fx(skill.id, 'body') : undefined;
+    // A support skill puts its aura on each teammate it reaches (see supportAura), not just the caster.
+    const body = isSelfAura(skill) && !skill.support ? this.fx(skill.id, 'body') : undefined;
     if (!body) return;
-    const duration = Math.max(1, ...(skill.selfEffects ?? []).map((e) => ('duration' in e ? e.duration : 0)));
+    this.attachAura(f, skill.id, body, Math.max(1, ...(skill.selfEffects ?? []).map((e) => ('duration' in e ? e.duration : 0))));
+  }
+
+  /** A support skill reached `f`: wear the skill's looping aura art for `duration` seconds. */
+  supportAura(f: Fighter, skillId: string, duration: number): void {
+    const body = this.fx(skillId, 'body');
+    if (body) this.attachAura(f, skillId, body, duration);
+  }
+
+  private attachAura(f: Fighter, skillId: string, body: FxInfo, duration: number): void {
     const startedAt = this.clock();
-    const s = this.createFxSprite(skill.id, 'body', body, 130).setPosition(f.pos.x, f.pos.y - BODY_LIFT);
+    const s = this.createFxSprite(skillId, 'body', body, 130).setPosition(f.pos.x, f.pos.y - BODY_LIFT);
     this.layers.fx.add(s);
     const auras = this.auraUids();
     auras.add(f.uid);

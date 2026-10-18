@@ -39,7 +39,11 @@ function applySupport(sim: Simulation, f: Fighter, skill: SkillDef): void {
   for (const ally of supportTargets(sim, f, skill)) {
     sim.applyEffects(f, ally, skill.support!.effects, skill, f.pos);
     // Area skills already show their own burst; only buffs need a mark on each teammate.
-    if (skill.kind === 'buff') sim.emit({ type: 'impact', x: ally.pos.x, y: ally.pos.y, radius: 34, color: skill.color, skillId: skill.id, support: true });
+    if (skill.kind === 'buff') {
+      // `uid` and `duration` let the view put the skill's lasting aura art on the teammate for as long as the effect lasts.
+      const duration = Math.max(1.5, ...skill.support!.effects.map((e) => ('duration' in e ? e.duration : 0)));
+      sim.emit({ type: 'impact', x: ally.pos.x, y: ally.pos.y, radius: 34, color: skill.color, skillId: skill.id, support: true, uid: ally.uid, duration });
+    }
   }
 }
 

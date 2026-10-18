@@ -340,6 +340,10 @@ export class BattleScene extends Phaser.Scene {
         }
         case 'impact':
           this.vfx.impact(e.x, e.y, e.radius, e.color, e.skillId, e.support);
+          if (e.support && e.skillId && e.uid !== undefined && e.duration) {
+            const ally = this.sim.fighter(e.uid);
+            if (ally) this.vfx.supportAura(ally, e.skillId, e.duration);
+          }
           if (e.radius >= 60) this.sfx.play('explosion');
           break;
         case 'transform': {
