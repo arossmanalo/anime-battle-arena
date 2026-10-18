@@ -39,6 +39,8 @@ interface Attached {
   endsAt?: number;
   /** Stays where it was created instead of following the fighter. */
   fixed?: boolean;
+  /** A dome standing on the ground around the fighter (art's base sits at the fighter's feet). */
+  ground?: boolean;
 }
 
 export interface VfxLayers {
@@ -218,9 +220,11 @@ export class Vfx {
     const startedAt = this.clock();
     const s = this.createFxSprite(skillId, 'body', body, 130).setPosition(f.pos.x, f.pos.y - BODY_LIFT);
     (body.behind ? this.layers.zones : this.layers.fx).add(s);
+    if (body.ground) s.setOrigin(0.5, 0.93);
     const auras = this.auraUids();
     auras.add(f.uid);
     this.attached.push({
+      ground: body.ground,
       sprite: s,
       fighter: f,
       alive: () => {
@@ -252,7 +256,8 @@ export class Vfx {
         this.attached.splice(i, 1);
         continue;
       }
-      if (!a.fixed) a.sprite.setPosition(a.fighter.pos.x, a.fighter.pos.y - BODY_LIFT);
+      if (a.ground) a.sprite.setPosition(a.fighter.pos.x, a.fighter.pos.y + a.fighter.def.radius + 8);
+      else if (!a.fixed) a.sprite.setPosition(a.fighter.pos.x, a.fighter.pos.y - BODY_LIFT);
       if (a.endsAt !== undefined) a.sprite.setAlpha(Math.min(1, (a.endsAt - this.clock()) / FX_FADE));
     }
   }

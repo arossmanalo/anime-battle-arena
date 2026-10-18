@@ -86,6 +86,7 @@ if (existsSync(fxDir)) {
         blend: cfg.blend ?? 'normal',
         rotate: cfg.rotate ?? true,
         ...(cfg.behind ? { behind: true } : {}),
+        ...(cfg.ground ? { ground: true } : {}),
       };
     }
     if (Object.keys(parts).length) manifest.fx![id] = parts;

@@ -85,6 +85,8 @@ export interface FxConfig {
   rotate?: boolean;
   /** A buff aura drawn behind the fighter instead of over it (barriers and rings that would hide the sprite). */
   behind?: boolean;
+  /** A dome whose base sits at the fighter's feet, so the fighter stands inside it. */
+  ground?: boolean;
 }
 
 export interface FxInfo {
@@ -97,6 +99,7 @@ export interface FxInfo {
   blend: 'add' | 'normal';
   rotate: boolean;
   behind?: boolean;
+  ground?: boolean;
 }
 
 export const FX_DEFAULTS: Record<FxPart, { loop: boolean; frameRate: number }> = {

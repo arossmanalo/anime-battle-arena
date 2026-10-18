@@ -5,6 +5,7 @@
   "frameRate": 14,
   "loop": true,
   "blend": "add",
-  "size": 120,
-  "behind": true
+  "size": 190,
+  "behind": true,
+  "ground": true
 }

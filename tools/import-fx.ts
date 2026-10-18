@@ -23,6 +23,7 @@
  *   --feather F       how wide the edge fade is, as a fraction of the frame (default 0.09; raise it for frames cut out of busy glow)
  *   --no-feather      keep the hard cut edges of frames (by default they fade out over a small margin)
  *   --no-rotate       a projectile body should not turn to face its heading
+ *   --ground          a dome whose base sits at the fighter's feet (the fighter stands inside it)
  *   --behind          a buff aura is drawn behind the fighter, not over it (for barriers that would hide the sprite)
  *   --copy-to FOLDER  also save the source and results there
  *
@@ -53,7 +54,7 @@ interface Rect {
 function parseArgs(argv: string[]) {
   const positional: string[] = [];
   const opts: Record<string, string | true> = {};
-  const flags = new Set(['fill', 'loop', 'once', 'no-rotate', 'no-feather', 'behind']);
+  const flags = new Set(['fill', 'loop', 'once', 'no-rotate', 'no-feather', 'behind', 'ground']);
   for (let i = 0; i < argv.length; i++) {
     if (argv[i].startsWith('--')) {
       const name = argv[i].slice(2);
@@ -385,6 +386,7 @@ async function main(): Promise<void> {
   if (opts.size) config.size = Number(opts.size);
   if (opts['no-rotate']) config.rotate = false;
   if (opts.behind) config.behind = true;
+  if (opts.ground) config.ground = true;
   writeFileSync(join(dir, `${part}.json`), JSON.stringify(config, null, 2) + '\n');
 
   console.log(`Imported ${basename(input)} as fx "${id}" / ${part}: ${frames.length} frame(s) of ${cellW}x${cellH}, ${bg.note}.`);
