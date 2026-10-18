@@ -555,7 +555,9 @@ export class Simulation {
     for (const e of this.enemiesOf(owner)) {
       if (dist(center, e.pos) <= radius + e.def.radius) this.applyEffects(owner, e, skill.effects, skill, center);
     }
-    this.emit({ type: 'impact', x: center.x, y: center.y, radius, color: skill.color, skillId: skill.id });
+    // An area skill that deals no damage (a taunt, a guard) has no blast of its own: the view skips the generic burst when custom art exists.
+    const harmless = !skill.effects.some((e) => e.type === 'damage' || e.type === 'knockback');
+    this.emit({ type: 'impact', x: center.x, y: center.y, radius, color: skill.color, skillId: skill.id, support: harmless });
   }
 
   private updateProjectiles(): void {
