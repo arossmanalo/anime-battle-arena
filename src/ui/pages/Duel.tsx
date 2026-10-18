@@ -1,0 +1,68 @@
+import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ROSTER, fighterById } from '../../data/fighters';
+import { newSeed } from '../../game/match';
+import type { Difficulty, FighterDef } from '../../sim/types';
+import { FighterGrid, FighterPreview } from '../components/FighterGrid';
+import { Button, PageHeader } from '../components/kit';
+import { useStore } from '../store';
+
+const pickRandom = (not?: string): FighterDef => {
+  const pool = ROSTER.filter((d) => d.id !== not);
+  return pool[Math.floor(Math.random() * pool.length)];
+};
+
+export function Duel() {
+  const [params] = useSearchParams();
+  const nav = useNavigate();
+  const { setSetup, setBackTo } = useStore();
+  const first = params.get('player');
+  const [player, setPlayer] = useState<FighterDef | undefined>(first && ROSTER.some((d) => d.id === first) ? fighterById(first) : undefined);
+  const [enemy, setEnemy] = useState<FighterDef | undefined>();
+  const [active, setActive] = useState<'player' | 'enemy'>(player ? 'enemy' : 'player');
+  const [difficulty, setDifficulty] = useState<Difficulty>('normal');
+
+  const pick = (d: FighterDef) => {
+    if (active === 'player') {
+      setPlayer(d);
+      if (!enemy) setActive('enemy');
+    } else setEnemy(d);
+  };
+  const start = () => {
+    if (!player || !enemy) return;
+    setBackTo('/duel');
+    setSetup({ playerId: player.id, enemyId: enemy.id, difficulty, seed: newSeed() });
+    nav('/battle');
+  };
+
+  return (
+    <div className="page">
+      <PageHeader title="Choose your fighters">Click a side, then pick from the roster. Or let fate decide.</PageHeader>
+      <div className="versus">
+        <FighterPreview def={player} label="You" active={active === 'player'} onClick={() => setActive('player')} empty="Pick your fighter" />
+        <div className="vs">VS</div>
+        <FighterPreview def={enemy} label="CPU" side="right" active={active === 'enemy'} onClick={() => setActive('enemy')} empty="Pick the opponent" />
+      </div>
+      <div className="toolbar">
+        <div className="seg" role="radiogroup" aria-label="CPU difficulty">
+          {(['easy', 'normal', 'hard'] as Difficulty[]).map((d) => (
+            <button key={d} className={difficulty === d ? 'on' : ''} onClick={() => setDifficulty(d)} role="radio" aria-checked={difficulty === d}>
+              {d[0].toUpperCase() + d.slice(1)}
+            </button>
+          ))}
+        </div>
+        <Button variant="plain" onClick={() => setPlayer(pickRandom(enemy?.id))}>
+          Random me
+        </Button>
+        <Button variant="plain" onClick={() => setEnemy(pickRandom(player?.id))}>
+          Random opponent
+        </Button>
+        <span className="grow" />
+        <Button onClick={start} disabled={!player || !enemy}>
+          Fight!
+        </Button>
+      </div>
+      <FighterGrid onPick={pick} selected={[player?.id ?? '', enemy?.id ?? '']} />
+    </div>
+  );
+}

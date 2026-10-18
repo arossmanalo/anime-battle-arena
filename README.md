@@ -49,3 +49,7 @@ See [docs/PLAN.md](docs/PLAN.md) for the full build plan.
 The game runs without any art files: fighters are placeholder discs and every sound is synthesized. Drop sprite sheets, portraits, a floor tile or sound files into `public/assets/` and they're picked up automatically. [docs/ART_SPEC.md](docs/ART_SPEC.md) has the exact format, plus a workflow and prompt template for AI-generated sprites.
 
 All characters belong to their respective owners. This project is not affiliated with or endorsed by them.
+
+## Web UI
+
+The site around the game is a React app in `src/ui` (hash routes: `/`, `/play`, `/duel`, `/team`, `/training`, `/roster`, `/roster/:id`, `/how-to-play`, `/battle`, `/results`). Phaser only runs the battle: `src/ui/phaserHost.ts` starts it with a `MatchSetup` and the Battle scene reports the result through `game.events` (`aba:result`, `aba:quit`). Design notes: flat colour, ink outlines, hard shadows, Big Shoulders Display and Hanken Grotesk, no gradients or glass.

@@ -108,7 +108,9 @@ export class PreloadScene extends Phaser.Scene {
         });
       }
     }
-    this.scene.start('MainMenu');
+    // The web UI (src/ui) decides what to play: it passes the first scene and its data as `launch`.
+    const launch = this.registry.get('launch') as { scene: string; data?: object } | undefined;
+    if (launch) this.scene.start(launch.scene, launch.data);
   }
 
   /** Builds <id>[_form]_<anim> animations: row N of the sheet is ANIMS[N]. Empty rows fall back to idle (attack: to cast). */

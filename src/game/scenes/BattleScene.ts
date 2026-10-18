@@ -166,7 +166,7 @@ export class BattleScene extends Phaser.Scene {
       this.announcer.banner(`${this.speedMult}x`, COLORS.energy, undefined, 400);
     });
     this.input.keyboard?.on('keydown-Q', () => {
-      if (this.paused) this.scene.start(this.teamMode ? 'TeamSelect' : 'CharacterSelect', this.setup);
+      if (this.paused) this.game.events.emit('aba:quit');
     });
 
     this.handleEvents(this.sim.drainEvents()); // intro voice lines
@@ -228,7 +228,7 @@ export class BattleScene extends Phaser.Scene {
       const bg = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6);
       const t = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20, 'PAUSED', impactStyle(48)).setOrigin(0.5);
       const s = this.add
-        .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 30, 'ESC resume   ·   Q quit to Character Select', textStyle(14, COLORS.muted))
+        .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 30, 'ESC resume   ·   Q quit to menu', textStyle(14, COLORS.muted))
         .setOrigin(0.5);
       const idle = this.add
         .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 56, this.sim.training ? 'Training: nothing is lost by quitting.' : `If you don't cast for ${this.sim.idleFallback}s, the AI casts for you until you do.`, textStyle(12, COLORS.muted))
@@ -464,7 +464,7 @@ export class BattleScene extends Phaser.Scene {
           healing: Math.round(f.stats.healingDone),
         })),
       };
-      this.scene.start('Results', result);
+      this.game.events.emit('aba:result', result);
     });
   }
 }

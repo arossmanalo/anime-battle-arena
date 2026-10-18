@@ -19,10 +19,17 @@
     "import-fx": "tsx tools/import-fx.ts"
   },
   "dependencies": {
-    "phaser": "^3.90.0"
+    "framer-motion": "^11.18.2",
+    "phaser": "^3.90.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.6"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
     "prettier": "^3.5.3",
     "sharp": "^0.35.5",
     "tsx": "^4.20.3",
