@@ -409,7 +409,7 @@ describe('default attacks', () => {
     tryAttack(x);
     settle(sim, Math.ceil(x.def.attack.windup / DT) + 2);
     expect(y.hp).toBe(y.maxHp); // Limitless blocked it
-    expect(y.passive.hitsLeft).toBe(1);
+    expect(y.passive.hitsLeft).toBe(4);
   });
 
   it('every fighter has a sensible default attack', () => {
@@ -779,10 +779,10 @@ describe('team orders', () => {
 
   it('team domains are limited to a circle in team battles', () => {
     const sim = squad();
-    const z = sim.spawnZone(sim.fighters[0], { ...fighterById('gojo').form!.skillOverrides![0]!, domain: true }, { x: 100, y: 100 });
+    const z = sim.spawnZone(sim.fighters[0], { ...fighterById('gojo').form!.skillOverrides![2]!, domain: true }, { x: 100, y: 100 });
     expect(z.radius).toBeLessThanOrEqual(sim.arena.height * 0.55 + 0.01);
     const solo = duel('gojo', 'naruto');
-    const sz = solo.spawnZone(solo.fighters[0], fighterById('gojo').form!.skillOverrides![0]!, { x: 100, y: 100 });
+    const sz = solo.spawnZone(solo.fighters[0], fighterById('gojo').form!.skillOverrides![2]!, { x: 100, y: 100 });
     expect(sz.radius).toBe(600);
   });
 });
@@ -1035,6 +1035,111 @@ describe('Sakura medical ninja', () => {
     expect(sak.form!.healMult).toBeGreaterThan(1);
     expect(roleScores({ roles: sak.form!.roles }).support).toBe(1);
     expect(sak.maxHp).toBe(sak.def.hp);
+  });
+});
+
+describe('Gojo second life', () => {
+  function bout(): { sim: Simulation; gojo: Simulation['fighters'][number]; foe: Simulation['fighters'][number] } {
+    const sim = duel('gojo', 'naruto');
+    const [gojo, foe] = sim.fighters;
+    gojo.pos = { x: 200, y: 200 };
+    foe.pos = { x: 700, y: 60 };
+    return { sim, gojo, foe };
+  }
+
+  it('his Limitless blocks five hits now', () => {
+    const { gojo } = bout();
+    expect(gojo.def.passive.kind === 'barrier' && gojo.def.passive.hits).toBe(5);
+    expect(gojo.passive.hitsLeft).toBe(5);
+  });
+
+  it('dying triggers the form once: revived at 10% HP and briefly invulnerable', () => {
+    const { sim, gojo } = bout();
+    expect(gojo.canTransform).toBe(false);
+    gojo.hp = 0;
+    gojo.passive.hitsLeft = 0;
+    sim.step();
+    expect(gojo.alive).toBe(true);
+    expect(gojo.transformed).toBe(true);
+    expect(gojo.hp).toBe(Math.round(gojo.maxHp * 0.1));
+    expect(gojo.invuln).toBeGreaterThan(0.2);
+    expect(gojo.skill(0).id).toBe('gojo.maxred');
+    expect(gojo.skill(4).id).toBe('gojo.maxpurple');
+    // The second death is final.
+    gojo.invuln = 0;
+    gojo.hp = 0;
+    sim.step();
+    expect(gojo.alive).toBe(false);
+  });
+
+  it('Maximum Purple is only possible at 30% HP or less', () => {
+    const { sim, gojo } = bout();
+    gojo.form = gojo.def.form!;
+    gojo.ult = 100;
+    gojo.hp = gojo.maxHp * 0.6;
+    expect(sim.tryCast(gojo, 4)).toBe('unavailable');
+    gojo.hp = gojo.maxHp * 0.25;
+    expect(sim.tryCast(gojo, 4)).toBeNull();
+  });
+
+  it('Maximum Purple erases enemies anywhere on the map', () => {
+    const { sim, gojo, foe } = bout();
+    gojo.form = gojo.def.form!;
+    gojo.hp = gojo.maxHp * 0.2;
+    foe.pos = { x: 860, y: 340 };
+    const before = foe.hp;
+    sim.burst(gojo, gojo.skill(4), gojo.pos, gojo.skill(4).radius!);
+    expect(foe.hp).toBeLessThan(before - 40);
+  });
+
+  it('Maximum Red ricochets off the walls and then off enemies', () => {
+    const { sim, gojo, foe } = bout();
+    gojo.form = gojo.def.form!;
+    const red = gojo.skill(0);
+    foe.pos = { x: 500, y: 320 };
+    foe.invuln = 999;
+    const p = sim.spawnProjectile(gojo, red, { x: sim.arena.width - 30, y: 100 }, { x: 600, y: 0 });
+    for (let i = 0; i < 12; i++) sim.step();
+    expect(p.vel.x).toBeLessThan(0);
+    expect(p.bouncesLeft).toBe(1);
+  });
+
+  it('Maximum Blue pulls enemies in and keeps hurting them', () => {
+    const { sim, gojo, foe } = bout();
+    gojo.form = gojo.def.form!;
+    const blue = gojo.skill(1);
+    foe.pos = { x: 500, y: 200 };
+    foe.statuses.push({ type: 'stun', remaining: 9, value: 0, source: 0 });
+    const hp = foe.hp;
+    sim.spawnZone(gojo, blue, { x: 380, y: 200 });
+    for (let i = 0; i < Math.ceil(1.5 / DT); i++) sim.step();
+    expect(foe.pos.x).toBeLessThan(500);
+    expect(foe.hp).toBeLessThan(hp);
+  });
+
+  it('Infinite Void strips buffs and shields, stuns, and guarantees every hit', () => {
+    const { sim, gojo, foe } = bout();
+    gojo.form = gojo.def.form!;
+    const void_ = gojo.skill(2);
+    sim.applyEffects(foe, foe, [{ type: 'shield', amount: 50, duration: 9 }, { type: 'guard', factor: 0.3, duration: 9 }, { type: 'ward', duration: 9 }, { type: 'damageBuff', factor: 1.3, duration: 9 }], foe.skill(0), foe.pos);
+    foe.pos = { x: 300, y: 200 };
+    sim.spawnZone(gojo, void_, { ...gojo.pos });
+    for (let i = 0; i < Math.ceil(0.6 / DT); i++) sim.step();
+    expect(foe.hasStatus('shield')).toBe(false);
+    expect(foe.hasStatus('guard')).toBe(false);
+    expect(foe.hasStatus('ward')).toBe(false);
+    expect(foe.stunned).toBe(true);
+    expect(foe.hasStatus('exposed')).toBe(true);
+    // An exposed target cannot dodge or be blocked by a barrier.
+    const barrier = fighterById('gojo');
+    const sim2 = duel('naruto', 'gojo');
+    const [att, def] = sim2.fighters;
+    def.statuses.push({ type: 'exposed', remaining: 5, value: 1, source: 0 });
+    def.passive.hitsLeft = 5;
+    const before = def.hp;
+    sim2.applyEffects(att, def, [{ type: 'damage', amount: 20 }], att.skill(0), att.pos);
+    expect(def.hp).toBeLessThan(before);
+    expect(barrier.id).toBe('gojo');
   });
 });
 

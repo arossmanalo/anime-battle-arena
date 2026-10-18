@@ -282,6 +282,7 @@ export class UtilityAI {
       const skill = this.f.skill(slot);
       if (this.f.cooldown(skill) > 0 || !this.f.canAfford(skill)) continue;
       if (holdUlts && skill.ultimate) continue; // the player will call it
+      if (skill.requiresHpBelow && this.f.hp > this.f.maxHp * skill.requiresHpBelow) continue;
       const score = this.score(skill, target, d) * (1 + this.sim.rng.range(-1, 1) * this.params.noise);
       if (score > bestScore) {
         bestScore = score;
@@ -340,6 +341,8 @@ export class UtilityAI {
   }
 
   private score(skill: SkillDef, target: Fighter, d: number): number {
+    // A map-wide finisher that is armed (HP gate met) is always worth firing.
+    if (skill.requiresHpBelow) return 60;
     if (skill.support) return this.supportScore(skill) + (skill.selfEffects ? 0 : 0);
     if (skill.effects.some((e) => e.type === 'taunt')) return this.tauntScore(skill, d);
     if (skill.kind === 'aoe' && skill.range === 0 && !skill.ultimate && (skill.outer || skill.boostable)) return this.pointBlankScore(skill);

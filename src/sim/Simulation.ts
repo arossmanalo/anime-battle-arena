@@ -272,6 +272,7 @@ export class Simulation {
     if (f.stunned) return 'stunned';
     if (f.busy) return 'busy';
     const skill = f.skill(slot);
+    if (skill.requiresHpBelow && f.hp > f.maxHp * skill.requiresHpBelow) return 'unavailable';
     if (f.cooldown(skill) > 0) return 'cooldown';
     if (!f.canAfford(skill)) return 'energy';
 
@@ -519,7 +520,9 @@ export class Simulation {
       pos,
       vel,
       radius: skill.radius ?? 8,
-      ttl: (skill.range * 1.6) / Math.max(1, Math.hypot(vel.x, vel.y)),
+      ttl: ((skill.range * 1.6) / Math.max(1, Math.hypot(vel.x, vel.y))) * (1 + (skill.bounces ?? 0)),
+      bouncesLeft: skill.bounces ?? 0,
+      lastHit: null,
     };
     this.projectiles.push(p);
     return p;
@@ -579,14 +582,48 @@ export class Simulation {
     for (const p of this.projectiles) {
       p.pos = add(p.pos, scale(p.vel, DT));
       p.ttl -= DT;
+      // A ricocheting projectile bounces off the arena walls.
+      if (p.bouncesLeft > 0) {
+        const r = p.radius;
+        let bounced = false;
+        if (p.pos.x < r || p.pos.x > this.arena.width - r) {
+          p.vel = { x: -p.vel.x, y: p.vel.y };
+          p.pos = { x: Math.min(this.arena.width - r, Math.max(r, p.pos.x)), y: p.pos.y };
+          bounced = true;
+        }
+        if (p.pos.y < r || p.pos.y > this.arena.height - r) {
+          p.vel = { x: p.vel.x, y: -p.vel.y };
+          p.pos = { x: p.pos.x, y: Math.min(this.arena.height - r, Math.max(r, p.pos.y)) };
+          bounced = true;
+        }
+        if (bounced) {
+          p.bouncesLeft--;
+          this.emit({ type: 'impact', x: p.pos.x, y: p.pos.y, radius: p.radius, color: p.skill.color, skillId: p.skill.id });
+        }
+      }
+      if (p.lastHit !== null) {
+        const last = this.fighter(p.lastHit);
+        if (!last || dist(p.pos, last.pos) > p.radius + last.def.radius + 4) p.lastHit = null;
+      }
       let alive = p.ttl > 0 && !this.outOfBounds(p.pos, -p.radius);
       if (alive && p.owner.alive) {
         for (const e of this.enemiesOf(p.owner)) {
-          if (dist(p.pos, e.pos) > p.radius + e.def.radius) continue;
+          if (dist(p.pos, e.pos) > p.radius + e.def.radius || p.lastHit === e.uid) continue;
           if (p.skill.impactRadius) this.burst(p.owner, p.skill, p.pos, p.skill.impactRadius);
           else {
             this.applyEffects(p.owner, e, p.skill.effects, p.skill, p.pos);
             this.emit({ type: 'impact', x: p.pos.x, y: p.pos.y, radius: p.radius * 1.5, color: p.skill.color, skillId: p.skill.id });
+          }
+          if (p.bouncesLeft > 0 && e.alive !== undefined) {
+            // Ricochet: off this enemy and towards another one, or straight back if there is none.
+            p.bouncesLeft--;
+            p.lastHit = e.uid;
+            const speed = Math.hypot(p.vel.x, p.vel.y);
+            const others = this.enemiesOf(p.owner).filter((o) => o !== e);
+            const next = others.length ? others.reduce((b, o) => (dist(o.pos, p.pos) < dist(b.pos, p.pos) ? o : b)) : undefined;
+            p.vel = next ? scale(norm(sub(next.pos, p.pos)), speed) : { x: -p.vel.x, y: -p.vel.y };
+            p.ttl = Math.max(p.ttl, 1.6);
+            break;
           }
           alive = false;
           break;
@@ -627,6 +664,15 @@ export class Simulation {
         }
         this.emit({ type: 'impact', x: z.pos.x, y: z.pos.y, radius: Math.min(z.radius, 260), color: z.skill.color, skillId: z.skill.id });
       }
+      // A pulling zone drags enemies towards its centre every step (a brace of 0.3 or less resists).
+      if (z.skill.pull) {
+        for (const e of this.enemiesOf(z.owner)) {
+          const gap = dist(z.pos, e.pos);
+          if (gap > z.radius + e.def.radius || gap < 10 || e.statusMult('steady') <= 0.3) continue;
+          e.pos = add(e.pos, scale(norm(sub(z.pos, e.pos)), Math.min(gap, z.skill.pull * DT)));
+          this.clamp(e);
+        }
+      }
       z.tickTimer -= DT;
       if (z.tickTimer <= 0) {
         z.tickTimer = z.skill.tickInterval ?? 0.25;
@@ -657,6 +703,12 @@ export class Simulation {
   private checkDeaths(): void {
     for (const f of this.fighters) {
       if (f.hp <= 0) {
+        // A second-life form catches the fall once.
+        const form = f.def.form;
+        if (form?.onDeath && !f.form && !f.sandbox && !this.koEmitted.has(f.uid)) {
+          this.reviveInto(f, form);
+          continue;
+        }
         if (this.koEmitted.has(f.uid)) continue;
         this.koEmitted.add(f.uid);
         f.hp = 0;
@@ -671,6 +723,23 @@ export class Simulation {
         this.voice(f, 'hurt');
       }
     }
+  }
+
+  /** Second life: the fighter rises in their form at `reviveHp` of max HP, untouchable for a moment. */
+  private reviveInto(f: Fighter, form: NonNullable<Fighter['def']['form']>): void {
+    f.form = form;
+    f.hp = Math.round(f.maxHp * (form.reviveHp ?? 0.6));
+    f.invuln = 0.3;
+    // The finisher has to be earned again.
+    f.ult = 0;
+    f.statuses = [];
+    f.casting = null;
+    f.dash = null;
+    f.channel = null;
+    f.swing = null;
+    this.lowHpWarned.delete(f.uid);
+    this.emit({ type: 'transform', uid: f.uid, form });
+    this.voice(f, 'transform');
   }
 
   private checkEnd(): void {

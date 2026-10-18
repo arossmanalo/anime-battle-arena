@@ -107,7 +107,7 @@ export class SkillBar {
           s.bg.setStrokeStyle(2, form.color);
         } else {
           const ready = f.canTransform;
-          s.cost.setText(f.sandbox ? 'ANY TIME' : `${form.energyCost} EN · <${Math.round(form.hpThreshold * 100)}% HP`).setColor(hex(ready ? COLORS.energy : COLORS.muted));
+          s.cost.setText(f.sandbox ? 'ANY TIME' : form.onDeath ? 'SECOND LIFE' : `${form.energyCost} EN · <${Math.round(form.hpThreshold * 100)}% HP`).setColor(hex(ready ? COLORS.energy : COLORS.muted));
           s.shade.setVisible(!ready).setScale(1, 1);
           s.bg.setStrokeStyle(ready ? 3 : 2, ready ? form.color : COLORS.border);
         }
@@ -120,7 +120,8 @@ export class SkillBar {
       const cd = f.cooldown(skill);
       const affordable = f.canAfford(skill);
       if (skill.ultimate) {
-        s.cost.setText(affordable ? 'READY!' : `${Math.floor(f.ult)}%`).setColor(hex(COLORS.ult));
+        const gated = !!skill.requiresHpBelow && f.hp > f.maxHp * skill.requiresHpBelow;
+        s.cost.setText(gated ? `BELOW ${Math.round(skill.requiresHpBelow! * 100)}% HP` : affordable ? 'READY!' : `${Math.floor(f.ult)}%`).setColor(hex(COLORS.ult));
       } else {
         s.cost.setText(`${skill.energyCost} EN`).setColor(hex(affordable ? COLORS.energy : COLORS.danger));
       }

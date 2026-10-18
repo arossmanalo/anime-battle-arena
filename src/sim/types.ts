@@ -18,6 +18,10 @@ export type Effect =
   | { type: 'regen'; hps: number; duration: number }
   /** For `duration` seconds the target ignores new burn, slow and stun. */
   | { type: 'ward'; duration: number }
+  /** Strips the target's shields, guards, buffs, wards and braces. */
+  | { type: 'purge' }
+  /** For `duration` seconds nothing the target has (a barrier, a dodge) can stop an attack: every hit on it lands. */
+  | { type: 'expose'; duration: number }
   | { type: 'speedBuff'; factor: number; duration: number }
   | { type: 'damageBuff'; factor: number; duration: number }
   /** Enemies hit are forced to attack the caster for `duration` seconds. */
@@ -86,6 +90,12 @@ export interface SkillDef {
   outer?: { from: number; effects: Effect[] };
   /** Healing a badly hurt ally can enlarge the next use (see the awakening passive's `radiusBonus`). */
   boostable?: boolean;
+  /** Projectile: how many times it ricochets off walls and enemies (each enemy hit redirects it to another enemy). */
+  bounces?: number;
+  /** Zone: enemies inside are pulled toward the centre at this speed (px/s). */
+  pull?: number;
+  /** Can only be cast while the caster is at or below this fraction of max HP. */
+  requiresHpBelow?: number;
   /** While winding up this skill, the caster can't be stunned or interrupted. */
   uninterruptible?: boolean;
   color: number;
@@ -105,6 +115,11 @@ export interface FormDef {
   /** Skill slot (0-3) → replacement skill while transformed. */
   skillOverrides?: Partial<Record<0 | 1 | 2 | 3, SkillDef>>;
   ultimateOverride?: SkillDef;
+  /** A second life: instead of unlocking at low HP, the form triggers when this fighter would die, reviving them at `reviveHp` of max HP. */
+  onDeath?: boolean;
+  reviveHp?: number;
+  /** Two orbs (colours) that hover beside the fighter while at 30% HP or less, showing the form's ultimate is armed. */
+  ultOrbs?: [number, number];
   /** Healing done is multiplied by this while transformed. */
   healMult?: number;
   /** Max HP multiplier while transformed (the extra HP is granted on transforming). */

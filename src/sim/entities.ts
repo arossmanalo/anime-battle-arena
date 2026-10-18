@@ -9,6 +9,9 @@ export interface Projectile {
   vel: Vec;
   radius: number;
   ttl: number;
+  /** Ricochets left, and the enemy it just hit (ignored until it has left them). */
+  bouncesLeft: number;
+  lastHit: number | null;
 }
 
 /** A channelled beam. It follows the caster's position but keeps the direction it was fired in. */

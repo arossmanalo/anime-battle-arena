@@ -2,7 +2,7 @@ import { passiveDamageMult } from './passives';
 import type { AttackDef, Controller, FighterDef, FormDef, PassiveDef, PassiveProc, SkillDef, SkillSlot, Vec } from './types';
 import { vec } from './vec';
 
-export type StatusType = 'stun' | 'burn' | 'slow' | 'shield' | 'speedBuff' | 'damageBuff' | 'taunt' | 'guard' | 'steady' | 'counter' | 'regen' | 'ward';
+export type StatusType = 'stun' | 'burn' | 'slow' | 'shield' | 'speedBuff' | 'damageBuff' | 'taunt' | 'guard' | 'steady' | 'counter' | 'regen' | 'ward' | 'exposed';
 
 export interface Status {
   type: StatusType;
@@ -215,6 +215,8 @@ export class Fighter {
   get canTransform(): boolean {
     const f = this.def.form;
     if (this.sandbox) return !!f && this.alive;
+    // A second-life form triggers on death, never by choice.
+    if (f?.onDeath) return false;
     return (
       !!f &&
       !this.form &&

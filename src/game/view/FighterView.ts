@@ -26,6 +26,8 @@ export class FighterView {
   private readonly charge: Phaser.GameObjects.Graphics;
   private readonly hpBar: Phaser.GameObjects.Graphics;
   private readonly marker: Phaser.GameObjects.Graphics;
+  /** Two orbs that circle a fighter whose form ultimate is armed (Gojo's Blue and Red at 30% HP). */
+  private readonly orbs: Phaser.GameObjects.Graphics;
   private markerKind: 'focus' | 'protect' | null = null;
   private readonly status: Phaser.GameObjects.Text;
   private readonly facingMark: Phaser.GameObjects.Triangle;
@@ -97,6 +99,7 @@ export class FighterView {
 
     this.hpBar = scene.add.graphics();
     this.marker = scene.add.graphics();
+    this.orbs = scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
     const tag = scene.add
       .text(0, this.headY - 13, team ? team.tag : f.def.id === 'dummy' ? 'DUMMY' : isPlayer ? 'YOU' : 'CPU', textStyle(9, team ? team.tagColor : isPlayer ? COLORS.energy : COLORS.danger, { fontStyle: 'bold' }))
       .setOrigin(0.5);
@@ -105,7 +108,7 @@ export class FighterView {
     // With a real sprite the art itself shows facing and the hit flash tints the sprite instead.
     if (this.sprite) this.facingMark.setVisible(false);
 
-    this.root.add([...(ring ? [ring] : []), shadow, this.marker, this.aura, this.charge, this.body, this.facingMark, this.flash, this.shield, this.hpBar, tag, this.status]);
+    this.root.add([...(ring ? [ring] : []), shadow, this.marker, this.aura, this.charge, this.body, this.facingMark, this.flash, this.shield, this.orbs, this.hpBar, tag, this.status]);
   }
 
   /** Team battles: a crosshair on the enemy your team is told to focus, a shield ring on the ally it protects. */
@@ -136,6 +139,23 @@ export class FighterView {
   hasFx(skillId: string, part: string): boolean {
     const m = this.scene.registry.get('manifest') as AssetManifest | undefined;
     return !!(m?.fx?.[skillId] as Record<string, unknown> | undefined)?.[part];
+  }
+
+  /** Blue and Red circling beside the fighter once their transformed ultimate is armed. */
+  private drawOrbs(): void {
+    const f = this.f;
+    const orbs = f.form?.ultOrbs;
+    this.orbs.clear();
+    if (!orbs || !f.alive || f.hp > f.maxHp * 0.3) return;
+    const t = this.scene.time.now / 1000;
+    orbs.forEach((color, i) => {
+      const a = t * 2.4 + i * Math.PI;
+      const x = Math.cos(a) * 34;
+      const y = this.bodyY - 8 + Math.sin(a) * 12;
+      this.orbs.fillStyle(color, 0.25).fillCircle(x, y, 13);
+      this.orbs.fillStyle(color, 0.9).fillCircle(x, y, 7);
+      this.orbs.fillStyle(0xffffff, 0.9).fillCircle(x, y, 3);
+    });
   }
 
   /** True while a custom buff aura sprite is attached to this fighter. */
@@ -206,6 +226,7 @@ export class FighterView {
       this.aura.setVisible(true).setTint(auraColor).setScale(0.55 + Math.sin(t * 9) * 0.05).setAlpha(0.85);
     } else this.aura.setVisible(false);
 
+    this.drawOrbs();
     // A skill with its own aura art (a dome, a barrier) replaces the generic blue bubble.
     this.shield.setVisible(f.hasStatus('shield') && !this.customAura());
     this.body.setAlpha(f.invuln > 0 ? 0.6 + Math.sin(this.scene.time.now / 40) * 0.3 : 1);

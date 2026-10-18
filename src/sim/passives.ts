@@ -36,6 +36,8 @@ export function tickPassive(f: Fighter, dt: number): void {
  * `key` identifies one attack (attacker + skill). `roll` is the sim's deterministic damage roll, [0.9, 1.1].
  */
 export function negatesAttack(f: Fighter, effects: Effect[], key: string, roll: () => number): boolean {
+  // An exposed fighter (inside Infinite Void) cannot block or evade anything.
+  if (f.hasStatus('exposed')) return false;
   const p = f.passiveDef;
   if ((p.kind !== 'barrier' && p.kind !== 'dodge') || !effects.some((e) => HOSTILE.includes(e.type))) return false;
   const state = f.passive;

@@ -82,7 +82,6 @@ export function applyEffects(
   if (!self && (target.invuln > 0 || !target.alive)) return;
   if (!self && negatesAttack(target, effects, `${source.uid}:${skill.id}`, ctx.roll)) return;
 
-  const warded = !self && target.hasStatus('ward');
   for (const e of effects) {
     switch (e.type) {
       case 'damage': {
@@ -112,7 +111,7 @@ export function applyEffects(
         break;
       }
       case 'stun':
-        if (warded) break;
+        if (!self && target.hasStatus('ward')) break;
         // A move that can't be interrupted (a domain being opened) shrugs stuns off while it winds up.
         if (target.casting?.skill.uninterruptible) break;
         {
@@ -130,11 +129,11 @@ export function applyEffects(
         target.swing = null;
         break;
       case 'burn':
-        if (warded) break;
+        if (!self && target.hasStatus('ward')) break;
         addStatus(target, 'burn', e.duration, e.dps, source.uid);
         break;
       case 'slow':
-        if (warded) break;
+        if (!self && target.hasStatus('ward')) break;
         addStatus(target, 'slow', e.duration, e.factor, source.uid);
         break;
       case 'shield':
@@ -171,6 +170,12 @@ export function applyEffects(
         break;
       case 'ward':
         addStatus(target, 'ward', e.duration, 1, source.uid);
+        break;
+      case 'purge':
+        target.statuses = target.statuses.filter((s) => !['shield', 'guard', 'damageBuff', 'speedBuff', 'steady', 'ward', 'regen', 'counter'].includes(s.type));
+        break;
+      case 'expose':
+        addStatus(target, 'exposed', e.duration, 1, source.uid);
         break;
       case 'steady':
         addStatus(target, 'steady', e.duration, e.factor, source.uid);
