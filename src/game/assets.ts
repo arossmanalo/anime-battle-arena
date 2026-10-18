@@ -83,6 +83,8 @@ export interface FxConfig {
   blend?: 'add' | 'normal';
   /** Projectile bodies turn to face where they're going (art drawn facing right). Default true. */
   rotate?: boolean;
+  /** A buff aura drawn behind the fighter instead of over it (barriers and rings that would hide the sprite). */
+  behind?: boolean;
 }
 
 export interface FxInfo {
@@ -94,6 +96,7 @@ export interface FxInfo {
   size?: number;
   blend: 'add' | 'normal';
   rotate: boolean;
+  behind?: boolean;
 }
 
 export const FX_DEFAULTS: Record<FxPart, { loop: boolean; frameRate: number }> = {

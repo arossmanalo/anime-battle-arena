@@ -217,7 +217,7 @@ export class Vfx {
   private attachAura(f: Fighter, skillId: string, body: FxInfo, duration: number): void {
     const startedAt = this.clock();
     const s = this.createFxSprite(skillId, 'body', body, 130).setPosition(f.pos.x, f.pos.y - BODY_LIFT);
-    this.layers.fx.add(s);
+    (body.behind ? this.layers.zones : this.layers.fx).add(s);
     const auras = this.auraUids();
     auras.add(f.uid);
     this.attached.push({
