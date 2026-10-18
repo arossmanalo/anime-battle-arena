@@ -118,6 +118,10 @@ export interface FormDef {
   /** A second life: instead of unlocking at low HP, the form triggers when this fighter would die, reviving them at `reviveHp` of max HP. */
   onDeath?: boolean;
   reviveHp?: number;
+  /** Seconds of invulnerability right after reviving. */
+  reviveInvuln?: number;
+  /** Seconds of free energy right after reviving: skills cost nothing and energy stays full. */
+  reviveFreeEnergy?: number;
   /** Two orbs (colours) that hover beside the fighter while at 30% HP or less, showing the form's ultimate is armed. */
   ultOrbs?: [number, number];
   /** Healing done is multiplied by this while transformed. */

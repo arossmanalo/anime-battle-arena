@@ -1053,7 +1053,7 @@ describe('Gojo second life', () => {
     expect(gojo.passive.hitsLeft).toBe(5);
   });
 
-  it('dying triggers the form once: revived at 10% HP and briefly invulnerable', () => {
+  it('dying triggers the form once: revived at 10% HP, untouchable for 10s with free energy', () => {
     const { sim, gojo } = bout();
     expect(gojo.canTransform).toBe(false);
     gojo.hp = 0;
@@ -1062,11 +1062,19 @@ describe('Gojo second life', () => {
     expect(gojo.alive).toBe(true);
     expect(gojo.transformed).toBe(true);
     expect(gojo.hp).toBe(Math.round(gojo.maxHp * 0.1));
-    expect(gojo.invuln).toBeGreaterThan(0.2);
+    expect(gojo.invuln).toBeGreaterThan(9);
+    expect(gojo.freeEnergy).toBeGreaterThan(9);
+    // For those seconds every skill is free.
+    gojo.energy = 0;
+    expect(gojo.canAfford(gojo.skill(2))).toBe(true);
+    const energyBefore = gojo.energy;
+    gojo.pay(gojo.skill(2));
+    expect(gojo.energy).toBe(energyBefore);
     expect(gojo.skill(0).id).toBe('gojo.maxred');
     expect(gojo.skill(4).id).toBe('gojo.maxpurple');
     // The second death is final.
     gojo.invuln = 0;
+    gojo.freeEnergy = 0;
     gojo.hp = 0;
     sim.step();
     expect(gojo.alive).toBe(false);

@@ -7,7 +7,7 @@ export const gojo: FighterDef = {
   initials: 'GJ',
   color: 0xe8f0ff,
   accent: 0x1a1a2e,
-  hp: 440,
+  hp: 300,
   speed: 178,
   radius: 18,
   energyRegen: 7.5,
@@ -92,9 +92,11 @@ export const gojo: FighterDef = {
   form: {
     id: 'gojo.strongest',
     name: 'I Am the Strongest',
-    // A second life: it triggers when he would die, and he rises at 10% HP.
+    // A second life: it triggers when he would die. He rises at 10% HP but cannot be hurt for 10 seconds and has free energy for them.
     onDeath: true,
     reviveHp: 0.1,
+    reviveInvuln: 10,
+    reviveFreeEnergy: 10,
     hpThreshold: 0,
     energyCost: 0,
     speedMult: 1.1,

@@ -320,6 +320,10 @@ export class Simulation {
     f.energy = Math.min(f.maxEnergy, f.energy + f.energyRegen * DT);
     gainUlt(f, ULT_REGEN * DT);
     f.invuln = Math.max(0, f.invuln - DT);
+    if (f.freeEnergy > 0) {
+      f.freeEnergy = Math.max(0, f.freeEnergy - DT);
+      f.energy = f.maxEnergy;
+    }
     f.idleTime += DT;
     f.attackCd = Math.max(0, f.attackCd - DT);
     if (f.comboTimer > 0 && (f.comboTimer -= DT) <= 0) f.combo = 0;
@@ -729,7 +733,8 @@ export class Simulation {
   private reviveInto(f: Fighter, form: NonNullable<Fighter['def']['form']>): void {
     f.form = form;
     f.hp = Math.round(f.maxHp * (form.reviveHp ?? 0.6));
-    f.invuln = 0.3;
+    f.invuln = form.reviveInvuln ?? 0.3;
+    f.freeEnergy = form.reviveFreeEnergy ?? 0;
     // The finisher has to be earned again.
     f.ult = 0;
     f.statuses = [];

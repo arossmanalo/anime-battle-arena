@@ -202,11 +202,16 @@ export class Fighter {
     return this.def.energyRegen * (this.form?.energyRegenMult ?? 1);
   }
 
+  /** Seconds of free energy left: skills cost nothing. */
+  freeEnergy = 0;
+
   canAfford(skill: SkillDef): boolean {
+    if (this.freeEnergy > 0 && !skill.ultimate) return true;
     return skill.ultimate ? this.ult >= this.maxUlt : this.energy >= skill.energyCost;
   }
 
   pay(skill: SkillDef): void {
+    if (this.freeEnergy > 0 && !skill.ultimate) return;
     if (skill.ultimate) this.ult = 0;
     else this.energy -= skill.energyCost;
   }
