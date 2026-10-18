@@ -6,12 +6,14 @@ import { roleScores } from '../../sim/roles';
 import type { FighterDef, SkillDef } from '../../sim/types';
 import { Button, Pips, Sprite, Tag } from '../components/kit';
 import { AI_LABEL, ROLE_META, describeSkill, hexColor, mainRoleOf, skillMeta, statBars } from '../info';
+import { skillText } from '../skillText';
 import { NotFound } from './NotFound';
 
 const ANIM_BTNS: AnimName[] = ['idle', 'run', 'cast', 'attack', 'hit', 'ko'];
 
-function SkillCard({ slot, skill }: { slot: string; skill: SkillDef }) {
+function SkillCard({ fighter, slot, skill }: { fighter: string; slot: string; skill: SkillDef }) {
   const info = describeSkill(skill);
+  const text = skillText(fighter, skill.name);
   return (
     <div className={`skill ${skill.ultimate ? 'ult' : ''}`} style={{ ['--accent' as string]: hexColor(skill.color) }}>
       <div className="skill-key">{slot}</div>
@@ -20,6 +22,12 @@ function SkillCard({ slot, skill }: { slot: string; skill: SkillDef }) {
           <h4>{skill.name}</h4>
           <span className="skill-kind">{info.kindLabel}</span>
         </div>
+        {text && <p className="skill-lore">{text.lore}</p>}
+        {text && (
+          <p className="skill-simple">
+            <b>In short:</b> {text.simple}
+          </p>
+        )}
         <div className="skill-meta">{skillMeta(skill)}</div>
         {info.lines.length > 0 && (
           <div className="skill-line">
@@ -167,7 +175,7 @@ export function FighterDetail() {
         )}
         <div className="skills">
           {kit(def, awakened, team).map((k) => (
-            <SkillCard key={k.slot + k.skill.id} slot={k.slot} skill={k.skill} />
+            <SkillCard key={k.slot + k.skill.id} fighter={def.id} slot={k.slot} skill={k.skill} />
           ))}
         </div>
       </section>

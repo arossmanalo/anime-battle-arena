@@ -297,3 +297,7 @@ ul.plain li { margin: 6px 0; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+.skill-lore { margin: 6px 0 4px; font-style: italic; }
+.skill-simple { margin: 0 0 8px; }
+.skill-simple b { font-weight: 800; }
