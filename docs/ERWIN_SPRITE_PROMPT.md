@@ -2,26 +2,27 @@
 
 One prompt makes both sprite sheets. It deliberately does **not** describe how Erwin looks: the attached reference images are the only source for his design, so ChatGPT cannot drift towards a written description.
 
-**Attach these images, in this order, when you paste the prompt:**
-1. **Reference image of Erwin's BASE form** (the exact design you want kept).
-2. **Reference image of Erwin's TRANSFORMED form (Unyielding Commander)**.
-3. **One of your existing pixel sprites** (for example Tanjiro's or Sakura's idle frame), for pixel style, scale and density only.
+**Attach the images in one of these two ways, in this order, when you paste the prompt:**
+- **Two reference images (three attachments):** 1) Erwin's BASE form, 2) Erwin's TRANSFORMED form (Unyielding Commander), 3) one of your existing pixel sprites (for example Tanjiro's or Sakura's idle frame) for style only.
+- **One reference image (two attachments):** 1) a single image that shows BOTH the base form and the transformed form of Erwin (for example side by side), 2) one of your existing pixel sprites for style only.
+
+The prompt handles both cases by itself: ChatGPT counts the attachments.
 
 ChatGPT should answer with **two images**: sheet 1 (base) then sheet 2 (transformed). Import commands are at the bottom.
 
 ## Prompt
 
 ```
-Attached are three images, in this order:
-- IMAGE 1 is the reference for the BASE form of the character.
-- IMAGE 2 is the reference for the TRANSFORMED form of the same character.
-- IMAGE 3 is one of my existing pixel-art fighters. It is ONLY for pixel style, scale and pixel density: do not copy its design, outfit or colours.
+Count the attached images and read them like this:
+- IF THERE ARE THREE IMAGES: IMAGE 1 is the reference for the BASE form of the character, IMAGE 2 is the reference for the TRANSFORMED form of the same character, and IMAGE 3 is one of my existing pixel-art fighters.
+- IF THERE ARE TWO IMAGES: IMAGE 1 is ONE reference that shows BOTH the BASE form and the TRANSFORMED form of the same character (for example side by side or as two poses): work out which version is the base form and which is the transformed form from the image itself (the transformed one is the powered-up, changed or awakened version). IMAGE 2 is one of my existing pixel-art fighters.
+My existing pixel-art fighter (the last image) is ONLY for pixel style, scale and pixel density: do not copy its design, outfit or colours.
 
-Reproduce each form exactly as it appears in its own image: same hair, face, outfit, accessories, equipment, colours and proportions. Do not add, remove or change any detail, and do not mix details between image 1 and image 2. If these instructions ever differ from the images, the images win.
+Reproduce each form exactly as it appears in its reference: same hair, face, outfit, accessories, equipment, colours and proportions. Do not add, remove or change any detail, and do not mix details between the base and the transformed form. If these instructions ever differ from the images, the images win.
 
 Create TWO pixel-art sprite sheets, as two separate images, in the same style as my other fighters (chibi fighting-game character: big head, small body):
-- SHEET 1: the character from IMAGE 1 (base form).
-- SHEET 2: the character from IMAGE 2 (transformed form), at the same size and with the same poses as sheet 1.
+- SHEET 1: the BASE form.
+- SHEET 2: the TRANSFORMED form, at the same size and with the same poses as sheet 1.
 He fights with the sword(s) shown in the references: keep them as in the images and add no other weapon.
 
 Rules for BOTH sheets:
