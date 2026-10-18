@@ -259,7 +259,7 @@ export class BattleScene extends Phaser.Scene {
           this.playFireSound(e.skill);
           this.vfx.fired(f, e.skill, e.x, e.y);
           if (e.skill.kind === 'buff') {
-            this.views.get(e.uid)?.pulse(e.skill.color);
+            this.views.get(e.uid)?.pulse(e.skill.color, e.skill.id);
             if (!this.vfx.hasFx(e.skill.id, 'body')) this.vfx.aura(f.pos.x, f.pos.y, e.skill.color);
           }
           if (e.skill.domain) {

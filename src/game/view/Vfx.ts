@@ -68,6 +68,7 @@ export class Vfx {
     private readonly layers: VfxLayers,
   ) {
     this.manifest = (scene.registry.get('manifest') as AssetManifest | undefined) ?? EMPTY_MANIFEST;
+    this.auraUids().clear();
     this.zoneGfx = scene.add.graphics();
     layers.zones.add(this.zoneGfx);
 
@@ -154,7 +155,28 @@ export class Vfx {
     const startedAt = this.clock();
     const s = this.createFxSprite(skill.id, 'body', body, 130).setPosition(f.pos.x, f.pos.y - BODY_LIFT);
     this.layers.fx.add(s);
-    this.attached.push({ sprite: s, fighter: f, alive: () => f.alive && this.clock() - startedAt < duration, endsAt: startedAt + duration });
+    const auras = this.auraUids();
+    auras.add(f.uid);
+    this.attached.push({
+      sprite: s,
+      fighter: f,
+      alive: () => {
+        const on = f.alive && this.clock() - startedAt < duration;
+        if (!on) auras.delete(f.uid);
+        return on;
+      },
+      endsAt: startedAt + duration,
+    });
+  }
+
+  /** uids of fighters wearing a custom buff aura; the generic red aura steps aside for them. */
+  private auraUids(): Set<number> {
+    let set = this.scene.registry.get('fxAuraUids') as Set<number> | undefined;
+    if (!set) {
+      set = new Set();
+      this.scene.registry.set('fxAuraUids', set);
+    }
+    return set;
   }
 
   /** Keeps effects attached to fighters following them, and retires the ones that are done. Call every frame. */
@@ -162,6 +184,7 @@ export class Vfx {
     for (let i = this.attached.length - 1; i >= 0; i--) {
       const a = this.attached[i];
       if (!a.sprite.active || !a.alive()) {
+        if (a.endsAt !== undefined) this.auraUids().delete(a.fighter.uid);
         a.sprite.destroy();
         this.attached.splice(i, 1);
         continue;
@@ -322,12 +345,13 @@ export class Vfx {
     live.add(b.id);
     const elapsed = (b.skill.duration ?? 1) - b.remaining;
     const grow = Math.min(1, elapsed / 0.12);
-    const alpha = Math.min(1, b.remaining / 0.15);
+    const fade = Math.min(1, b.remaining / 0.4);
+    const alpha = fade * fade * (3 - 2 * fade);
     const length = b.length * grow;
     const from = b.owner.pos;
     const angle = Math.atan2(b.dir.y, b.dir.x);
     const [main, ...ends] = sprites;
-    main.setPosition(from.x, from.y).setRotation(angle).setDisplaySize(Math.max(1, length), thickness).setAlpha(alpha);
+    main.setPosition(from.x, from.y).setRotation(angle).setDisplaySize(Math.max(1, length), thickness * (0.55 + 0.45 * fade)).setAlpha(alpha);
     // Muzzle sits on the caster, tip rides the far end of the beam.
     for (const end of ends) {
       const isTip = end.texture.key.endsWith('_tip');

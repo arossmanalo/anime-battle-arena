@@ -102,6 +102,17 @@ export class FighterView {
     this.root.add([shadow, this.aura, this.charge, this.body, this.facingMark, this.flash, this.shield, this.hpBar, tag, this.status]);
   }
 
+  /** Whether a skill has a custom effect sprite for this part (so the generic one is skipped). */
+  hasFx(skillId: string, part: string): boolean {
+    const m = this.scene.registry.get('manifest') as AssetManifest | undefined;
+    return !!(m?.fx?.[skillId] as Record<string, unknown> | undefined)?.[part];
+  }
+
+  /** True while a custom buff aura sprite is attached to this fighter. */
+  private customAura(): boolean {
+    return ((this.scene.registry.get('fxAuraUids') as Set<number> | undefined)?.has(this.f.uid)) ?? false;
+  }
+
   private playAnim(anim: AnimName, restart = false): void {
     const key = animKey(this.f.def.id, anim, this.formSprites);
     if (this.sprite && this.scene.anims.exists(key)) this.sprite.play(key, !restart);
@@ -130,7 +141,8 @@ export class FighterView {
   }
 
   /** Pulse the body (used for transformations and buff casts). */
-  pulse(color: number): void {
+  pulse(color: number, skillId?: string): void {
+    if (skillId && this.hasFx(skillId, 'body')) return;
     const ring = this.scene.add.circle(0, 0, this.f.def.radius, color, 0).setStrokeStyle(4, color);
     this.root.add(ring);
     this.scene.tweens.add({ targets: ring, scale: 4, alpha: 0, duration: 500, onComplete: () => ring.destroy() });
@@ -156,7 +168,8 @@ export class FighterView {
     this.facingMark.setX(f.facing * (f.def.radius + 5)).setScale(f.facing, 1);
 
     // Aura: form colour while transformed, skill colour while buffed.
-    const buffed = f.hasStatus('damageBuff') || f.hasStatus('speedBuff');
+    // A buff with its own aura sprite replaces the generic red glow.
+    const buffed = (f.hasStatus('damageBuff') || f.hasStatus('speedBuff')) && !this.customAura();
     const auraColor = f.form?.color ?? (buffed ? 0xff5050 : 0);
     if (auraColor) {
       const t = this.scene.time.now / 1000;
@@ -168,7 +181,7 @@ export class FighterView {
 
     // Wind-up ring.
     this.charge.clear();
-    if (f.casting) {
+    if (f.casting && !this.hasFx(f.casting.skill.id, 'cast')) {
       const p = 1 - f.casting.remaining / Math.max(0.01, f.casting.skill.castTime);
       this.charge.lineStyle(3, f.casting.skill.color, 0.9);
       this.charge.beginPath();
@@ -182,7 +195,7 @@ export class FighterView {
 
     // Dash after-images.
     this.trailTimer -= dt;
-    if (f.dash && this.trailTimer <= 0) {
+    if (f.dash && this.trailTimer <= 0 && !this.hasFx(f.dash.skill.id, 'start') && !this.hasFx(f.dash.skill.id, 'impact')) {
       this.trailTimer = 0.025;
       const ghost = this.scene.add.circle(f.pos.x, f.pos.y, f.def.radius, f.dash.skill.color, 0.5);
       trailLayer.add(ghost);
