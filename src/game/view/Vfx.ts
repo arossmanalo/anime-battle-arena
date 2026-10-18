@@ -107,10 +107,11 @@ export class Vfx {
   }
 
   /** Arena size in sim units and how much the world container is scaled down on screen (team battles use bigger arenas). */
-  private view = { arenaW: ARENA_WIDTH, arenaH: ARENA_HEIGHT, scale: 1 };
+  private view = { arenaW: ARENA_WIDTH, arenaH: ARENA_HEIGHT, scale: 1, team: false };
 
-  setView(arenaW: number, arenaH: number, scale: number): void {
-    this.view = { arenaW, arenaH, scale };
+  /** `team`: a team battle, where domains cover a circle around the caster instead of the whole screen. */
+  setView(arenaW: number, arenaH: number, scale: number, team = false): void {
+    this.view = { arenaW, arenaH, scale, team };
   }
 
   /** The whole game screen, in world (arena) coordinates. */
@@ -446,6 +447,12 @@ export class Vfx {
         live.add(z.id);
         continue;
       }
+      if (z.skill.domain && this.view.team) {
+        // Team battle: a lit circle around the caster, with a ring at its edge.
+        g.fillStyle(z.skill.color, 0.5 * a).fillCircle(z.pos.x, z.pos.y, z.radius);
+        g.lineStyle(4, 0xffffff, 0.5 * a).strokeCircle(z.pos.x, z.pos.y, z.radius);
+        continue;
+      }
       if (z.skill.domain) {
         // A Domain Expansion paints over the whole screen, not just the arena.
         const sr = this.screenRect();
@@ -505,8 +512,14 @@ export class Vfx {
    */
   private drawSlashDomain(z: Zone, a: number): void {
     const g = this.zoneGfx;
-    const sr = this.screenRect();
-    g.fillStyle(0x2a040c, 0.55 * a).fillRect(sr.x, sr.y, sr.w, sr.h);
+    const team = this.view.team;
+    if (team) {
+      g.fillStyle(0x2a040c, 0.5 * a).fillCircle(z.pos.x, z.pos.y, z.radius);
+      g.lineStyle(4, 0xe01838, 0.6 * a).strokeCircle(z.pos.x, z.pos.y, z.radius);
+    } else {
+      const sr = this.screenRect();
+      g.fillStyle(0x2a040c, 0.55 * a).fillRect(sr.x, sr.y, sr.w, sr.h);
+    }
     const id = z.skill.id;
     const loopInfo = this.fx(id, 'body');
     const castInfo = loopInfo ?? this.fx(id, 'cast');
@@ -514,7 +527,7 @@ export class Vfx {
     if (!shrine && castInfo) {
       const part = loopInfo ? 'body' : 'cast';
       shrine = this.scene.add.sprite(z.owner.pos.x, z.owner.pos.y + 30, fxKey(id, part), loopInfo ? 0 : castInfo.frames - 1);
-      const w = castInfo.size ?? 200;
+      const w = (castInfo.size ?? 200) * (team ? 0.7 : 1);
       shrine.setOrigin(0.5, 0.82).setDisplaySize(loopInfo ? w : w * 1.7, (loopInfo ? w : w * 1.7) * castInfo.frameHeight / castInfo.frameWidth);
       if (loopInfo) shrine.play(fxKey(id, 'body'));
       if (castInfo.blend === 'add') shrine.setBlendMode(Phaser.BlendModes.ADD);
@@ -525,14 +538,18 @@ export class Vfx {
     const now = this.scene.time.now / 1000;
     // Spawn cuts at a steady rate, anywhere on screen, at any angle.
     this.slashAcc += 1 / 60;
-    while (this.slashAcc >= 1 / 180) {
-      this.slashAcc -= 1 / 180;
+    const rate = team ? 90 : 180;
+    while (this.slashAcc >= 1 / rate) {
+      this.slashAcc -= 1 / rate;
+      // Whole screen normally; inside the domain's circle in a team battle.
+      const ang = Math.random() * Math.PI * 2;
+      const rr = Math.sqrt(Math.random()) * z.radius;
       this.slashes.push({
         frame: Math.floor(Math.random() * 99),
-        x: this.screenRect().x + Math.random() * this.screenRect().w,
-        y: this.screenRect().y + Math.random() * this.screenRect().h,
+        x: team ? z.pos.x + Math.cos(ang) * rr : this.screenRect().x + Math.random() * this.screenRect().w,
+        y: team ? z.pos.y + Math.sin(ang) * rr : this.screenRect().y + Math.random() * this.screenRect().h,
         angle: Math.random() * Math.PI,
-        len: 260 + Math.random() * 620,
+        len: team ? 120 + Math.random() * 260 : 260 + Math.random() * 620,
         width: 1.5 + Math.random() * 2.5,
         born: now,
         life: 0.18 + Math.random() * 0.3,
@@ -609,11 +626,12 @@ export class Vfx {
       const sprite = this.createFxSprite(z.skill.id, 'body', info, GAME_WIDTH);
       // Cover the screen without squashing the art, with margin for camera pans and zooms.
       const sw = this.screenRect();
-      const cover = Math.max((sw.w * DOMAIN_OVERSCAN) / info.frameWidth, (sw.h * DOMAIN_OVERSCAN) / info.frameHeight);
+      const dia = z.radius * 2.1;
+      const cover = this.view.team ? Math.max(dia / info.frameWidth, dia / info.frameHeight) : Math.max((sw.w * DOMAIN_OVERSCAN) / info.frameWidth, (sw.h * DOMAIN_OVERSCAN) / info.frameHeight);
       const baseW = info.frameWidth * cover;
       const baseH = info.frameHeight * cover;
       sprite.setDisplaySize(baseW, baseH);
-      const vignette = this.scene.add.image(0, 0, this.vignetteTexture()).setDisplaySize(this.screenRect().w * DOMAIN_OVERSCAN, this.screenRect().h * DOMAIN_OVERSCAN);
+      const vignette = this.scene.add.image(0, 0, this.vignetteTexture()).setDisplaySize(this.view.team ? z.radius * 2.1 : this.screenRect().w * DOMAIN_OVERSCAN, this.view.team ? z.radius * 2.1 : this.screenRect().h * DOMAIN_OVERSCAN);
       const maskGfx = this.scene.make.graphics({}, false);
       const mask = new Phaser.Display.Masks.GeometryMask(this.scene, maskGfx);
       sprite.setMask(mask);
@@ -624,17 +642,21 @@ export class Vfx {
     }
     // Screen centre in the world container's coordinates.
     const sr = this.screenRect();
-    const cx = sr.x + sr.w / 2;
-    const cy = sr.y + sr.h / 2;
+    const team = this.view.team;
+    const cx = team ? z.pos.x : sr.x + sr.w / 2;
+    const cy = team ? z.pos.y : sr.y + sr.h / 2;
     const t = (this.scene.time.now - d.start) / DOMAIN_OPEN_MS;
     const open = Math.min(1, t);
     const eased = 1 - Math.pow(1 - open, 3);
     const origin = z.owner.pos;
-    const maxR = Math.hypot(GAME_WIDTH, GAME_HEIGHT) * 1.1;
+    const maxR = team ? z.radius : Math.hypot(GAME_WIDTH, GAME_HEIGHT) * 1.1;
     const radius = eased * maxR;
     if (d.mask) {
-      d.maskGfx.clear().fillStyle(0xffffff).fillCircle(ARENA_X + origin.x * this.view.scale, ARENA_Y + origin.y * this.view.scale, radius * this.view.scale);
-      if (open >= 1) {
+      const mx = team ? z.pos.x : origin.x;
+      const my = team ? z.pos.y : origin.y;
+      d.maskGfx.clear().fillStyle(0xffffff).fillCircle(ARENA_X + mx * this.view.scale, ARENA_Y + my * this.view.scale, radius * this.view.scale);
+      // A team domain stays clipped to its circle for its whole life.
+      if (open >= 1 && !team) {
         d.sprite.clearMask(true);
         d.vignette.clearMask(false);
         d.maskGfx.destroy();
@@ -645,6 +667,7 @@ export class Vfx {
     d.sprite.setPosition(cx, cy).setDisplaySize(d.baseW * breathe, d.baseH * breathe).setAlpha(fadeOut);
     d.vignette.setPosition(cx, cy).setAlpha(fadeOut);
     // Bright rim on the opening edge, and a soft flash at the caster.
+    if (team) g.lineStyle(4, 0xffffff, 0.45 * fadeOut).strokeCircle(z.pos.x, z.pos.y, z.radius);
     if (open < 1) {
       g.lineStyle(10, 0xffffff, 0.85 * (1 - open)).strokeCircle(origin.x, origin.y, radius);
       g.lineStyle(26, z.skill.color === 0x14092e ? 0x9a86ff : z.skill.color, 0.35 * (1 - open)).strokeCircle(origin.x, origin.y, radius);

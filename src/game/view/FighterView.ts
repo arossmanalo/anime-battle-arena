@@ -25,6 +25,8 @@ export class FighterView {
   private readonly shield: Phaser.GameObjects.Arc;
   private readonly charge: Phaser.GameObjects.Graphics;
   private readonly hpBar: Phaser.GameObjects.Graphics;
+  private readonly marker: Phaser.GameObjects.Graphics;
+  private markerKind: 'focus' | 'protect' | null = null;
   private readonly status: Phaser.GameObjects.Text;
   private readonly facingMark: Phaser.GameObjects.Triangle;
   private sprite?: Phaser.GameObjects.Sprite;
@@ -94,6 +96,7 @@ export class FighterView {
       .setVisible(false);
 
     this.hpBar = scene.add.graphics();
+    this.marker = scene.add.graphics();
     const tag = scene.add
       .text(0, this.headY - 13, team ? team.tag : f.def.id === 'dummy' ? 'DUMMY' : isPlayer ? 'YOU' : 'CPU', textStyle(9, team ? team.tagColor : isPlayer ? COLORS.energy : COLORS.danger, { fontStyle: 'bold' }))
       .setOrigin(0.5);
@@ -102,7 +105,26 @@ export class FighterView {
     // With a real sprite the art itself shows facing and the hit flash tints the sprite instead.
     if (this.sprite) this.facingMark.setVisible(false);
 
-    this.root.add([...(ring ? [ring] : []), shadow, this.aura, this.charge, this.body, this.facingMark, this.flash, this.shield, this.hpBar, tag, this.status]);
+    this.root.add([...(ring ? [ring] : []), shadow, this.marker, this.aura, this.charge, this.body, this.facingMark, this.flash, this.shield, this.hpBar, tag, this.status]);
+  }
+
+  /** Team battles: a crosshair on the enemy your team is told to focus, a shield ring on the ally it protects. */
+  setMarker(kind: 'focus' | 'protect' | null): void {
+    if (kind === this.markerKind && kind === null) return;
+    this.markerKind = kind;
+    this.marker.clear();
+    if (!kind) return;
+    const r = this.bodyRadius + 14;
+    const color = kind === 'focus' ? 0xffd23d : 0xffffff;
+    this.marker.lineStyle(3, color, 0.95).strokeCircle(0, this.bodyY, r);
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI) / 2 + (kind === 'focus' ? Math.PI / 4 : 0);
+      const x1 = Math.cos(a) * (r - 6);
+      const y1 = Math.sin(a) * (r - 6) + this.bodyY;
+      const x2 = Math.cos(a) * (r + 8);
+      const y2 = Math.sin(a) * (r + 8) + this.bodyY;
+      this.marker.lineBetween(x1, y1, x2, y2);
+    }
   }
 
   /** Whether a skill has a custom effect sprite for this part (so the generic one is skipped). */

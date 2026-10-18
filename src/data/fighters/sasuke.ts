@@ -107,7 +107,8 @@ export const sasuke: FighterDef = {
   roles: { tank: 0.7, damage: 0.5 },
   teamKit: {
     3: {
-      id: 'sasuke.protector',
+      // Same id as the solo skill, so it uses the same effect art.
+      id: 'sasuke.susanoo',
       name: 'Susanoo: Protector',
       kind: 'aoe',
       energyCost: 22,

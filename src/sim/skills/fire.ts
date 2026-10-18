@@ -27,6 +27,10 @@ export function supportTargets(sim: Simulation, f: Fighter, skill: SkillDef): Fi
   if (sup.to === 'nearestAlly') {
     return others.length ? [others.reduce((b, a) => (dist(a.pos, f.pos) < dist(b.pos, f.pos) ? a : b))] : [f];
   }
+  // The protected ally comes first when it is hurt at all.
+  const protect = sim.ordersOf(f.team).protect;
+  const guarded = protect === null ? undefined : allies.find((a) => a.uid === protect);
+  if (guarded && guarded.hp < guarded.maxHp * 0.98) return [guarded];
   // lowestAlly: the one with the lowest HP fraction (the caster included).
   return allies.length ? [allies.reduce((b, a) => (a.hp / a.maxHp < b.hp / b.maxHp ? a : b))] : [];
 }

@@ -8,7 +8,7 @@ import { FLOOR_KEY } from '../assets';
 import { sfx, type Sfx } from '../audio/Sfx';
 import { Announcer } from '../hud/Announcer';
 import { Hud } from '../hud/Hud';
-import { ROLE_COLOR, ROLE_LABEL, TEAM_COLOR, TeamHud } from '../hud/TeamHud';
+import { ROLE_COLOR, ROLE_LABEL, TEAM_COLOR, TacticsBar, TeamHud } from '../hud/TeamHud';
 import { mainRole } from '../../sim/roles';
 import { SkillBar } from '../hud/SkillBar';
 import { TrainingHud } from '../hud/TrainingHud';
@@ -41,6 +41,7 @@ export class BattleScene extends Phaser.Scene {
   private vfx!: Vfx;
   private hud!: Hud | TeamHud;
   private bar?: SkillBar;
+  private tactics?: TacticsBar;
   private announcer!: Announcer;
   private controller?: PlayerController;
   private trainingHud?: TrainingHud;
@@ -68,6 +69,7 @@ export class BattleScene extends Phaser.Scene {
     this.player = undefined;
     this.controller = undefined;
     this.bar = undefined;
+    this.tactics = undefined;
     this.views = new Map();
     this.acc = 0;
     this.timeScale = 1;
@@ -120,7 +122,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.vfx = new Vfx(this, { floor, zones, fx });
     this.vfx.setClock(() => this.sim.time);
-    this.vfx.setView(this.sim.arena.width, this.sim.arena.height, this.worldScale);
+    this.vfx.setView(this.sim.arena.width, this.sim.arena.height, this.worldScale, this.teamMode);
     for (const f of this.sim.fighters) {
       const role = mainRole(f.def);
       const teamInfo = this.teamMode ? { color: TEAM_COLOR[f.team], tag: ROLE_LABEL[role], tagColor: ROLE_COLOR[role] } : undefined;
@@ -128,7 +130,12 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (this.teamMode) {
-      this.hud = new TeamHud(this, this.sim, this.ui);
+      const handlers = {
+        onOrder: (order: Partial<import('../../sim/types').TeamOrders>) => this.sim.command({ type: 'order', team: 0, order }),
+        onUlt: (uid: number) => this.sim.command({ type: 'castSkill', uid, slot: 4 }),
+      };
+      this.hud = new TeamHud(this, this.sim, this.ui, handlers);
+      this.tactics = new TacticsBar(this, this.sim, this.ui, handlers);
     } else {
       this.hud = new Hud(this, this.sim, this.ui);
       this.bar = new SkillBar(this, this.player!, this.ui, (a) => this.controller!.act(a));
@@ -142,7 +149,7 @@ export class BattleScene extends Phaser.Scene {
         GAME_WIDTH - 8,
         GAME_HEIGHT - 4,
         this.teamMode
-          ? 'S speed · M mute · ESC pause · everyone is AI-controlled'
+          ? 'S speed · 1/2/3 stance · H hold ultimates · X clear orders · M mute · ESC pause'
           : this.setup.training
             ? '1-4 skills · U ultimate · T form · A auto · R reset · C cooldowns · D dummy · M mute · ESC pause'
             : '1-4 skills · U ultimate · T transform · A auto · M mute · ESC pause',
@@ -268,6 +275,11 @@ export class BattleScene extends Phaser.Scene {
     this.hud.update(dt);
     this.trainingHud?.update();
     this.bar?.update();
+    this.tactics?.update();
+    if (this.teamMode) {
+      const o = this.sim.ordersOf(0);
+      for (const [uid, v] of this.views) v.setMarker(o.focus === uid ? 'focus' : o.protect === uid ? 'protect' : null);
+    }
     this.announcer.update();
   }
 
@@ -299,7 +311,7 @@ export class BattleScene extends Phaser.Scene {
             if (!this.vfx.hasFx(e.skill.id, 'body')) this.vfx.aura(f.pos.x, f.pos.y, e.skill.color);
           }
           if (e.skill.domain) {
-            this.announcer.banner('DOMAIN EXPANSION', e.skill.id.startsWith('sukuna') ? 0xff3a4a : 0xb79bff, e.skill.name.toUpperCase(), 1300);
+            this.announcer.banner('DOMAIN EXPANSION', e.skill.id.startsWith('sukuna') ? 0xff3a4a : 0xb79bff, e.skill.name.toUpperCase(), this.teamMode ? 800 : 1300);
             this.cinematic(f, 0.3, 1100, 1.15);
           }
           if (e.skill.kind === 'beam') this.cameras.main.shake(e.skill.ultimate ? 900 : 400, 0.004);

@@ -204,7 +204,24 @@ export interface SimConfig {
 /** Slot 0-3 are the regular skills, 4 is the ultimate. */
 export type SkillSlot = 0 | 1 | 2 | 3 | 4;
 
+/** How a team's AI fights: `aggressive` closes in and never backs off, `defensive` holds near its team until enemies come close. */
+export type Stance = 'aggressive' | 'balanced' | 'defensive';
+
+/** Tactical orders a team can give its (AI-controlled) fighters during a match. */
+export interface TeamOrders {
+  /** Everyone attacks this enemy (uid) while it lives, unless taunted. */
+  focus: number | null;
+  /** Healers and supports favour this ally (uid), tanks guard it, damage dealers hunt whoever attacks it. */
+  protect: number | null;
+  stance: Stance;
+  /** The AI holds its ultimates; the player fires them by hand. */
+  holdUlts: boolean;
+}
+
+export const DEFAULT_ORDERS: TeamOrders = { focus: null, protect: null, stance: 'balanced', holdUlts: false };
+
 export type Command =
+  | { type: 'order'; team: number; order: Partial<TeamOrders> }
   | { type: 'castSkill'; uid: number; slot: SkillSlot }
   | { type: 'transform'; uid: number }
   | { type: 'setAuto'; uid: number; auto: boolean };

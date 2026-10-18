@@ -124,7 +124,8 @@ export const goku: FighterDef = {
   roles: { damage: 0.7, support: 0.4 },
   teamKit: {
     3: {
-      id: 'goku.rally',
+      // Same id as the solo skill, so it uses the same effect art.
+      id: 'goku.kaioken',
       name: 'Kaio-ken: Rally',
       kind: 'buff',
       energyCost: 22,

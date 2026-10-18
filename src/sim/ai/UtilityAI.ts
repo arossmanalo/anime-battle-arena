@@ -100,6 +100,14 @@ export class UtilityAI {
   private pickFocus(): void {
     const f = this.f;
     const enemies = this.sim.enemiesOf(f);
+    const orders = this.sim.ordersOf(f.team);
+    // A focus order beats everything except a taunt (handled in Simulation.nearestEnemy).
+    const ordered = orders.focus === null ? undefined : enemies.find((e) => e.uid === orders.focus);
+    if (ordered) {
+      f.focus = ordered;
+      return;
+    }
+    const protectedAlly = orders.protect === null ? undefined : this.sim.alliesOf(f, false).find((a) => a.uid === orders.protect);
     if (enemies.length < 2) {
       f.focus = enemies[0] ?? null;
       return;
@@ -117,6 +125,8 @@ export class UtilityAI {
         r.tank * 8;
       if (e.stunned) score += 6;
       if (f.focus === e) score += 12;
+      // Protecting someone: go after whoever is attacking them.
+      if (protectedAlly && e.focus === protectedAlly) score += 26;
       score += this.sim.rng.range(-1, 1) * this.params.noise * 8;
       if (score > bestScore) {
         bestScore = score;
@@ -145,6 +155,26 @@ export class UtilityAI {
     }
 
     const gap = dist(this.f.pos, target.pos) - this.f.def.radius - target.def.radius;
+    const orders = this.sim.ordersOf(this.f.team);
+    const role = mainRole(this.f.def);
+    // A tank told to protect someone stands between them and the enemy.
+    const guarded = orders.protect === null ? undefined : this.sim.alliesOf(this.f, false).find((a) => a.uid === orders.protect);
+    if (role === 'tank' && guarded) {
+      this.followPoint = add(guarded.pos, scale(norm(sub(target.pos, guarded.pos)), 55));
+      this.mode = dist(this.f.pos, this.followPoint) > 50 ? 'follow' : 'strafe';
+      return;
+    }
+    // Defensive stance: non-support fighters hold near their team until an enemy comes close.
+    if (orders.stance === 'defensive' && role !== 'healer' && role !== 'support' && gap > 240) {
+      const mates = this.sim.alliesOf(this.f, false);
+      if (mates.length) {
+        const cx = mates.reduce((s, a) => s + a.pos.x, 0) / mates.length;
+        const cy = mates.reduce((s, a) => s + a.pos.y, 0) / mates.length;
+        this.followPoint = add({ x: cx, y: cy }, scale(norm(sub(target.pos, { x: cx, y: cy })), 40));
+        this.mode = dist(this.f.pos, this.followPoint) > 50 ? 'follow' : 'strafe';
+        return;
+      }
+    }
     if (this.wantsBackline()) {
       const mates = this.sim.alliesOf(this.f, false);
       const cx = mates.reduce((s, a) => s + a.pos.x, 0) / mates.length;
@@ -157,10 +187,11 @@ export class UtilityAI {
       return;
     }
     const melee = this.wantsMelee(gap);
-    const preferred = melee ? this.f.def.attack.range * MELEE_CLOSE : PREFERRED_RANGE[this.f.def.aiProfile];
+    let preferred = melee ? this.f.def.attack.range * MELEE_CLOSE : PREFERRED_RANGE[this.f.def.aiProfile];
+    if (orders.stance === 'aggressive') preferred = Math.min(preferred, 90);
     const slack = melee ? MELEE_SLACK : RANGE_SLACK;
     if (gap > preferred + slack) this.mode = 'approach';
-    else if (gap < preferred - slack && !melee && this.f.def.aiProfile !== 'rushdown') this.mode = 'retreat';
+    else if (gap < preferred - slack && !melee && this.f.def.aiProfile !== 'rushdown' && orders.stance !== 'aggressive') this.mode = 'retreat';
     else this.mode = 'strafe';
 
     if (this.sim.rng.chance(0.15) || this.nearWall(this.f.pos)) this.strafeDir = this.strafeDir === 1 ? -1 : 1;
@@ -242,9 +273,11 @@ export class UtilityAI {
     const d = dist(this.f.pos, target.pos);
     let best: SkillSlot | null = null;
     let bestScore = MIN_SCORE;
+    const holdUlts = this.sim.ordersOf(this.f.team).holdUlts;
     for (const slot of [0, 1, 2, 3, 4] as SkillSlot[]) {
       const skill = this.f.skill(slot);
       if (this.f.cooldown(skill) > 0 || !this.f.canAfford(skill)) continue;
+      if (holdUlts && skill.ultimate) continue; // the player will call it
       const score = this.score(skill, target, d) * (1 + this.sim.rng.range(-1, 1) * this.params.noise);
       if (score > bestScore) {
         bestScore = score;

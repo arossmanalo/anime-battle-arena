@@ -112,7 +112,8 @@ export const naruto: FighterDef = {
   roles: { healer: 0.7, damage: 0.5, support: 0.3 },
   teamKit: {
     3: {
-      id: 'naruto.sagehealing',
+      // Same id as the solo skill, so it uses the same effect art.
+      id: 'naruto.sage',
       name: 'Sage Healing',
       kind: 'buff',
       energyCost: 22,

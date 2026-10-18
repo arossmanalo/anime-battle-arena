@@ -656,7 +656,7 @@ describe('team mechanics', () => {
     const solo = duel('naruto', 'goku');
     expect(solo.fighters[0].skill(3).id).toBe('naruto.sage');
     const squad = team(['naruto', 'vegeta'], ['goku', 'sukuna']);
-    expect(squad.fighters[0].skill(3).id).toBe('naruto.sagehealing');
+    expect(squad.fighters[0].skill(3).name).toBe('Sage Healing');
   });
 
   it('back-row fighters start behind the front row', () => {
@@ -710,5 +710,79 @@ describe('draft and smart picker', () => {
   it('a draft can only be as big as half the roster', () => {
     expect(maxDraftSize(7)).toBe(3);
     expect(maxDraftSize(8)).toBe(4);
+  });
+});
+
+describe('team orders', () => {
+  function squad(): Simulation {
+    return new Simulation({
+      seed: 4,
+      idleFallback: 0,
+      teams: [
+        ['sasuke', 'naruto', 'vegeta'].map((id) => ({ def: fighterById(id), controller: 'ai' as const })),
+        ['goku', 'gojo', 'tanjiro'].map((id) => ({ def: fighterById(id), controller: 'ai' as const })),
+      ],
+    });
+  }
+
+  it('a focus order makes the whole team target that enemy', () => {
+    const sim = squad();
+    const target = sim.fighters.find((f) => f.def.id === 'tanjiro')!;
+    sim.command({ type: 'order', team: 0, order: { focus: target.uid } });
+    stepCollect(sim, 40);
+    for (const f of sim.fighters.filter((x) => x.team === 0)) expect(f.focus).toBe(target);
+  });
+
+  it('orders naming the wrong side are dropped', () => {
+    const sim = squad();
+    const mate = sim.fighters.find((f) => f.def.id === 'naruto')!;
+    sim.command({ type: 'order', team: 0, order: { focus: mate.uid } });
+    sim.step();
+    expect(sim.ordersOf(0).focus).toBeNull();
+  });
+
+  it('hold ultimates stops the AI casting them, but a manual cast still works', () => {
+    const sim = squad();
+    sim.command({ type: 'order', team: 0, order: { holdUlts: true } });
+    const v = sim.fighters.find((f) => f.def.id === 'vegeta')!;
+    v.ult = 100;
+    v.energy = 100;
+    let cast = false;
+    for (const e of stepCollect(sim, 60 * 8)) if (e.type === 'skillCast' && e.uid === v.uid && e.skill.ultimate) cast = true;
+    expect(cast).toBe(false);
+    v.casting = null;
+    v.swing = null;
+    v.dash = null;
+    v.channel = null;
+    v.statuses = [];
+    v.ult = 100;
+    v.energy = 100;
+    sim.command({ type: 'castSkill', uid: v.uid, slot: 4 });
+    const events = stepCollect(sim, 2);
+    expect(events.some((e) => e.type === 'skillCast' && e.uid === v.uid && e.skill.ultimate)).toBe(true);
+  });
+
+  it('protect makes a healer favour that ally even when another is lower', () => {
+    const sim = squad();
+    for (const f of sim.fighters) f.auto = false;
+    const [sasuke, naruto, vegeta] = sim.fighters;
+    sasuke.hp = sasuke.maxHp * 0.9;
+    vegeta.hp = vegeta.maxHp * 0.4;
+    naruto.energy = 100;
+    sim.command({ type: 'order', team: 0, order: { protect: sasuke.uid } });
+    sim.step();
+    const before = sasuke.hp;
+    sim.tryCast(naruto, 3);
+    stepCollect(sim, Math.ceil(0.6 / DT));
+    expect(sasuke.hp).toBeGreaterThan(before);
+  });
+
+  it('team domains are limited to a circle in team battles', () => {
+    const sim = squad();
+    const z = sim.spawnZone(sim.fighters[0], { ...fighterById('gojo').form!.skillOverrides![0]!, domain: true }, { x: 100, y: 100 });
+    expect(z.radius).toBeLessThanOrEqual(sim.arena.height * 0.55 + 0.01);
+    const solo = duel('gojo', 'naruto');
+    const sz = solo.spawnZone(solo.fighters[0], fighterById('gojo').form!.skillOverrides![0]!, { x: 100, y: 100 });
+    expect(sz.radius).toBe(600);
   });
 });

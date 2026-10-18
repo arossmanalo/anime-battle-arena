@@ -6,8 +6,10 @@ import type { Beam, Projectile, Zone } from './entities';
 import { Fighter } from './Fighter';
 import { Rng } from './rng';
 import { fireSkill } from './skills/fire';
-import type {
-  CastFailReason,
+import {
+  DEFAULT_ORDERS,
+  type TeamOrders,
+  type CastFailReason,
   Command,
   Difficulty,
   Effect,
@@ -31,6 +33,8 @@ export const DECAY_SPAN = 60;
 export const DECAY_HEAL_MIN = 0.3;
 export const DECAY_DEFENSE = 0.6;
 export const TEAM_TIME_LIMIT = 150;
+/** A team-battle Domain Expansion reaches at most this fraction of the arena's height from the caster. */
+export const TEAM_DOMAIN_SHARE = 0.55;
 /** How far back-row fighters start behind the front row. */
 const ROW_DEPTH = 70;
 const SWING_MOVE_MULT = 0.6;
@@ -62,6 +66,8 @@ export class Simulation {
   /** Training: how the dummy moves. */
   dummyMode: 'still' | 'pace' | 'strafe' = 'still';
   readonly fighters: Fighter[] = [];
+  /** Per-team tactical orders (index = team). */
+  readonly orders: TeamOrders[] = [];
   projectiles: Projectile[] = [];
   beams: Beam[] = [];
   zones: Zone[] = [];
@@ -99,6 +105,7 @@ export class Simulation {
 
     // Teams start on opposite sides, members spread vertically.
     const teamCount = config.teams.length;
+    config.teams.forEach(() => this.orders.push({ ...DEFAULT_ORDERS }));
     config.teams.forEach((team, t) => {
       let x = teamCount === 1 ? this.arena.width / 2 : this.arena.width * (0.15 + (0.7 * t) / (teamCount - 1));
       // Training: put the dummy closer, within reach of most skills.
@@ -131,6 +138,10 @@ export class Simulation {
   decayProgress(): number {
     if (!this.decay) return 0;
     return Math.max(0, Math.min(1, (this.time - DECAY_START) / DECAY_SPAN));
+  }
+
+  ordersOf(team: number): TeamOrders {
+    return this.orders[team] ?? DEFAULT_ORDERS;
   }
 
   alliesOf(f: Fighter, includeSelf = true): Fighter[] {
@@ -225,6 +236,17 @@ export class Simulation {
   // ---- commands -------------------------------------------------------------------------------
 
   private handleCommand(cmd: Command): void {
+    if (cmd.type === 'order') {
+      const o = this.orders[cmd.team];
+      if (!o) return;
+      Object.assign(o, cmd.order);
+      // Orders must name a living fighter on the right side.
+      const focus = o.focus === null ? undefined : this.fighter(o.focus);
+      if (focus && (focus.team === cmd.team || !focus.alive)) o.focus = null;
+      const protect = o.protect === null ? undefined : this.fighter(o.protect);
+      if (protect && (protect.team !== cmd.team || !protect.alive)) o.protect = null;
+      return;
+    }
     const f = this.fighter(cmd.uid);
     if (!f) return;
     switch (cmd.type) {
@@ -516,7 +538,8 @@ export class Simulation {
       owner,
       skill,
       pos,
-      radius: skill.radius ?? 100,
+      // In team battles a domain covers a limited area around the caster, not the whole arena.
+      radius: this.teamMode && skill.domain ? Math.min(skill.radius ?? 100, this.arena.height * TEAM_DOMAIN_SHARE) : (skill.radius ?? 100),
       remaining: skill.duration ?? 3,
       tickTimer: 0,
     };

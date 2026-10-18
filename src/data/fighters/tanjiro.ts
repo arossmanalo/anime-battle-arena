@@ -104,7 +104,8 @@ export const tanjiro: FighterDef = {
   roles: { damage: 0.6, tank: 0.4 },
   teamKit: {
     2: {
-      id: 'tanjiro.guardingdance',
+      // Same id as the solo skill, so it uses the same effect art.
+      id: 'tanjiro.flowingdance',
       name: 'Guarding Dance',
       kind: 'buff',
       energyCost: 15,

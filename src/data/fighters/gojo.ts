@@ -124,7 +124,8 @@ export const gojo: FighterDef = {
   roles: { support: 0.7, tank: 0.4, damage: 0.4 },
   teamKit: {
     3: {
-      id: 'gojo.barrier',
+      // Same id as the solo skill, so it uses the same effect art.
+      id: 'gojo.infinity',
       name: 'Infinity: Barrier',
       kind: 'buff',
       energyCost: 25,
