@@ -28,6 +28,8 @@ Transformation / second form (name and look, or "none"):
 
 Feel (fast and fragile / tanky / glass cannon / balanced / tricky):
 
+Team role (optional, for team battles: tank / healer / support / damage, or a mix such as "tank with some damage", and what they do for allies: taunt and guard, heal, shield or buff teammates; blank = pure damage dealer):
+
 Anything else (voice lines, a rival, moves that must NOT be included):
 ```
 
@@ -67,7 +69,7 @@ Basic attack: sword slash combo
 Passive: Unbreakable Resolve, once per match he survives a lethal hit on 1 HP and is untouchable for 2 seconds.
 Transformation: Demon Slayer Mark, unlocks when he is badly hurt: faster and stronger, regains some health.
 Feel: fast, aggressive, resilient
-Team role (optional): tank / healer / support / damage, or a mix (for example "tank with some damage"), and what they do for allies in a team battle (taunt and guard, heal, shield or buff teammates). Leave blank for a pure damage dealer.
+Team role: damage, with a small shield he can throw on a teammate (Flowing Dance in team battles).
 Anything else: kind, earnest voice lines ("I'll protect everyone, no matter what!"); keep it a pure close-range fighter.
 ```
 
