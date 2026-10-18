@@ -263,7 +263,7 @@ export class BattleScene extends Phaser.Scene {
             if (!this.vfx.hasFx(e.skill.id, 'body')) this.vfx.aura(f.pos.x, f.pos.y, e.skill.color);
           }
           if (e.skill.domain) {
-            this.announcer.banner('DOMAIN EXPANSION', 0xb79bff, e.skill.name.toUpperCase(), 1300);
+            this.announcer.banner('DOMAIN EXPANSION', e.skill.id.startsWith('sukuna') ? 0xff3a4a : 0xb79bff, e.skill.name.toUpperCase(), 1300);
             this.cinematic(f, 0.3, 1100, 1.15);
           }
           if (e.skill.kind === 'beam') this.cameras.main.shake(e.skill.ultimate ? 900 : 400, 0.004);

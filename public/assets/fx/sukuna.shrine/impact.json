@@ -1,0 +1,9 @@
+{
+  "frameWidth": 256,
+  "frameHeight": 256,
+  "frames": 6,
+  "frameRate": 10,
+  "loop": false,
+  "blend": "add",
+  "size": 420
+}
