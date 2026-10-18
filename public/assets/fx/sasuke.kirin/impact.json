@@ -1,8 +1,8 @@
 {
   "frameWidth": 165,
   "frameHeight": 165,
-  "frames": 11,
-  "frameRate": 14,
+  "frames": 9,
+  "frameRate": 12,
   "loop": false,
   "blend": "add",
   "size": 300

@@ -14,12 +14,13 @@
  *   --frames N        how many frames are in the (single-row) image. Cuts it at the emptiest places, which also works when
  *                     frames touch, overlap or are joined by glow. Recommended whenever you know the count
  *   --crop L,T,R,B    only use this part of the image (pixels, or fractions 0-1 of its size), e.g. --crop 0,0,0.32,1
- *   --pick A-B       use only frames A to B (1-based, in reading order), so one image can hold several effects
+ *   --pick A-B,C     use only frames A to B (and C...) (1-based, in reading order), so one image can hold several effects
  *   --cell N | WxH    frame size in px (default: just big enough for the largest frame, at most 512)
  *   --fill            stretch each frame to the whole cell (backgrounds such as a domain; use with --grid and --bg none)
  *   --fps N           frame rate        --loop | --once      override the default for this part
  *   --size PX         on-screen width in arena px (the arena is 900 wide, a fighter is about 90)
  *   --blend add|normal   how it is drawn (default: add for black backgrounds, otherwise normal)
+ *   --feather F       how wide the edge fade is, as a fraction of the frame (default 0.09; raise it for frames cut out of busy glow)
  *   --no-feather      keep the hard cut edges of frames (by default they fade out over a small margin)
  *   --no-rotate       a projectile body should not turn to face its heading
  *   --copy-to FOLDER  also save the source and results there
@@ -291,8 +292,13 @@ async function main(): Promise<void> {
   }
   console.log(`Found ${frames.length} frame(s) in the image.`);
   if (opts.pick) {
-    const [a, b] = String(opts.pick).split('-').map(Number);
-    frames = frames.slice(a - 1, b ?? a);
+    // e.g. 5-9 or 1-4,6,8-10 (skip frames that came out badly)
+    const keep = new Set<number>();
+    for (const part of String(opts.pick).split(',')) {
+      const [a, b] = part.split('-').map(Number);
+      for (let n = a; n <= (b ?? a); n++) keep.add(n);
+    }
+    frames = frames.filter((_, i) => keep.has(i + 1));
   }
   if (!frames.length) {
     console.error('No frames found. Is the image empty, or the background not removed? Try --bg black, --bg flat or --grid CxR.');
@@ -328,7 +334,7 @@ async function main(): Promise<void> {
     // Where a frame was cut out of a neighbouring glow or haze, the cut edge would show as a hard square.
     // Fade the alpha out over a margin along each edge so frames blend away smoothly (--no-feather to skip).
     const piece = Buffer.alloc(f.width * f.height * 4);
-    const margin = Math.max(6, Math.round(Math.min(f.width, f.height) * 0.09));
+    const margin = Math.max(6, Math.round(Math.min(f.width, f.height) * Number(opts.feather ?? 0.09)));
     for (let y = 0; y < f.height; y++) {
       for (let x = 0; x < f.width; x++) {
         const from = ((f.top + y) * w + f.left + x) * 4;
