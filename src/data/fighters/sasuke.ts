@@ -104,6 +104,23 @@ export const sasuke: FighterDef = {
     color: 0xb07cff,
   },
   attack: { name: 'Kunai Slash', style: 'melee', damage: 3.5, range: 48, cooldown: 0.5, windup: 0.12, combo: 3, knockback: 160, color: 0xc9d4ff },
+  roles: { tank: 0.7, damage: 0.5 },
+  teamKit: {
+    3: {
+      id: 'sasuke.protector',
+      name: 'Susanoo: Protector',
+      kind: 'aoe',
+      energyCost: 22,
+      cooldown: 14,
+      castTime: 0.3,
+      range: 0,
+      radius: 230,
+      // Draws every enemy nearby onto him, and he takes much less damage while they do.
+      effects: [{ type: 'taunt', duration: 3.5 }],
+      selfEffects: [{ type: 'guard', factor: 0.5, duration: 4 }, { type: 'shield', amount: 40, duration: 4 }],
+      color: 0x9b6dff,
+    },
+  },
   passive: {
     id: 'sasuke.sharingan',
     name: 'Sharingan',

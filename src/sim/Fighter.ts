@@ -2,12 +2,12 @@ import { passiveDamageMult } from './passives';
 import type { Controller, FighterDef, FormDef, PassiveProc, SkillDef, SkillSlot, Vec } from './types';
 import { vec } from './vec';
 
-export type StatusType = 'stun' | 'burn' | 'slow' | 'shield' | 'speedBuff' | 'damageBuff';
+export type StatusType = 'stun' | 'burn' | 'slow' | 'shield' | 'speedBuff' | 'damageBuff' | 'taunt' | 'guard';
 
 export interface Status {
   type: StatusType;
   remaining: number;
-  /** stun: unused. burn: dps. slow/speedBuff/damageBuff: multiplier. shield: HP left to absorb. */
+  /** stun: unused. burn: dps. slow/speedBuff/damageBuff/guard: multiplier. shield: HP left to absorb. taunt: uid of the taunter. */
   value: number;
   source: number;
 }
@@ -78,6 +78,11 @@ export class Fighter {
   sandbox = false;
   /** Where the training dummy stands when it isn't being knocked around. */
   home: Vec = vec();
+  /** Team match: use `def.teamKit` skills, and spawn in `row`. */
+  teamMode = false;
+  row: 'front' | 'back' = 'front';
+  /** The enemy this fighter is concentrating on (chosen by the AI; a taunt overrides it). */
+  focus: Fighter | null = null;
   /** Seconds until the default attack can start again. */
   attackCd = 0;
   /** A default attack in its wind-up. Cancelled by stuns and by casting a skill. */
@@ -125,7 +130,13 @@ export class Fighter {
 
   skill(slot: SkillSlot): SkillDef {
     if (slot === 4) return this.form?.ultimateOverride ?? this.def.ultimate;
-    return this.form?.skillOverrides?.[slot] ?? this.def.skills[slot];
+    return this.form?.skillOverrides?.[slot] ?? (this.teamMode ? this.def.teamKit?.[slot] : undefined) ?? this.def.skills[slot];
+  }
+
+  /** Uid of whoever has taunted this fighter, if the taunt is active. */
+  get tauntedBy(): number | null {
+    const s = this.statuses.find((x) => x.type === 'taunt');
+    return s ? s.value : null;
   }
 
   cooldown(skill: SkillDef): number {

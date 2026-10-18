@@ -572,3 +572,113 @@ describe("Sukuna's new mechanics", () => {
     expect(hits.filter((h) => h >= 25).length).toBe(1);
   });
 });
+
+describe('team mechanics', () => {
+  function team(a: string[], b: string[], seed = 3): Simulation {
+    return new Simulation({
+      seed,
+      idleFallback: 0,
+      teams: [a.map((id) => ({ def: fighterById(id), controller: 'ai' as const })), b.map((id) => ({ def: fighterById(id), controller: 'ai' as const }))],
+    });
+  }
+
+  /** A team match where nobody casts or attacks by themselves, so a test controls exactly what happens. */
+  function quiet(a: string[], b: string[]): Simulation {
+    const sim = team(a, b);
+    sim.tryAttack = () => false;
+    for (const f of sim.fighters) f.auto = false;
+    return sim;
+  }
+
+  it('healers heal the lowest ally and cleanse them', () => {
+    const sim = quiet(['naruto', 'vegeta'], ['goku', 'sukuna']);
+    const [n, v] = sim.fighters;
+    n.energy = 100;
+    v.hp = 100;
+    v.statuses.push({ type: 'burn', remaining: 5, value: 3, source: 3 });
+    expect(sim.tryCast(n, 3)).toBeNull();
+    stepCollect(sim, Math.ceil(0.5 / DT));
+    expect(v.hp).toBeGreaterThan(100 + 20);
+    expect(v.hasStatus('burn')).toBe(false);
+  });
+
+  it('a taunt forces enemies to target the taunter', () => {
+    const sim = quiet(['sasuke', 'vegeta'], ['goku', 'sukuna']);
+    const [s, v, g] = sim.fighters;
+    g.focus = v;
+    expect(sim.nearestEnemy(g)).toBe(v);
+    s.pos = { x: g.pos.x - 80, y: g.pos.y };
+    s.energy = 100;
+    sim.tryCast(s, 3);
+    stepCollect(sim, Math.ceil(0.5 / DT));
+    expect(g.tauntedBy).toBe(s.uid);
+    expect(sim.nearestEnemy(g)).toBe(s);
+  });
+
+  it('guard reduces damage taken', () => {
+    const sim = team(['sasuke', 'vegeta'], ['goku', 'sukuna']);
+    const [s, , g] = sim.fighters;
+    s.invuln = 0;
+    const base = { type: 'damage', amount: 20 } as Effect;
+    const sk = { id: 'x', name: 'x', kind: 'aoe', energyCost: 0, cooldown: 1, castTime: 0, range: 1, effects: [], color: 0 } as SkillDef;
+    const before = s.hp;
+    applyEffects(ctx, g, s, [base], sk, g.pos);
+    const unguarded = before - s.hp;
+    s.hp = before;
+    s.statuses.push({ type: 'guard', remaining: 5, value: 0.5, source: s.uid });
+    applyEffects(ctx, g, s, [base], sk, g.pos);
+    expect(before - s.hp).toBeLessThan(unguarded * 0.7);
+  });
+
+  it('healing weakens and defence drops as a team match drags on', () => {
+    const sim = quiet(['naruto', 'vegeta'], ['goku', 'sukuna']);
+    expect(sim.decayProgress()).toBe(0);
+    sim.tick = Math.round(90 / DT);
+    expect(sim.decayProgress()).toBe(1);
+    const [n, v] = sim.fighters;
+    v.hp = 100;
+    n.energy = 100;
+    sim.tryCast(n, 3);
+    stepCollect(sim, Math.ceil(0.6 / DT));
+    expect(v.hp - 100).toBeLessThan(25); // 48 healed at 30% strength
+  });
+
+  it('one-on-one matches have no decay and keep their time limit', () => {
+    const sim = duel('naruto', 'goku');
+    expect(sim.decay).toBe(false);
+    expect(sim.timeLimit).toBe(99);
+    expect(sim.fighters.every((f) => !f.teamMode)).toBe(true);
+  });
+
+  it('team kits only apply in team matches', () => {
+    const solo = duel('naruto', 'goku');
+    expect(solo.fighters[0].skill(3).id).toBe('naruto.sage');
+    const squad = team(['naruto', 'vegeta'], ['goku', 'sukuna']);
+    expect(squad.fighters[0].skill(3).id).toBe('naruto.sagehealing');
+  });
+
+  it('back-row fighters start behind the front row', () => {
+    const sim = team(['gojo', 'sasuke'], ['goku', 'vegeta']);
+    const [gojo, sasuke] = sim.fighters;
+    expect(gojo.row).toBe('back');
+    expect(sasuke.row).toBe('front');
+    expect(gojo.pos.x).toBeLessThan(sasuke.pos.x);
+  });
+
+  it('team matches are deterministic', () => {
+    const run = () => {
+      const sim = team(['naruto', 'sasuke'], ['goku', 'gojo'], 9);
+      sim.runToEnd();
+      return [sim.tick, sim.winnerTeam, ...sim.fighters.map((f) => Math.round(f.hp))].join(',');
+    };
+    expect(run()).toBe(run());
+  });
+
+  it('every team matchup finishes', () => {
+    for (let i = 0; i < ROSTER.length; i++) {
+      const sim = team([ROSTER[i].id, ROSTER[(i + 1) % ROSTER.length].id], [ROSTER[(i + 2) % ROSTER.length].id, ROSTER[(i + 3) % ROSTER.length].id], i + 1);
+      sim.runToEnd();
+      expect(sim.over).toBe(true);
+    }
+  });
+});

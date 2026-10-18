@@ -121,6 +121,22 @@ export const gojo: FighterDef = {
     },
   },
   attack: { name: 'Cursed Bolt', style: 'ranged', damage: 6, range: 300, cooldown: 0.9, windup: 0.15, combo: 1, speed: 500, color: 0xb79bff },
+  roles: { support: 0.7, tank: 0.4, damage: 0.4 },
+  teamKit: {
+    3: {
+      id: 'gojo.barrier',
+      name: 'Infinity: Barrier',
+      kind: 'buff',
+      energyCost: 25,
+      cooldown: 14,
+      castTime: 0.2,
+      range: 9999,
+      effects: [],
+      support: { to: 'allAllies', range: 450, effects: [{ type: 'shield', amount: 30, duration: 5 }] },
+      selfEffects: [{ type: 'shield', amount: 54, duration: 5 }],
+      color: 0xd8e6ff,
+    },
+  },
   passive: {
     id: 'gojo.limitless',
     name: 'Limitless',

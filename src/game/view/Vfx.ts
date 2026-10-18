@@ -293,6 +293,16 @@ export class Vfx {
     this.scene.tweens.add({ targets: t, y: t.y - 34, alpha: 0, scale: big ? 1.3 : 1, duration: 750, ease: 'Cubic.out', onComplete: () => t.destroy() });
   }
 
+  /** Floating green "+N" over a fighter that was healed. */
+  healNumber(x: number, y: number, amount: number): void {
+    const t = this.scene.add
+      .text(x + Phaser.Math.Between(-10, 10), y - 34, `+${Math.round(amount)}`, impactStyle(amount >= 30 ? 22 : 16, 0x7dff9a, 0x0a3d1a))
+      .setOrigin(0.5)
+      .setDepth(10_000);
+    this.layers.fx.add(t);
+    this.scene.tweens.add({ targets: t, y: t.y - 36, alpha: 0, duration: 800, ease: 'Cubic.out', onComplete: () => t.destroy() });
+  }
+
   syncProjectiles(list: Projectile[]): void {
     const seen = new Set<number>();
     for (const p of list) {

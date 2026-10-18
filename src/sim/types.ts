@@ -14,9 +14,27 @@ export type Effect =
   | { type: 'shield'; amount: number; duration: number }
   | { type: 'heal'; amount: number }
   | { type: 'speedBuff'; factor: number; duration: number }
-  | { type: 'damageBuff'; factor: number; duration: number };
+  | { type: 'damageBuff'; factor: number; duration: number }
+  /** Enemies hit are forced to attack the caster for `duration` seconds. */
+  | { type: 'taunt'; duration: number }
+  /** The target takes `factor` (0.6 = 40% less) of incoming damage for `duration` seconds. */
+  | { type: 'guard'; factor: number; duration: number }
+  /** Removes stun, burn and slow from the target. */
+  | { type: 'cleanse' };
 
 export type SkillKind = 'projectile' | 'beam' | 'dash' | 'aoe' | 'zone' | 'buff';
+
+/** Roles are scores (0-1); a hybrid has two high ones. Missing roles count as 0, and a fighter with none is a damage dealer. */
+export type Role = 'tank' | 'damage' | 'support' | 'healer';
+export type RoleScores = Partial<Record<Role, number>>;
+
+/** Effects a skill applies to the caster's teammates. */
+export interface SupportDef {
+  to: 'lowestAlly' | 'allAllies' | 'nearestAlly';
+  /** Teammates must be within this distance (default 400). */
+  range?: number;
+  effects: Effect[];
+}
 
 export interface SkillDef {
   id: string;
@@ -51,6 +69,8 @@ export interface SkillDef {
   /** domain: instead of a backdrop, a shrine rises at the caster and slashes fly across the whole screen. */
   domainStyle?: 'slashes';
   ultimate?: boolean;
+  /** Applied to teammates when the skill fires (heals, shields, buffs for others). */
+  support?: SupportDef;
   /** zone: effects applied once, to everyone still inside, when the zone ends (a domain's final blow). */
   finale?: Effect[];
   /** While winding up this skill, the caster can't be stunned or interrupted. */
@@ -144,6 +164,10 @@ export interface FighterDef {
   skills: [SkillDef, SkillDef, SkillDef, SkillDef];
   ultimate: SkillDef;
   attack: AttackDef;
+  /** Team roles. Missing = damage dealer. */
+  roles?: RoleScores;
+  /** Skills that replace a slot only in team matches (so 1v1 balance is unaffected). */
+  teamKit?: Partial<Record<0 | 1 | 2 | 3, SkillDef>>;
   passive: PassiveDef;
   form?: FormDef;
   voiceLines: VoiceLines;
@@ -157,6 +181,8 @@ export type Controller = 'ai' | 'player' | 'dummy';
 export interface FighterSetup {
   def: FighterDef;
   controller: Controller;
+  /** Formation: back-row fighters start further from the enemy. Default depends on the fighter's roles. */
+  row?: 'front' | 'back';
 }
 
 export interface SimConfig {
@@ -169,6 +195,8 @@ export interface SimConfig {
   difficulty?: Difficulty;
   /** Seconds a player may stay idle before the AI starts casting for them. 0 disables it. */
   idleFallback?: number;
+  /** Team matches: healing weakens and defence drops as the match goes on, to prevent stalemates. Default: on when a team has more than one fighter. */
+  decay?: boolean;
   /** Training mode: the player has infinite energy and ultimate, can transform any time and can't be hurt; the match never ends. */
   training?: boolean;
 }
@@ -192,6 +220,7 @@ export type SimEvent =
   | { type: 'castFailed'; uid: number; reason: CastFailReason }
   | { type: 'hit'; source: number; target: number; damage: number; x: number; y: number; skill: SkillDef }
   | { type: 'impact'; x: number; y: number; radius: number; color: number; skillId?: string }
+  | { type: 'heal'; uid: number; amount: number; source: number }
   | { type: 'attack'; uid: number; attack: AttackDef; finisher: boolean }
   | { type: 'passive'; uid: number; passive: PassiveDef; proc: PassiveProc; x: number; y: number }
   | { type: 'ko'; uid: number }

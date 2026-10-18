@@ -109,6 +109,22 @@ export const naruto: FighterDef = {
     color: 0xffc23d,
   },
   attack: { name: 'Punch Combo', style: 'melee', damage: 4, range: 48, cooldown: 0.5, windup: 0.12, combo: 3, knockback: 160, color: 0xffd9a0 },
+  roles: { healer: 0.7, damage: 0.5, support: 0.3 },
+  teamKit: {
+    3: {
+      id: 'naruto.sagehealing',
+      name: 'Sage Healing',
+      kind: 'buff',
+      energyCost: 22,
+      cooldown: 9,
+      castTime: 0.4,
+      range: 9999,
+      effects: [],
+      support: { to: 'lowestAlly', range: 380, effects: [{ type: 'heal', amount: 48 }, { type: 'cleanse' }] },
+      selfEffects: [{ type: 'speedBuff', factor: 1.15, duration: 5 }],
+      color: 0xf2c94c,
+    },
+  },
   passive: {
     id: 'naruto.kurama-vitality',
     name: "Kurama's Vitality",

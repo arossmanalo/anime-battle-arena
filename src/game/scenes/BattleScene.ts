@@ -285,6 +285,11 @@ export class BattleScene extends Phaser.Scene {
           if (e.damage >= 8) this.cameras.main.shake(120 + e.damage * 4, Math.min(0.012, 0.0015 + e.damage * 0.00018));
           break;
         }
+        case 'heal': {
+          const t = this.sim.fighter(e.uid);
+          if (t) this.vfx.healNumber(t.pos.x, t.pos.y, e.amount);
+          break;
+        }
         case 'impact':
           this.vfx.impact(e.x, e.y, e.radius, e.color, e.skillId);
           if (e.radius >= 60) this.sfx.play('explosion');

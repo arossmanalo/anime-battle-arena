@@ -15,6 +15,11 @@ const KNOCKBACK_TAKEN_MULT = 1;
 export interface EffectContext {
   /** Random multiplier for damage rolls, in [0.9, 1.1]. Injected so effects stay deterministic. */
   roll: () => number;
+  /** Match-wide multiplier on healing (weakens over time in team matches). */
+  healMult?: () => number;
+  /** Match-wide multiplier on damage taken (rises over time in team matches). */
+  defenseMult?: () => number;
+  onHeal?: (source: Fighter, target: Fighter, amount: number) => void;
   onHit: (source: Fighter, target: Fighter, damage: number, skill: SkillDef) => void;
 }
 
@@ -75,7 +80,8 @@ export function applyEffects(
   for (const e of effects) {
     switch (e.type) {
       case 'damage': {
-        const dealt = takeDamage(target, Math.round(e.amount * source.damageMult * ctx.roll()), e.pierce);
+        const taken = target.statusMult('guard') * (ctx.defenseMult?.() ?? 1);
+        const dealt = takeDamage(target, Math.round(e.amount * source.damageMult * ctx.roll() * taken), e.pierce);
         if (dealt > 0) {
           source.stats.damageDealt += dealt;
           source.stats.hits += 1;
@@ -112,8 +118,20 @@ export function applyEffects(
       case 'shield':
         addStatus(target, 'shield', e.duration, e.amount, source.uid);
         break;
-      case 'heal':
-        target.hp = Math.min(target.maxHp, target.hp + e.amount);
+      case 'heal': {
+        const before = target.hp;
+        target.hp = Math.min(target.maxHp, target.hp + Math.round(e.amount * (ctx.healMult?.() ?? 1)));
+        if (target.hp > before) ctx.onHeal?.(source, target, target.hp - before);
+        break;
+      }
+      case 'taunt':
+        addStatus(target, 'taunt', e.duration, source.uid, source.uid);
+        break;
+      case 'guard':
+        addStatus(target, 'guard', e.duration, e.factor, source.uid);
+        break;
+      case 'cleanse':
+        target.statuses = target.statuses.filter((s) => s.type !== 'stun' && s.type !== 'burn' && s.type !== 'slow');
         break;
       case 'speedBuff':
         addStatus(target, 'speedBuff', e.duration, e.factor, source.uid);

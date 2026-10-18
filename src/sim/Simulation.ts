@@ -25,6 +25,14 @@ export const DEFAULT_ARENA = { width: 900, height: 372 };
 export const DEFAULT_TIME_LIMIT = 99;
 
 const CAST_MOVE_MULT = 0.35;
+/** Team-match decay: after DECAY_START seconds, healing weakens to DECAY_HEAL_MIN and damage taken rises by DECAY_DEFENSE, over DECAY_SPAN seconds. */
+export const DECAY_START = 25;
+export const DECAY_SPAN = 60;
+export const DECAY_HEAL_MIN = 0.3;
+export const DECAY_DEFENSE = 0.6;
+export const TEAM_TIME_LIMIT = 150;
+/** How far back-row fighters start behind the front row. */
+const ROW_DEPTH = 70;
 const SWING_MOVE_MULT = 0.6;
 const KNOCK_DECAY = 8;
 const TRANSFORM_INVULN = 1.2;
@@ -32,12 +40,21 @@ const LOW_HP_LINE = 0.3;
 /** Movement per tick below which a fighter counts as standing still (matches the view's idle threshold). */
 const IDLE_MOVE = 0.4;
 
+/** Healers and supports start behind the front line; tanks and everyone else in front. */
+export function defaultRow(def: { roles?: Record<string, number | undefined> }): 'front' | 'back' {
+  const r = def.roles ?? {};
+  return (r.healer ?? 0) + (r.support ?? 0) > (r.tank ?? 0) + (r.damage ?? 0) * 0.6 ? 'back' : 'front';
+}
+
 export class Simulation {
   readonly rng: Rng;
   readonly arena: { width: number; height: number };
   readonly timeLimit: number;
   readonly difficulty: Difficulty;
   readonly idleFallback: number;
+  /** Team matches: healing weakens and defence drops over time. */
+  readonly decay: boolean;
+  readonly teamMode: boolean;
   /** Training mode (see SimConfig.training). */
   readonly training: boolean;
   /** Training: skills have no cooldown. */
@@ -65,12 +82,17 @@ export class Simulation {
   constructor(config: SimConfig) {
     this.rng = new Rng(config.seed);
     this.arena = config.arena ?? DEFAULT_ARENA;
-    this.timeLimit = config.timeLimit ?? DEFAULT_TIME_LIMIT;
+    this.teamMode = config.teams.some((t) => t.length > 1);
+    this.decay = config.decay ?? this.teamMode;
+    this.timeLimit = config.timeLimit ?? (this.teamMode ? TEAM_TIME_LIMIT : DEFAULT_TIME_LIMIT);
     this.difficulty = config.difficulty ?? 'normal';
     this.idleFallback = config.idleFallback ?? 4;
     this.training = config.training ?? false;
     this.effectCtx = {
       roll: () => this.rng.range(0.9, 1.1),
+      healMult: () => 1 - (1 - DECAY_HEAL_MIN) * this.decayProgress(),
+      defenseMult: () => 1 + DECAY_DEFENSE * this.decayProgress(),
+      onHeal: (source, target, amount) => this.emit({ type: 'heal', uid: target.uid, amount, source: source.uid }),
       onHit: (source, target, damage, skill) =>
         this.emit({ type: 'hit', source: source.uid, target: target.uid, damage, x: target.pos.x, y: target.pos.y, skill }),
     };
@@ -81,11 +103,18 @@ export class Simulation {
       let x = teamCount === 1 ? this.arena.width / 2 : this.arena.width * (0.15 + (0.7 * t) / (teamCount - 1));
       // Training: put the dummy closer, within reach of most skills.
       if (this.training && t === 1) x = this.arena.width * 0.65;
+      // Which way is "back" for this team: away from the middle of the arena.
+      const away = x < this.arena.width / 2 ? -1 : 1;
       team.forEach((setup, i) => {
         const y = (this.arena.height * (i + 1)) / (team.length + 1);
-        const f = new Fighter(this.nextId++, t, setup.def, setup.controller, { x, y });
+        const row = setup.row ?? defaultRow(setup.def);
+        // Teams of more than one: the front row steps forward and the back row back, around the team's line.
+        const fx = team.length > 1 ? x + (row === 'back' ? away : -away) * ROW_DEPTH * 0.5 : x;
+        const f = new Fighter(this.nextId++, t, setup.def, setup.controller, { x: fx, y });
+        f.teamMode = this.teamMode;
+        f.row = row;
         f.facing = x < this.arena.width / 2 ? 1 : -1;
-        f.home = { x, y };
+        f.home = { x: fx, y };
         f.sandbox = this.training && setup.controller === 'player';
         this.fighters.push(f);
         this.ai.set(f.uid, new UtilityAI(f, this, this.difficulty));
@@ -96,6 +125,16 @@ export class Simulation {
 
   get time(): number {
     return this.tick * DT;
+  }
+
+  /** 0 until DECAY_START, then rises to 1 over DECAY_SPAN seconds (team matches only). */
+  decayProgress(): number {
+    if (!this.decay) return 0;
+    return Math.max(0, Math.min(1, (this.time - DECAY_START) / DECAY_SPAN));
+  }
+
+  alliesOf(f: Fighter, includeSelf = true): Fighter[] {
+    return this.fighters.filter((o) => o.team === f.team && o.alive && (includeSelf || o !== f));
   }
 
   get timeLeft(): number {
@@ -110,7 +149,14 @@ export class Simulation {
     return this.fighters.filter((o) => o.team !== f.team && o.alive);
   }
 
+  /** Who this fighter is attacking: its taunter, else its AI-chosen focus, else the nearest enemy. */
   nearestEnemy(f: Fighter): Fighter | undefined {
+    const taunter = f.tauntedBy;
+    if (taunter !== null) {
+      const t = this.fighter(taunter);
+      if (t && t.alive && t.team !== f.team) return t;
+    }
+    if (f.focus && f.focus.alive && f.focus.team !== f.team) return f.focus;
     let best: Fighter | undefined;
     let bestD = Infinity;
     for (const o of this.enemiesOf(f)) {

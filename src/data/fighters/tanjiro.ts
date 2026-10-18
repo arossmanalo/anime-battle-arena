@@ -101,6 +101,22 @@ export const tanjiro: FighterDef = {
     color: 0xff4d2d,
   },
   attack: { name: 'Sword Slash', style: 'melee', damage: 5, range: 50, cooldown: 0.55, windup: 0.14, combo: 3, knockback: 180, color: 0xbfe9ff },
+  roles: { damage: 0.6, tank: 0.4 },
+  teamKit: {
+    2: {
+      id: 'tanjiro.guardingdance',
+      name: 'Guarding Dance',
+      kind: 'buff',
+      energyCost: 15,
+      cooldown: 12.5,
+      castTime: 0.2,
+      range: 9999,
+      effects: [],
+      support: { to: 'nearestAlly', range: 300, effects: [{ type: 'shield', amount: 24, duration: 4 }] },
+      selfEffects: [{ type: 'speedBuff', factor: 1.4, duration: 4 }, { type: 'shield', amount: 24, duration: 4 }],
+      color: 0x58b8ff,
+    },
+  },
   passive: {
     id: 'tanjiro.resolve',
     name: 'Unbreakable Resolve',

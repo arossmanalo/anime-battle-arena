@@ -16,10 +16,33 @@ function aimDir(f: Fighter, target: Fighter | undefined, speed?: number): Vec {
   return norm(sub(aimAt, f.pos));
 }
 
+/** The teammates a support skill reaches. */
+export function supportTargets(sim: Simulation, f: Fighter, skill: SkillDef): Fighter[] {
+  const sup = skill.support;
+  if (!sup) return [];
+  const range = sup.range ?? 400;
+  const allies = sim.alliesOf(f).filter((a) => dist(a.pos, f.pos) <= range);
+  if (sup.to === 'allAllies') return allies;
+  const others = allies.filter((a) => a !== f);
+  if (sup.to === 'nearestAlly') {
+    return others.length ? [others.reduce((b, a) => (dist(a.pos, f.pos) < dist(b.pos, f.pos) ? a : b))] : [f];
+  }
+  // lowestAlly: the one with the lowest HP fraction (the caster included).
+  return allies.length ? [allies.reduce((b, a) => (a.hp / a.maxHp < b.hp / b.maxHp ? a : b))] : [];
+}
+
+function applySupport(sim: Simulation, f: Fighter, skill: SkillDef): void {
+  for (const ally of supportTargets(sim, f, skill)) {
+    sim.applyEffects(f, ally, skill.support!.effects, skill, f.pos);
+    sim.emit({ type: 'impact', x: ally.pos.x, y: ally.pos.y, radius: 34, color: skill.color, skillId: skill.id });
+  }
+}
+
 /** Runs a skill once its wind-up is done. Energy and cooldown were already paid when the cast started. */
 export function fireSkill(sim: Simulation, f: Fighter, skill: SkillDef): void {
   const target = sim.nearestEnemy(f);
   if (skill.selfEffects) sim.applyEffects(f, f, skill.selfEffects, skill, f.pos);
+  if (skill.support) applySupport(sim, f, skill);
 
   switch (skill.kind) {
     case 'projectile': {

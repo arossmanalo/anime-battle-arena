@@ -136,6 +136,7 @@ export const sukuna: FighterDef = {
     },
   },
   attack: { name: 'Hand-to-Hand Combo', style: 'melee', damage: 4.8, range: 52, cooldown: 0.5, windup: 0.12, combo: 3, knockback: 180, color: 0xff3a4a },
+  roles: { damage: 0.9 },
   passive: {
     id: 'sukuna.kingofcurses',
     name: 'King of Curses',

@@ -1,4 +1,6 @@
 import { baseDamage } from '../effects';
+import { mainRole, roleScores } from '../roles';
+import { supportTargets } from '../skills/fire';
 import type { Fighter } from '../Fighter';
 import type { Simulation } from '../Simulation';
 import type { AiProfile, Difficulty, SkillDef, SkillSlot, Vec } from '../types';
@@ -39,7 +41,7 @@ const DANGER_RADIUS = 180;
 /** Skills scoring below this are held back. */
 const MIN_SCORE = 6;
 
-type MoveMode = 'approach' | 'retreat' | 'strafe' | 'dodge';
+type MoveMode = 'approach' | 'retreat' | 'strafe' | 'dodge' | 'follow';
 
 /**
  * Utility AI: moves every tick, re-decides every `think` seconds. Movement is always AI-driven;
@@ -51,6 +53,8 @@ export class UtilityAI {
   private turnLock = 0;
   private strafeDir: 1 | -1 = 1;
   private dodgeDir: Vec = { x: 0, y: 0 };
+  /** Where a healer or support wants to stand (behind the front line). */
+  private followPoint: Vec = { x: 0, y: 0 };
   private readonly params: DifficultyParams;
 
   constructor(
@@ -73,7 +77,8 @@ export class UtilityAI {
     this.turnLock -= dt;
     if (this.thinkTimer <= 0) {
       this.thinkTimer = this.params.think;
-      this.decideMove(target);
+      this.pickFocus();
+      this.decideMove(this.sim.nearestEnemy(this.f) ?? target);
       if (allowSkills && !this.f.stunned) {
         if (this.f.canTransform) this.sim.tryTransform(this.f);
         else if (!this.f.busy) {
@@ -85,6 +90,46 @@ export class UtilityAI {
     this.steer(target);
     // The default attack is automatic: swing whenever something is in reach.
     this.sim.tryAttack(this.f);
+  }
+
+  /**
+   * Chooses which enemy to concentrate on when there are several: weak, close, and valuable (healers, supports)
+   * targets score high, tanks low. Sticks with the current focus unless something clearly better appears.
+   * A taunt overrides this (see Simulation.nearestEnemy). With one enemy there is nothing to choose.
+   */
+  private pickFocus(): void {
+    const f = this.f;
+    const enemies = this.sim.enemiesOf(f);
+    if (enemies.length < 2) {
+      f.focus = enemies[0] ?? null;
+      return;
+    }
+    let best: Fighter | null = null;
+    let bestScore = -Infinity;
+    for (const e of enemies) {
+      const r = roleScores(e.def);
+      let score =
+        -dist(f.pos, e.pos) * 0.12 +
+        (1 - e.hp / e.maxHp) * 30 +
+        r.healer * 22 +
+        r.support * 10 +
+        r.damage * 5 -
+        r.tank * 8;
+      if (e.stunned) score += 6;
+      if (f.focus === e) score += 12;
+      score += this.sim.rng.range(-1, 1) * this.params.noise * 8;
+      if (score > bestScore) {
+        bestScore = score;
+        best = e;
+      }
+    }
+    f.focus = best;
+  }
+
+  /** Healers and supports hang back: stand just behind the allies, away from the enemy. */
+  private wantsBackline(): boolean {
+    const role = mainRole(this.f.def);
+    return (role === 'healer' || role === 'support') && this.sim.alliesOf(this.f, false).length > 0;
   }
 
   private decideMove(target: Fighter): void {
@@ -100,6 +145,17 @@ export class UtilityAI {
     }
 
     const gap = dist(this.f.pos, target.pos) - this.f.def.radius - target.def.radius;
+    if (this.wantsBackline()) {
+      const mates = this.sim.alliesOf(this.f, false);
+      const cx = mates.reduce((s, a) => s + a.pos.x, 0) / mates.length;
+      const cy = mates.reduce((s, a) => s + a.pos.y, 0) / mates.length;
+      const away = norm(sub({ x: cx, y: cy }, target.pos));
+      this.followPoint = add({ x: cx, y: cy }, scale(away, 70));
+      if (dist(this.f.pos, this.followPoint) > 60) this.mode = 'follow';
+      else this.mode = gap < 140 ? 'retreat' : 'strafe';
+      if (this.sim.rng.chance(0.15) || this.nearWall(this.f.pos)) this.strafeDir = this.strafeDir === 1 ? -1 : 1;
+      return;
+    }
     const melee = this.wantsMelee(gap);
     const preferred = melee ? this.f.def.attack.range * MELEE_CLOSE : PREFERRED_RANGE[this.f.def.aiProfile];
     const slack = melee ? MELEE_SLACK : RANGE_SLACK;
@@ -139,6 +195,9 @@ export class UtilityAI {
         break;
       case 'dodge':
         dir = this.dodgeDir;
+        break;
+      case 'follow':
+        dir = norm(sub(this.followPoint, this.f.pos));
         break;
     }
     dir = norm(add(norm(dir), this.wallRepulsion()));
@@ -195,7 +254,45 @@ export class UtilityAI {
     return best;
   }
 
+  /** How badly teammates need a support skill, as a skill score (0 = don't cast). */
+  private supportScore(skill: SkillDef): number {
+    const targets = supportTargets(this.sim, this.f, skill);
+    if (!targets.length) return 0;
+    const sup = skill.support!;
+    const hurt = Math.max(...targets.map((a) => 1 - a.hp / a.maxHp));
+    const pressured = targets.some((a) => this.sim.enemiesOf(a).some((e) => dist(a.pos, e.pos) < 380));
+    let best = 0;
+    for (const e of sup.effects) {
+      let s = 0;
+      if (e.type === 'heal') s = hurt >= 0.2 ? 8 + hurt * 48 : 0;
+      else if (e.type === 'cleanse') s = targets.some((a) => a.stunned || a.hasStatus('burn') || a.hasStatus('slow')) ? 32 : 0;
+      else if (e.type === 'shield' || e.type === 'guard') {
+        const have = targets.every((a) => a.hasStatus(e.type === 'shield' ? 'shield' : 'guard'));
+        s = pressured && !have ? 16 + hurt * 14 : 0;
+      } else if (e.type === 'damageBuff' || e.type === 'speedBuff') {
+        const have = targets.every((a) => a.hasStatus(e.type));
+        s = pressured && !have ? 15 : 0;
+      }
+      best = Math.max(best, s);
+    }
+    return best;
+  }
+
+  /** A taunt is worth casting when enemies are in reach and are going for someone else. */
+  private tauntScore(skill: SkillDef, d: number): number {
+    const me = this.f;
+    const reach = (skill.radius ?? skill.range) + 30;
+    const hits = this.sim.enemiesOf(me).filter((e) => dist(me.pos, e.pos) <= reach && e.tauntedBy !== me.uid);
+    if (!hits.length) return 0;
+    const onAllies = hits.filter((e) => e.focus && e.focus !== me && e.focus.team === me.team).length;
+    const alliesHurt = this.sim.alliesOf(me, false).some((a) => a.hp < a.maxHp * 0.85);
+    void d;
+    return onAllies > 0 ? 14 + onAllies * 8 + (alliesHurt ? 8 : 0) : 0;
+  }
+
   private score(skill: SkillDef, target: Fighter, d: number): number {
+    if (skill.support) return this.supportScore(skill) + (skill.selfEffects ? 0 : 0);
+    if (skill.effects.some((e) => e.type === 'taunt')) return this.tauntScore(skill, d);
     if (skill.kind === 'buff') {
       const buffs = (skill.selfEffects ?? []).map((e) => e.type);
       const active = this.f.statuses.some((s) => (buffs as string[]).includes(s.type));

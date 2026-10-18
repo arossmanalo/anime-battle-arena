@@ -121,6 +121,22 @@ export const goku: FighterDef = {
     },
   },
   attack: { name: 'Punch & Kick', style: 'melee', damage: 6.6, range: 52, cooldown: 0.45, windup: 0.12, combo: 3, knockback: 180, color: 0xffb347 },
+  roles: { damage: 0.7, support: 0.4 },
+  teamKit: {
+    3: {
+      id: 'goku.rally',
+      name: 'Kaio-ken: Rally',
+      kind: 'buff',
+      energyCost: 22,
+      cooldown: 14,
+      castTime: 0.3,
+      range: 9999,
+      effects: [],
+      support: { to: 'allAllies', range: 380, effects: [{ type: 'damageBuff', factor: 1.2, duration: 5 }] },
+      selfEffects: [{ type: 'damageBuff', factor: 1.3, duration: 5 }, { type: 'speedBuff', factor: 1.25, duration: 5 }],
+      color: 0xff4a4a,
+    },
+  },
   passive: {
     id: 'goku.zenkai',
     name: 'Zenkai',
