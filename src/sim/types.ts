@@ -48,6 +48,8 @@ export interface SkillDef {
   atTarget?: boolean;
   /** zone: render as a full Domain Expansion. */
   domain?: boolean;
+  /** domain: instead of a backdrop, a shrine rises at the caster and slashes fly across the whole screen. */
+  domainStyle?: 'slashes';
   ultimate?: boolean;
   /** zone: effects applied once, to everyone still inside, when the zone ends (a domain's final blow). */
   finale?: Effect[];

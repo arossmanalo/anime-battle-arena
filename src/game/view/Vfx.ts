@@ -60,6 +60,10 @@ export class Vfx {
   private readonly attached: Attached[] = [];
   private readonly beamSprites = new Map<number, Phaser.GameObjects.Sprite[]>();
   private readonly domains = new Map<number, DomainView>();
+  private readonly slashGfx: Phaser.GameObjects.Graphics;
+  private readonly slashes: { x: number; y: number; angle: number; len: number; width: number; born: number; life: number }[] = [];
+  private readonly shrines = new Map<number, Phaser.GameObjects.Sprite>();
+  private slashAcc = 0;
   /** Simulation time in seconds, so timed effects follow slow motion instead of wall-clock time. */
   private clock: () => number = () => 0;
 
@@ -96,7 +100,8 @@ export class Vfx {
       emitting: false,
     });
     this.beamGfx = scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
-    layers.fx.add([this.trail, this.beamGfx, this.sparks, this.shards]);
+    this.slashGfx = scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    layers.fx.add([this.trail, this.beamGfx, this.sparks, this.shards, this.slashGfx]);
   }
 
   setClock(clock: () => number): void {
@@ -370,6 +375,11 @@ export class Vfx {
       const fadeIn = Math.min(1, ((z.skill.duration ?? 1) - z.remaining) * 5);
       const fadeOut = Math.min(1, z.remaining * 3);
       const a = fadeIn * fadeOut;
+      if (z.skill.domainStyle === 'slashes') {
+        this.drawSlashDomain(z, a);
+        live.add(z.id);
+        continue;
+      }
       const body = this.fx(z.skill.id, 'body');
       if (body && z.skill.domain) {
         this.drawDomain(z, body, fadeOut, g);
@@ -422,10 +432,71 @@ export class Vfx {
       sprite.destroy();
       this.zoneSprites.delete(id);
     }
+    for (const [id, sprite] of this.shrines) {
+      if (live.has(id)) continue;
+      sprite.destroy();
+      this.shrines.delete(id);
+    }
+    if (!list.some((z) => z.skill.domainStyle === 'slashes')) {
+      this.slashes.length = 0;
+      this.slashGfx.clear();
+    }
     for (const [id, d] of this.domains) {
       if (live.has(id)) continue;
       this.destroyDomain(d);
       this.domains.delete(id);
+    }
+  }
+
+  /**
+   * A slash domain: the screen darkens to crimson, a shrine stands up where the caster is, and thin red-white cuts
+   * flash across the whole screen from every direction until the final blow.
+   */
+  private drawSlashDomain(z: Zone, a: number): void {
+    const g = this.zoneGfx;
+    g.fillStyle(0x2a040c, 0.55 * a).fillRect(-ARENA_X, -ARENA_Y, GAME_WIDTH, GAME_HEIGHT);
+    const id = z.skill.id;
+    const castInfo = this.fx(id, 'cast');
+    let shrine = this.shrines.get(z.id);
+    if (!shrine && castInfo) {
+      shrine = this.scene.add.sprite(z.owner.pos.x, z.owner.pos.y + 30, fxKey(id, 'cast'), castInfo.frames - 1);
+      const w = castInfo.size ?? 200;
+      shrine.setOrigin(0.5, 0.82).setDisplaySize(w * 1.7, w * 1.7 * castInfo.frameHeight / castInfo.frameWidth);
+      if (castInfo.blend === 'add') shrine.setBlendMode(Phaser.BlendModes.ADD);
+      this.layers.zones.add(shrine);
+      this.shrines.set(z.id, shrine);
+    }
+    shrine?.setAlpha(a);
+    const now = this.scene.time.now / 1000;
+    // Spawn cuts at a steady rate, anywhere on screen, at any angle.
+    this.slashAcc += 1 / 60;
+    while (this.slashAcc >= 1 / 180) {
+      this.slashAcc -= 1 / 180;
+      this.slashes.push({
+        x: Math.random() * GAME_WIDTH - ARENA_X,
+        y: Math.random() * GAME_HEIGHT - ARENA_Y,
+        angle: Math.random() * Math.PI,
+        len: 260 + Math.random() * 620,
+        width: 1.5 + Math.random() * 2.5,
+        born: now,
+        life: 0.18 + Math.random() * 0.3,
+      });
+    }
+    const sg = this.slashGfx;
+    sg.clear();
+    for (let i = this.slashes.length - 1; i >= 0; i--) {
+      const s = this.slashes[i];
+      const age = (now - s.born) / s.life;
+      if (age >= 1) {
+        this.slashes.splice(i, 1);
+        continue;
+      }
+      const grow = Math.min(1, age * 5);
+      const k = Math.min(1, (1 - age) * 1.6) * a;
+      const dx = Math.cos(s.angle) * s.len * 0.5 * grow;
+      const dy = Math.sin(s.angle) * s.len * 0.5 * grow;
+      sg.lineStyle(s.width * 5, 0xe01838, 0.6 * k).lineBetween(s.x - dx, s.y - dy, s.x + dx, s.y + dy);
+      sg.lineStyle(s.width * 1.3, 0xffffff, 1 * k).lineBetween(s.x - dx, s.y - dy, s.x + dx, s.y + dy);
     }
   }
 

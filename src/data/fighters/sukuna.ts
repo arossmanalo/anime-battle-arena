@@ -91,6 +91,7 @@ export const sukuna: FighterDef = {
     duration: 1.6,
     tickInterval: 0.2,
     domain: true,
+    domainStyle: 'slashes',
     // He can't be stunned out of the opening.
     uninterruptible: true,
     // Hundreds of slashes (many small ticks), then one huge cross-shaped slash at the end.
