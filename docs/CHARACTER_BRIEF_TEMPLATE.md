@@ -48,6 +48,28 @@ Transformation: Enma, a darker aura, faster and stronger
 Feel: tanky bruiser
 ```
 
+## Example: Tanjiro (this is the brief that describes the fighter already in the game)
+
+```
+/new-character
+Name: Tanjiro
+Series: Demon Slayer
+Who they are: a kind, determined demon slayer who never gives up and fights to protect people. Fast, relentless, gets stronger when pushed to the edge.
+Look: dark red hair with a scar on the forehead, green and black checkered haori over a black uniform, white leg wraps, hanafuda earrings, a black nichirin sword.
+Fighting style: swordsman (fast rushdown)
+Signature moves:
+- Water Wheel: a spinning forward dash slash through the enemy.
+- Whirlpool: a short-range water burst around him that knocks enemies back.
+- Flowing Dance: a quick speed boost with a small shield.
+- Dance of the Fire God: a longer fire dash slash that leaves the enemy burning.
+Ultimate: Sun Halo Dragon, a huge fire dragon that bursts around him, heavy damage, burning and knockback.
+Basic attack: sword slash combo
+Passive: Unbreakable Resolve, once per match he survives a lethal hit on 1 HP and is untouchable for 2 seconds.
+Transformation: Demon Slayer Mark, unlocks when he is badly hurt: faster and stronger, regains some health.
+Feel: fast, aggressive, resilient
+Anything else: kind, earnest voice lines ("I'll protect everyone, no matter what!"); keep it a pure close-range fighter.
+```
+
 ## What you get back
 
 1. `src/data/fighters/<id>.ts`, added to the roster, balanced by running the AI against everyone.
