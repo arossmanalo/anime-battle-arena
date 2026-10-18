@@ -66,9 +66,10 @@ Without `frames`, every row is assumed to be filled to the sheet's full width.
 
 Gojo's current sprite was made this way. ChatGPT keeps a character's design consistent across frames well; its layout is never pixel-exact, so `import-sheet` cleans that up.
 
-1. Get a design you like, then ask for the sheet with this prompt:
+1. Get a design you like, then ask for the sheet with this prompt. **Always keep the PIXEL-ART STYLE paragraph: without it ChatGPT tends to return a smooth illustration (Nezuko's first sheets did), and the importer cannot turn that into pixel art. Attach an existing pixel sprite (for example Tanjiro's idle frame) as a style reference too.**
 
    > Create a pixel-art sprite sheet of the same character (keep the exact same design, colours and proportions as before).
+   > - **PIXEL-ART STYLE (important): this must be TRUE low-resolution pixel art like a 16-bit fighting game, NOT a smooth illustration. Draw each character about 64 pixels tall on a visible pixel grid, with chunky square pixels, hard 1-pixel dark outlines, a limited palette (about 24 colours), flat colour shading in 2-3 tones, and NO anti-aliasing, NO soft gradients, NO blur, NO painterly or vector smoothing. Keep it crisp enough that individual pixels are visible when zoomed in. If you are about to draw a smooth high-resolution illustration, stop and draw it as pixel art instead. Attach one of my existing pixel sprites as a style reference when you can.**
    > - Transparent background. No text, no labels, no borders.
    > - Every frame shows the character from a side / three-quarter view **facing right**.
    > - Arrange it as a grid: **6 rows**, up to 6 frames per row, all cells the same size, character centred in each cell, **feet on the same baseline** in every frame, same scale in every frame.
