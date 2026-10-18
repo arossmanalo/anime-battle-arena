@@ -37,6 +37,8 @@ interface Attached {
   alive: () => boolean;
   /** Clock time at which the effect ends, if it is timed (used for the fade-out). */
   endsAt?: number;
+  /** Stays where it was created instead of following the fighter. */
+  fixed?: boolean;
 }
 
 export interface VfxLayers {
@@ -143,6 +145,29 @@ export class Vfx {
 
   /** Cast sprite on the caster during the wind-up. Plays (or loops) until the skill fires, then goes. */
   cast(f: Fighter, skill: SkillDef): void {
+    // A slash domain's shrine rises out of the floor during the wind-up (the same sprite that then stands for the domain).
+    const standing = skill.domainStyle === 'slashes' ? this.fx(skill.id, 'body') : undefined;
+    if (standing) {
+      const w = standing.size ?? 330;
+      const h = (w * standing.frameHeight) / standing.frameWidth;
+      const s = this.scene.add.sprite(f.pos.x, f.pos.y + 30, fxKey(skill.id, 'body'), 0).setOrigin(0.5, 0.82).setDisplaySize(w, h).setAlpha(0);
+      s.play(fxKey(skill.id, 'body'));
+      if (standing.blend === 'add') s.setBlendMode(Phaser.BlendModes.ADD);
+      this.layers.zones.add(s);
+      const total = Math.max(0.05, skill.castTime);
+      this.attached.push({
+        sprite: s,
+        fighter: f,
+        alive: () => {
+          const left = f.casting?.skill === skill ? f.casting.remaining : 0;
+          const p = 1 - left / total;
+          s.setAlpha(Math.min(1, p * 1.4)).setDisplaySize(w * (0.55 + 0.45 * Math.min(1, p * 1.2)), h * (0.55 + 0.45 * Math.min(1, p * 1.2)));
+          return f.alive && f.casting?.skill === skill;
+        },
+        fixed: true,
+      });
+      return;
+    }
     const info = this.fx(skill.id, 'cast');
     if (!info) return;
     const s = this.createFxSprite(skill.id, 'cast', info, skill.ultimate ? 150 : 90).setPosition(f.pos.x, f.pos.y - BODY_LIFT);
@@ -194,7 +219,7 @@ export class Vfx {
         this.attached.splice(i, 1);
         continue;
       }
-      a.sprite.setPosition(a.fighter.pos.x, a.fighter.pos.y - BODY_LIFT);
+      if (!a.fixed) a.sprite.setPosition(a.fighter.pos.x, a.fighter.pos.y - BODY_LIFT);
       if (a.endsAt !== undefined) a.sprite.setAlpha(Math.min(1, (a.endsAt - this.clock()) / FX_FADE));
     }
   }
