@@ -20,7 +20,11 @@ export type Effect =
   /** The target takes `factor` (0.6 = 40% less) of incoming damage for `duration` seconds. */
   | { type: 'guard'; factor: number; duration: number }
   /** Removes stun, burn and slow from the target. */
-  | { type: 'cleanse' };
+  | { type: 'cleanse' }
+  /** For `duration` seconds knockback taken is multiplied by `factor` and stuns are shortened by it (at 0.3 or less they are ignored and nothing interrupts a cast). */
+  | { type: 'steady'; factor: number; duration: number }
+  /** Braces for `duration` seconds: no default attacks, and the first close-range hit that lands is answered with `damage`, a stun and knockback. */
+  | { type: 'counter'; duration: number; damage: number };
 
 export type SkillKind = 'projectile' | 'beam' | 'dash' | 'aoe' | 'zone' | 'buff';
 
@@ -128,7 +132,18 @@ export type PassiveEffect =
    * actions (`perSupport` per HP healed or shield granted, and a flat bonus for a cleanse). A full meter unlocks the
    * transformation like low HP does. Also regenerates `hpPerSec` once `regenDelay` seconds have passed without taking damage.
    */
-  | { kind: 'awakening'; perDamage: number; perTaken: number; perSupport: number; regenDelay: number; hpPerSec: number };
+  | {
+      kind: 'awakening';
+      perDamage: number;
+      perTaken: number;
+      perSupport: number;
+      regenDelay: number;
+      hpPerSec: number;
+      /** Knockback taken is reduced by up to this much (0.5 = 50%) at a full meter; a transformed fighter counts as full. */
+      knockbackResist?: number;
+      /** Damage taken is reduced by up to this much at a full meter. */
+      damageReduction?: number;
+    };
 
 export type PassiveDef = { id: string; name: string; description: string } & PassiveEffect;
 

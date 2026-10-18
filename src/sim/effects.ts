@@ -1,6 +1,6 @@
 import type { Fighter, StatusType } from './Fighter';
 import type { Effect, SkillDef, Vec } from './types';
-import { applyMarks, awakenGain, negatesAttack, passiveUltMult, survivesHit } from './passives';
+import { applyMarks, awakenGain, BRACE_COUNTER, negatesAttack, passiveDamageTaken, passiveKnockbackTaken, passiveUltMult, survivesHit } from './passives';
 import { norm, scale, sub } from './vec';
 
 /** Energy gained per point of damage dealt / taken. */
@@ -11,6 +11,10 @@ export const ULT_ON_DEAL = 0.2;
 export const ULT_ON_TAKE = 0.3;
 export const ULT_REGEN = 1;
 const KNOCKBACK_TAKEN_MULT = 1;
+/** A braced fighter answers a close hit within this gap (px, between the two fighters' edges) with a stun and knockback. */
+const COUNTER_REACH = 70;
+const COUNTER_STUN = 0.7;
+const COUNTER_KNOCKBACK = 300;
 
 export interface EffectContext {
   /** Random multiplier for damage rolls, in [0.9, 1.1]. Injected so effects stay deterministic. */
@@ -81,8 +85,9 @@ export function applyEffects(
   for (const e of effects) {
     switch (e.type) {
       case 'damage': {
-        const taken = target.statusMult('guard') * (target.form?.damageTaken ?? 1) * (ctx.defenseMult?.() ?? 1);
-        const dealt = takeDamage(target, Math.round(e.amount * source.damageMult * ctx.roll() * taken), e.pierce);
+        const rawDamage = e.amount * source.damageMult * ctx.roll() * (ctx.defenseMult?.() ?? 1);
+        const taken = target.statusMult('guard') * (target.form?.damageTaken ?? 1) * passiveDamageTaken(target);
+        const dealt = takeDamage(target, Math.round(rawDamage * taken), e.pierce);
         if (dealt > 0) {
           source.stats.damageDealt += dealt;
           source.stats.hits += 1;
@@ -92,20 +97,30 @@ export function applyEffects(
           gainUlt(source, dealt * ULT_ON_DEAL);
           gainUlt(target, dealt * ULT_ON_TAKE);
           awakenGain(source, 'dealt', dealt);
-          awakenGain(target, 'taken', dealt);
+          // Damage a guard or resistance shrugged off feeds the meter too.
+          awakenGain(target, 'taken', dealt + rawDamage * (1 - taken));
         }
         ctx.onHit(source, target, dealt, skill);
         if (dealt > 0) applyMarks(ctx, source, target, skill);
+        if (dealt > 0 && !self) counterStrike(ctx, source, target, skill);
         break;
       }
       case 'knockback': {
         const dir = norm(sub(target.pos, origin));
-        target.knock = scale(dir, e.force * KNOCKBACK_TAKEN_MULT * (target.form?.knockbackTaken ?? 1));
+        target.knock = scale(dir, e.force * KNOCKBACK_TAKEN_MULT * (target.form?.knockbackTaken ?? 1) * passiveKnockbackTaken(target) * target.statusMult('steady'));
         break;
       }
       case 'stun':
         // A move that can't be interrupted (a domain being opened) shrugs stuns off while it winds up.
         if (target.casting?.skill.uninterruptible) break;
+        {
+          const steady = target.statusMult('steady');
+          if (steady <= 0.3) break;
+          if (steady < 1) {
+            addStatus(target, 'stun', e.duration * steady, 0, source.uid);
+            break;
+          }
+        }
         addStatus(target, 'stun', e.duration, 0, source.uid);
         // A stun interrupts wind-ups and channels.
         target.casting = null;
@@ -144,6 +159,12 @@ export function applyEffects(
         target.statuses = kept;
         break;
       }
+      case 'steady':
+        addStatus(target, 'steady', e.duration, e.factor, source.uid);
+        break;
+      case 'counter':
+        addStatus(target, 'counter', e.duration, e.damage, source.uid);
+        break;
       case 'speedBuff':
         addStatus(target, 'speedBuff', e.duration, e.factor, source.uid);
         break;
@@ -152,6 +173,28 @@ export function applyEffects(
         break;
     }
   }
+}
+
+/** A braced target answers the first close-range hit that lands: damage, a stun and knockback, once per use. */
+function counterStrike(ctx: EffectContext, attacker: Fighter, braced: Fighter, skill: SkillDef): void {
+  const status = braced.statuses.find((s) => s.type === 'counter');
+  if (!status || !attacker.alive || !braced.alive) return;
+  if (skill.kind === 'projectile' || skill.kind === 'beam' || skill.kind === 'zone') return;
+  const gap = Math.hypot(attacker.pos.x - braced.pos.x, attacker.pos.y - braced.pos.y) - attacker.def.radius - braced.def.radius;
+  if (gap > COUNTER_REACH) return;
+  braced.statuses = braced.statuses.filter((s) => s !== status);
+  const dealt = takeDamage(attacker, Math.round(status.value * braced.damageMult));
+  braced.stats.damageDealt += dealt;
+  attacker.stats.damageTaken += dealt;
+  const steady = attacker.statusMult('steady');
+  attacker.knock = scale(norm(sub(attacker.pos, braced.pos)), COUNTER_KNOCKBACK * steady * passiveKnockbackTaken(attacker));
+  if (steady > 0.3 && !attacker.casting?.skill.uninterruptible) {
+    addStatus(attacker, 'stun', COUNTER_STUN * steady, 0, braced.uid);
+    attacker.casting = null;
+    attacker.channel = null;
+    attacker.swing = null;
+  }
+  ctx.onHit(braced, attacker, dealt, BRACE_COUNTER);
 }
 
 /** Total direct damage a skill deals per application, ignoring multipliers. */

@@ -847,3 +847,86 @@ describe('Nezuko awakening', () => {
   });
 });
 
+describe('Broly juggernaut', () => {
+  function bout(): { sim: Simulation; broly: Simulation['fighters'][number]; foe: Simulation['fighters'][number] } {
+    const sim = duel('broly', 'naruto');
+    const [broly, foe] = sim.fighters;
+    broly.pos = { x: 300, y: 200 };
+    foe.pos = { x: 340, y: 200 };
+    return { sim, broly, foe };
+  }
+
+  it('steady shrinks knockback and shrugs off stuns', () => {
+    const { sim, broly, foe } = bout();
+    const knock = (): number => {
+      broly.knock = { x: 0, y: 0 };
+      sim.applyEffects(foe, broly, [{ type: 'knockback', force: 400 }], foe.skill(0), foe.pos);
+      return Math.hypot(broly.knock.x, broly.knock.y);
+    };
+    const plain = knock();
+    sim.applyEffects(broly, broly, [{ type: 'steady', factor: 0.2, duration: 2 }], broly.skill(0), broly.pos);
+    expect(knock()).toBeLessThan(plain * 0.3);
+    sim.applyEffects(foe, broly, [{ type: 'stun', duration: 1 }], foe.skill(0), foe.pos);
+    expect(broly.stunned).toBe(false);
+  });
+
+  it('a braced Broly cannot default-attack and counters the first close hit once', () => {
+    const { sim, broly, foe } = bout();
+    sim.applyEffects(broly, broly, [{ type: 'counter', duration: 3, damage: 14 }], broly.skill(1), broly.pos);
+    broly.attackCd = 0;
+    expect(sim.tryAttack(broly)).toBe(false);
+    const melee = { ...foe.skill(0), kind: 'aoe' as const };
+    const before = foe.hp;
+    sim.applyEffects(foe, broly, [{ type: 'damage', amount: 8 }], melee, foe.pos);
+    expect(foe.hp).toBeLessThan(before);
+    expect(foe.stunned).toBe(true);
+    expect(broly.hasStatus('counter')).toBe(false);
+    foe.statuses = [];
+    const again = foe.hp;
+    sim.applyEffects(foe, broly, [{ type: 'damage', amount: 8 }], melee, foe.pos);
+    expect(foe.hp).toBe(again);
+  });
+
+  it('rage fills from damage taken and blocked, and scales his resistances', () => {
+    const { sim, broly, foe } = bout();
+    const hit = (): number => {
+      broly.hp = broly.maxHp;
+      const before = broly.hp;
+      sim.applyEffects(foe, broly, [{ type: 'damage', amount: 40 }], foe.skill(0), foe.pos);
+      return before - broly.hp;
+    };
+    const fresh = Array.from({ length: 10 }, hit).reduce((a, b) => a + b, 0);
+    broly.passive.meter = 100;
+    const raged = Array.from({ length: 10 }, hit).reduce((a, b) => a + b, 0);
+    expect(raged).toBeLessThan(fresh);
+    broly.passive.meter = 0;
+    sim.applyEffects(broly, broly, [{ type: 'guard', factor: 0.3, duration: 3 }], broly.skill(1), broly.pos);
+    broly.hp = broly.maxHp;
+    sim.applyEffects(foe, broly, [{ type: 'damage', amount: 40 }], foe.skill(0), foe.pos);
+    expect(broly.passive.meter).toBeGreaterThan(5);
+  });
+
+  it('awakens permanently into the Full Power form without healing himself', () => {
+    const { sim, broly } = bout();
+    broly.passive.meter = 100;
+    expect(sim.tryTransform(broly)).toBe(true);
+    expect(broly.skill(1).id).toBe('broly.ironguard.awakened');
+    expect(broly.passiveDef.id).toBe('broly.legendary');
+    expect(broly.def.skills.length).toBe(4);
+    expect(roleScores({ roles: broly.form!.roles }).tank).toBe(1);
+  });
+
+  it('in team battles his guard taunts nearby enemies', () => {
+    const sim = new Simulation({
+      seed: 3,
+      idleFallback: 0,
+      teams: [
+        ['broly', 'naruto'].map((id) => ({ def: fighterById(id), controller: 'ai' as const })),
+        ['goku', 'sukuna'].map((id) => ({ def: fighterById(id), controller: 'ai' as const })),
+      ],
+    });
+    expect(sim.fighters[0].skill(1).kind).toBe('aoe');
+    expect(sim.fighters[0].skill(1).id).toBe('broly.ironguard');
+  });
+});
+

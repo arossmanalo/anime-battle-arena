@@ -2,7 +2,7 @@ import { passiveDamageMult } from './passives';
 import type { AttackDef, Controller, FighterDef, FormDef, PassiveDef, PassiveProc, SkillDef, SkillSlot, Vec } from './types';
 import { vec } from './vec';
 
-export type StatusType = 'stun' | 'burn' | 'slow' | 'shield' | 'speedBuff' | 'damageBuff' | 'taunt' | 'guard';
+export type StatusType = 'stun' | 'burn' | 'slow' | 'shield' | 'speedBuff' | 'damageBuff' | 'taunt' | 'guard' | 'steady' | 'counter';
 
 export interface Status {
   type: StatusType;

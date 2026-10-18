@@ -75,6 +75,36 @@ export function passiveUltMult(f: Fighter): number {
   return p.kind === 'ultCharge' ? p.mult : 1;
 }
 
+/** 0-1: how full the awakening meter is (a transformed fighter counts as full). */
+function meterFrac(f: Fighter): number {
+  return f.form ? 1 : f.passive.meter / 100;
+}
+
+/** Multiplier on damage taken from a meter-scaled passive (Broly's rage). */
+export function passiveDamageTaken(f: Fighter): number {
+  const p = f.passiveDef;
+  return p.kind === 'awakening' && p.damageReduction ? 1 - p.damageReduction * meterFrac(f) : 1;
+}
+
+/** Multiplier on knockback taken from a meter-scaled passive. */
+export function passiveKnockbackTaken(f: Fighter): number {
+  const p = f.passiveDef;
+  return p.kind === 'awakening' && p.knockbackResist ? 1 - p.knockbackResist * meterFrac(f) : 1;
+}
+
+/** The retaliation of a braced fighter, shown like any other hit. */
+export const BRACE_COUNTER: SkillDef = {
+  id: 'counter.strike',
+  name: 'Counter',
+  kind: 'aoe',
+  energyCost: 0,
+  cooldown: 1,
+  castTime: 0,
+  range: 0,
+  effects: [],
+  color: 0x9dff6a,
+};
+
 /** What the awakening meter gains from one kind of event (does nothing without that passive, or once awakened). */
 export function awakenGain(f: Fighter, kind: 'dealt' | 'taken' | 'support', amount: number): void {
   const p = f.passiveDef;

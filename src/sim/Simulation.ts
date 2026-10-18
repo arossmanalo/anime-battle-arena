@@ -383,7 +383,7 @@ export class Simulation {
   /** Starts the default attack if an enemy is in reach and the fighter is free. Returns whether it started. */
   tryAttack(f: Fighter): boolean {
     const a = f.attack;
-    if (!f.alive || f.stunned || f.busy || f.swing || f.attackCd > 0) return false;
+    if (!f.alive || f.stunned || f.busy || f.swing || f.attackCd > 0 || f.hasStatus('counter')) return false;
     const target = this.nearestEnemy(f);
     if (!target || this.gap(f, target) > a.range) return false;
     const finisher = isFinisher(a, f.combo);
