@@ -44,10 +44,10 @@ const LOW_HP_LINE = 0.3;
 /** Movement per tick below which a fighter counts as standing still (matches the view's idle threshold). */
 const IDLE_MOVE = 0.4;
 
-/** Healers and supports start behind the front line; tanks and everyone else in front. */
+/** Supports start behind the front line; tanks and everyone else in front. */
 export function defaultRow(def: { roles?: Record<string, number | undefined> }): 'front' | 'back' {
   const r = def.roles ?? {};
-  return (r.healer ?? 0) + (r.support ?? 0) > (r.tank ?? 0) + (r.damage ?? 0) * 0.6 ? 'back' : 'front';
+  return (r.support ?? 0) > (r.tank ?? 0) + (r.damage ?? 0) * 0.6 ? 'back' : 'front';
 }
 
 export class Simulation {

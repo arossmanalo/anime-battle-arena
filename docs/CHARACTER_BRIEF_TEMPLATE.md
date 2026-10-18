@@ -28,7 +28,7 @@ Transformation / second form (name and look, or "none"):
 
 Feel (fast and fragile / tanky / glass cannon / balanced / tricky):
 
-Team role (optional, for team battles: tank / healer / support / damage, or a mix such as "tank with some damage", and what they do for allies: taunt and guard, heal, shield or buff teammates; blank = pure damage dealer):
+Team role (optional, for team battles: tank / support (heals, shields, buffs allies) / damage, or a mix such as "tank with some damage", and what they do for allies: taunt and guard, heal, shield or buff teammates; blank = pure damage dealer):
 
 Anything else (voice lines, a rival, moves that must NOT be included):
 ```

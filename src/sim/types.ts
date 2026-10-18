@@ -25,7 +25,7 @@ export type Effect =
 export type SkillKind = 'projectile' | 'beam' | 'dash' | 'aoe' | 'zone' | 'buff';
 
 /** Roles are scores (0-1); a hybrid has two high ones. Missing roles count as 0, and a fighter with none is a damage dealer. */
-export type Role = 'tank' | 'damage' | 'support' | 'healer';
+export type Role = 'tank' | 'damage' | 'support';
 export type RoleScores = Partial<Record<Role, number>>;
 
 /** Effects a skill applies to the caster's teammates. */

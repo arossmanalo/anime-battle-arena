@@ -4,14 +4,14 @@ Everything in a team match is controlled by the AI. The player builds the team (
 
 ## Roles
 
-Roles are scores, not boxes. A fighter has `roles: { tank, damage, support, healer }` (0-1 each, default `damage: 1`). The AI, the draft screen and the balance tools read these. A hybrid has two high scores.
+Roles are scores, not boxes. A fighter has `roles: { tank, damage, support }` (0-1 each, default `damage: 1`). The AI, the draft screen and the balance tools read these. A hybrid has two high scores.
 
 | Role | What the AI does |
 | --- | --- |
 | tank | stands in front, taunts when allies are being hit, soaks with guard |
 | damage | picks the weakest or most valuable enemy in reach |
 | support | buffs and shields allies, stays behind the front line |
-| healer | heals the lowest ally under 75% HP, cleanses stuns/burns, stays behind |
+| support | heals, shields or buffs allies (heals the lowest ally under 75% HP, cleanses stuns/burns), stays behind |
 
 ## Engine additions
 
@@ -38,10 +38,10 @@ Main menu -> **Team battle** -> choose size (2v2, 3v3, 4v4) and mode (free pick 
 3. Role AI.
 4. 2v2: team select, draft, formation, team HUD.
 5. 3v3 / 4v4: bigger arena, camera, readability (team rings, effect budget, smaller domains).
-6. Real tank and healer characters (via `/new-character`, updated for roles).
+6. Real tank and support characters (via `/new-character`, updated for roles).
 
 ## Status
 
 Done: engine (support skills, taunt, guard, cleanse, decay), roles and team kits for the 7 current fighters, role AI and focus targeting, team simulator, team select (free pick and draft), team HUD, 2v2/3v3/4v4 scaled arenas, team results.
 
-Open: dedicated tank and healer characters (the current roles are hybrids built from existing kits), team-aware domains, more roster (a 4v4 draft needs 8 fighters), real balance passes, PvP.
+Open: dedicated tank and support characters (the current roles are hybrids built from existing kits), team-aware domains, more roster (a 4v4 draft needs 8 fighters), real balance passes, PvP.

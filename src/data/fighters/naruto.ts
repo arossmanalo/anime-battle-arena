@@ -109,7 +109,7 @@ export const naruto: FighterDef = {
     color: 0xffc23d,
   },
   attack: { name: 'Punch Combo', style: 'melee', damage: 4, range: 48, cooldown: 0.5, windup: 0.12, combo: 3, knockback: 160, color: 0xffd9a0 },
-  roles: { healer: 0.7, damage: 0.5, support: 0.3 },
+  roles: { support: 0.8, damage: 0.5 },
   teamKit: {
     3: {
       // Same id as the solo skill, so it uses the same effect art.

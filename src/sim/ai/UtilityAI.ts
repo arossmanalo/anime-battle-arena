@@ -53,7 +53,7 @@ export class UtilityAI {
   private turnLock = 0;
   private strafeDir: 1 | -1 = 1;
   private dodgeDir: Vec = { x: 0, y: 0 };
-  /** Where a healer or support wants to stand (behind the front line). */
+  /** Where a support wants to stand (behind the front line). */
   private followPoint: Vec = { x: 0, y: 0 };
   private readonly params: DifficultyParams;
 
@@ -93,7 +93,7 @@ export class UtilityAI {
   }
 
   /**
-   * Chooses which enemy to concentrate on when there are several: weak, close, and valuable (healers, supports)
+   * Chooses which enemy to concentrate on when there are several: weak, close, and valuable (supports)
    * targets score high, tanks low. Sticks with the current focus unless something clearly better appears.
    * A taunt overrides this (see Simulation.nearestEnemy). With one enemy there is nothing to choose.
    */
@@ -119,8 +119,7 @@ export class UtilityAI {
       let score =
         -dist(f.pos, e.pos) * 0.12 +
         (1 - e.hp / e.maxHp) * 30 +
-        r.healer * 22 +
-        r.support * 10 +
+        r.support * 22 +
         r.damage * 5 -
         r.tank * 8;
       if (e.stunned) score += 6;
@@ -136,10 +135,10 @@ export class UtilityAI {
     f.focus = best;
   }
 
-  /** Healers and supports hang back: stand just behind the allies, away from the enemy. */
+  /** Supports hang back: stand just behind the allies, away from the enemy. */
   private wantsBackline(): boolean {
     const role = mainRole(this.f.def);
-    return (role === 'healer' || role === 'support') && this.sim.alliesOf(this.f, false).length > 0;
+    return role === 'support' && this.sim.alliesOf(this.f, false).length > 0;
   }
 
   private decideMove(target: Fighter): void {
@@ -165,7 +164,7 @@ export class UtilityAI {
       return;
     }
     // Defensive stance: non-support fighters hold near their team until an enemy comes close.
-    if (orders.stance === 'defensive' && role !== 'healer' && role !== 'support' && gap > 240) {
+    if (orders.stance === 'defensive' && role !== 'support' && gap > 240) {
       const mates = this.sim.alliesOf(this.f, false);
       if (mates.length) {
         const cx = mates.reduce((s, a) => s + a.pos.x, 0) / mates.length;

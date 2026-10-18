@@ -694,10 +694,10 @@ describe('draft and smart picker', () => {
     expect(draftOrder(3).filter(Boolean).length).toBe(3);
   });
 
-  it('the smart picker covers roles: a team with no healer picks one', () => {
+  it('the smart picker covers roles: a team with no support picks one', () => {
     const team = [fighterById('vegeta'), fighterById('sukuna')];
     const pick = pickForTeam(team, ROSTER, 3, rng);
-    expect(pick && roleScores(pick).healer + roleScores(pick).tank).toBeGreaterThan(0.3);
+    expect(pick && roleScores(pick).support + roleScores(pick).tank).toBeGreaterThan(0.3);
   });
 
   it('fillTeam makes a full team without duplicates, and respects unavailable fighters', () => {

@@ -10,20 +10,20 @@ export type TeamSize = 2 | 3 | 4;
 export function roleTargets(size: TeamSize): Record<Role, number> {
   switch (size) {
     case 2:
-      return { tank: 0.5, healer: 0.5, support: 0.3, damage: 1 };
+      return { tank: 0.5, support: 0.7, damage: 1 };
     case 3:
-      return { tank: 1, healer: 0.8, support: 0.3, damage: 1 };
+      return { tank: 1, support: 1, damage: 1 };
     default:
-      return { tank: 1, healer: 1, support: 0.7, damage: 1.2 };
+      return { tank: 1, support: 1.5, damage: 1.2 };
   }
 }
 
-const ROLE_WEIGHT: Record<Role, number> = { tank: 1.3, healer: 1.4, support: 0.8, damage: 1 };
+const ROLE_WEIGHT: Record<Role, number> = { tank: 1.3, support: 1.2, damage: 1 };
 
 /** How well a team covers the role targets (higher = more balanced). */
 export function teamCoverage(team: FighterDef[], size: TeamSize): number {
   const target = roleTargets(size);
-  const have: Record<Role, number> = { tank: 0, healer: 0, support: 0, damage: 0 };
+  const have: Record<Role, number> = { tank: 0, support: 0, damage: 0 };
   for (const def of team) {
     const s = roleScores(def);
     for (const r of Object.keys(have) as Role[]) have[r] += s[r];

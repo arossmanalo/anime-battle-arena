@@ -7,8 +7,8 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../layout';
 import { COLORS, hex, hpColor, impactStyle, textStyle } from '../theme';
 import { makePortrait } from '../view/portrait';
 
-export const ROLE_LABEL = { tank: 'TANK', damage: 'DMG', support: 'SUP', healer: 'HEAL' } as const;
-export const ROLE_COLOR = { tank: 0x6ea8ff, damage: 0xff6a5a, support: 0xc78bff, healer: 0x6dff9d } as const;
+export const ROLE_LABEL = { tank: 'TANK', damage: 'DMG', support: 'SUP' } as const;
+export const ROLE_COLOR = { tank: 0x6ea8ff, damage: 0xff6a5a, support: 0x6dff9d } as const;
 export const TEAM_COLOR = [0x39a0ff, 0xff4d4d] as const;
 
 const SIDE_W = 430;
