@@ -146,7 +146,8 @@ export class FighterView {
     const f = this.f;
     const orbs = f.form?.ultOrbs;
     this.orbs.clear();
-    if (!orbs || !f.alive || f.hp > f.maxHp * 0.3) return;
+    // Training keeps the fighter at full HP, so the orbs show whenever the form is on there.
+    if (!orbs || !f.alive || (!f.sandbox && f.hp > f.maxHp * 0.3)) return;
     const t = this.scene.time.now / 1000;
     orbs.forEach((color, i) => {
       const a = t * 2.4 + i * Math.PI;

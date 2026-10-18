@@ -1,3 +1,4 @@
+import { DUMMY_POKE } from '../data/dummy';
 import { UtilityAI } from './ai/UtilityAI';
 import { attackSkill, COMBO_WINDOW, FINISHER_MULT, isFinisher, REACH_LEEWAY } from './attacks';
 import { tickPassive } from './passives';
@@ -64,7 +65,9 @@ export class Simulation {
   /** Training: skills have no cooldown. */
   noCooldowns = false;
   /** Training: how the dummy moves. */
-  dummyMode: 'still' | 'pace' | 'strafe' = 'still';
+  /** 'attack': the dummy pokes the player every second, so barriers, dodges and shields can be tested. */
+  dummyMode: 'still' | 'pace' | 'strafe' | 'attack' = 'still';
+  private dummyPokeTimer = 0;
   readonly fighters: Fighter[] = [];
   /** Per-team tactical orders (index = team). */
   readonly orders: TeamOrders[] = [];
@@ -272,7 +275,8 @@ export class Simulation {
     if (f.stunned) return 'stunned';
     if (f.busy) return 'busy';
     const skill = f.skill(slot);
-    if (skill.requiresHpBelow && f.hp > f.maxHp * skill.requiresHpBelow) return 'unavailable';
+    // Training keeps its fighter at full HP, so the HP gate is waived there.
+    if (skill.requiresHpBelow && !f.sandbox && f.hp > f.maxHp * skill.requiresHpBelow) return 'unavailable';
     if (f.cooldown(skill) > 0) return 'cooldown';
     if (!f.canAfford(skill)) return 'energy';
 
@@ -297,6 +301,15 @@ export class Simulation {
     f.energy -= form.energyCost;
     const oldMax = f.maxHp;
     f.form = form;
+    if (f.sandbox && form.onDeath) {
+      // Training: stands in for the second life, with its untouchable and free-energy window.
+      f.invuln = form.reviveInvuln ?? 0.3;
+      f.freeEnergy = form.reviveFreeEnergy ?? 0;
+      f.ult = f.maxUlt;
+      this.emit({ type: 'transform', uid: f.uid, form });
+      this.voice(f, 'transform');
+      return true;
+    }
     f.hp = Math.min(f.maxHp, f.hp + (f.maxHp - oldMax) + Math.round(f.maxHp * form.heal));
     f.invuln = TRANSFORM_INVULN;
     f.casting = null;
@@ -357,6 +370,10 @@ export class Simulation {
     f.vel = d > 2 ? scale(norm(to), Math.min(160, d * 5)) : { x: 0, y: 0 };
     const foe = this.nearestEnemy(f);
     if (foe && Math.abs(foe.pos.x - f.pos.x) > 1) f.facing = foe.pos.x > f.pos.x ? 1 : -1;
+    if (this.dummyMode === 'attack' && foe && (this.dummyPokeTimer -= DT) <= 0) {
+      this.dummyPokeTimer = 1;
+      this.applyEffects(f, foe, DUMMY_POKE.effects, DUMMY_POKE, f.pos);
+    }
   }
 
   /** Training: clears the field, puts everyone back, zeroes the stats and refreshes cooldowns. */

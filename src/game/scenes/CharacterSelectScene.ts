@@ -160,7 +160,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       'In the fight:',
       'R  reset the field and stats',
       'C  skills with no cooldown',
-      'D  dummy: still / pacing / strafing',
+      'D  dummy: still / pacing / strafing / attacking',
       'T  form on / off',
     ];
     c.add(this.add.text(-PANEL_W / 2 + 14, -2, lines.join('\n'), textStyle(12, COLORS.text, { lineSpacing: 3 })).setOrigin(0, 0));

@@ -1151,3 +1151,41 @@ describe('Gojo second life', () => {
   });
 });
 
+
+describe('training: testing Gojo', () => {
+  function training() {
+    return new Simulation({
+      seed: 1,
+      idleFallback: 0,
+      training: true,
+      teams: [[{ def: fighterById('gojo'), controller: 'player' }], [{ def: TRAINING_DUMMY, controller: 'dummy' }]],
+    });
+  }
+
+  it('Maximum Purple can be cast at full HP in training', () => {
+    const sim = training();
+    const [p] = sim.fighters;
+    sim.tryTransform(p);
+    expect(p.skill(4).id).toBe('gojo.maxpurple');
+    expect(sim.tryCast(p, 4)).toBeNull();
+  });
+
+  it('the form key stands in for the second life: untouchable with free energy', () => {
+    const sim = training();
+    const [p] = sim.fighters;
+    expect(sim.tryTransform(p)).toBe(true);
+    expect(p.invuln).toBeGreaterThan(9);
+    expect(p.freeEnergy).toBeGreaterThan(9);
+    expect(sim.tryTransform(p)).toBe(true);
+    expect(p.transformed).toBe(false);
+  });
+
+  it('the attacking dummy hits the player so Limitless can be tested', () => {
+    const sim = training();
+    const [p] = sim.fighters;
+    sim.dummyMode = 'attack';
+    const before = p.passive.hitsLeft;
+    for (let i = 0; i < Math.ceil(3 / DT); i++) sim.step();
+    expect(p.passive.hitsLeft).toBeLessThan(before);
+  });
+});

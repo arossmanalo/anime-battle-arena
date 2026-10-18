@@ -12,6 +12,19 @@ const none: SkillDef = {
   color: 0,
 };
 
+/** What the dummy throws at the player in its 'attack' mode: a small hit that goes through barriers, dodges and shields. */
+export const DUMMY_POKE: SkillDef = {
+  id: 'dummy.poke',
+  name: 'Poke',
+  kind: 'aoe',
+  energyCost: 0,
+  cooldown: 1,
+  castTime: 0,
+  range: 0,
+  effects: [{ type: 'damage', amount: 6 }],
+  color: 0xe8553a,
+};
+
 /** The training dummy: a bullseye ball that stands there and takes it. Not part of the roster. */
 export const TRAINING_DUMMY: FighterDef = {
   id: 'dummy',

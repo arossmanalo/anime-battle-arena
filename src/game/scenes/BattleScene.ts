@@ -192,7 +192,7 @@ export class BattleScene extends Phaser.Scene {
       this.sim.noCooldowns = !this.sim.noCooldowns;
     });
     kb?.on('keydown-D', () => {
-      const modes = ['still', 'pace', 'strafe'] as const;
+      const modes = ['still', 'pace', 'strafe', 'attack'] as const;
       this.sim.dummyMode = modes[(modes.indexOf(this.sim.dummyMode) + 1) % modes.length];
     });
   }

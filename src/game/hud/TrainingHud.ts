@@ -63,7 +63,7 @@ export class TrainingHud {
       `TOTAL ${Math.round(this.total)}    HITS ${this.count}    BEST ${Math.round(this.best)}    DPS ${Math.round(recent / span)}`,
     );
     const cd = this.sim.noCooldowns ? 'OFF' : 'on';
-    const mode = { still: 'STILL', pace: 'PACING', strafe: 'STRAFING' }[this.sim.dummyMode];
+    const mode = { still: 'STILL', pace: 'PACING', strafe: 'STRAFING', attack: 'ATTACKING' }[this.sim.dummyMode];
     this.keys.setText(`R reset   C cooldowns: ${cd}   D dummy: ${mode}   T form on/off   energy: infinite`);
     this.keys.setColor(hex(this.sim.noCooldowns ? COLORS.energy : COLORS.muted));
   }

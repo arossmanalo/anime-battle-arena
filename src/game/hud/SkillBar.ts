@@ -120,7 +120,7 @@ export class SkillBar {
       const cd = f.cooldown(skill);
       const affordable = f.canAfford(skill);
       if (skill.ultimate) {
-        const gated = !!skill.requiresHpBelow && f.hp > f.maxHp * skill.requiresHpBelow;
+        const gated = !!skill.requiresHpBelow && !f.sandbox && f.hp > f.maxHp * skill.requiresHpBelow;
         s.cost.setText(gated ? `BELOW ${Math.round(skill.requiresHpBelow! * 100)}% HP` : affordable ? 'READY!' : `${Math.floor(f.ult)}%`).setColor(hex(COLORS.ult));
       } else {
         s.cost.setText(`${skill.energyCost} EN`).setColor(hex(affordable ? COLORS.energy : COLORS.danger));
