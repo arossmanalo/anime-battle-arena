@@ -487,8 +487,10 @@ export class Vfx {
       this.shrines.delete(id);
     }
     if (!list.some((z) => z.skill.domainStyle === 'slashes')) {
+      // The domain ended (or its caster was knocked out mid-domain): clear every slash, drawn or sprite.
       this.slashes.length = 0;
       this.slashGfx.clear();
+      for (const img of this.slashPool) img.setVisible(false);
     }
     for (const [id, d] of this.domains) {
       if (live.has(id)) continue;
