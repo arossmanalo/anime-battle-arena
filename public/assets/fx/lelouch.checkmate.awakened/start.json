@@ -1,9 +1,9 @@
 {
   "frameWidth": 315,
   "frameHeight": 315,
-  "frames": 3,
+  "frames": 2,
   "frameRate": 18,
   "loop": false,
   "blend": "add",
-  "size": 130
+  "size": 140
 }

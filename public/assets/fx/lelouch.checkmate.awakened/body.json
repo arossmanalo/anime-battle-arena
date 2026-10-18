@@ -1,11 +1,11 @@
 {
-  "frameWidth": 220,
-  "frameHeight": 220,
-  "frames": 8,
-  "frameRate": 14,
+  "frameWidth": 285,
+  "frameHeight": 285,
+  "frames": 1,
+  "frameRate": 4,
   "loop": true,
   "blend": "add",
-  "size": 200,
+  "size": 160,
   "behind": true,
   "ground": true
 }
