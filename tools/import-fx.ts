@@ -356,10 +356,22 @@ async function main(): Promise<void> {
 
   const dir = join(import.meta.dirname, '..', 'public', 'assets', 'fx', id);
   mkdirSync(dir, { recursive: true });
-  await sharp({ create: { width: frames.length * cellW, height: cellH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-    .composite(layers)
-    .png({ compressionLevel: 9 })
-    .toFile(join(dir, `${part}.png`));
+  const blend = opts.blend === 'add' || opts.blend === 'normal' ? opts.blend : bg.keyed ? 'add' : 'normal';
+  let sheetImage = sharp({ create: { width: frames.length * cellW, height: cellH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).composite(layers);
+  if (blend === 'add') {
+    // Additive effects are stored as colour on solid black (alpha 255): black adds nothing, so there is no rectangle
+    // or edge whatever the renderer does with alpha, and soft haze fades into the floor instead of boxing in.
+    const { data: rgba, info: ri } = await sheetImage.raw().toBuffer({ resolveWithObject: true });
+    for (let i = 0; i < rgba.length; i += 4) {
+      const al = rgba[i + 3] / 255;
+      rgba[i] = Math.round(rgba[i] * al);
+      rgba[i + 1] = Math.round(rgba[i + 1] * al);
+      rgba[i + 2] = Math.round(rgba[i + 2] * al);
+      rgba[i + 3] = 255;
+    }
+    sheetImage = sharp(rgba, { raw: { width: ri.width, height: ri.height, channels: 4 } });
+  }
+  await sheetImage.png({ compressionLevel: 9 }).toFile(join(dir, `${part}.png`));
 
   const config: FxConfig = {
     frameWidth: cellW,
@@ -367,7 +379,7 @@ async function main(): Promise<void> {
     frames: frames.length,
     frameRate: opts.fps ? Number(opts.fps) : FX_DEFAULTS[part].frameRate,
     loop: opts.loop ? true : opts.once ? false : FX_DEFAULTS[part].loop,
-    blend: opts.blend === 'add' || opts.blend === 'normal' ? opts.blend : bg.keyed ? 'add' : 'normal',
+    blend,
   };
   if (opts.size) config.size = Number(opts.size);
   if (opts['no-rotate']) config.rotate = false;
