@@ -37,7 +37,11 @@ export class TeamSelectScene extends Phaser.Scene {
   private mode: 'free' | 'draft' = 'free';
   private difficulty: Difficulty = 'normal';
   private mine: Member[] = [];
-  private cpu: FighterDef[] = [];
+  private cpu: Member[] = [];
+  /** Free pick: which team the roster clicks fill. */
+  private editing: 'mine' | 'cpu' = 'mine';
+  /** A filled slot selected for replacement: the next roster click swaps that fighter. */
+  private replacing: { side: 'mine' | 'cpu'; idx: number } | null = null;
   /** Draft: how many picks have been made, and whether we're waiting on the CPU. */
   private draftIndex = 0;
   private cpuThinking = false;
@@ -51,6 +55,8 @@ export class TeamSelectScene extends Phaser.Scene {
   init(data: Partial<MatchSetup>): void {
     this.mine = [];
     this.cpu = [];
+    this.editing = 'mine';
+    this.replacing = null;
     this.draftIndex = 0;
     this.cpuThinking = false;
     this.rng = new Rng(newSeed());
@@ -60,7 +66,7 @@ export class TeamSelectScene extends Phaser.Scene {
       this.mode = data.team.mode;
       if (this.mode === 'free') {
         this.mine = data.team.player.map((m) => ({ def: ROSTER.find((d) => d.id === m.id)!, row: m.row })).filter((m) => m.def);
-        this.cpu = data.team.enemy.map((m) => ROSTER.find((d) => d.id === m.id)!).filter(Boolean);
+        this.cpu = data.team.enemy.map((m) => ({ def: ROSTER.find((d) => d.id === m.id)!, row: m.row })).filter((m) => m.def);
       }
     }
   }
@@ -81,8 +87,10 @@ export class TeamSelectScene extends Phaser.Scene {
     return size <= maxDraftSize(ROSTER.length);
   }
 
-  private rollCpu(): void {
-    this.cpu = fillTeam([], ROSTER, this.size, () => this.rng.next());
+  /** The smart picker fills the CPU team (keeping any fighters you already set). */
+  private rollCpu(keep: Member[] = []): void {
+    const defs = fillTeam(keep.map((m) => m.def), ROSTER, this.size, () => this.rng.next());
+    this.cpu = defs.map((d, i) => keep[i] ?? { def: d, row: defaultRow(d) });
   }
 
   private setSize(size: TeamSize): void {
@@ -100,6 +108,7 @@ export class TeamSelectScene extends Phaser.Scene {
   private resetPicks(): void {
     this.mine = [];
     this.cpu = [];
+    this.editing = 'mine';
     this.draftIndex = 0;
     this.cpuThinking = false;
     if (this.mode === 'free') this.rollCpu();
@@ -108,11 +117,11 @@ export class TeamSelectScene extends Phaser.Scene {
   }
 
   private taken(): Set<string> {
-    return new Set([...this.mine.map((m) => m.def.id), ...this.cpu.map((d) => d.id)]);
+    return new Set([...this.mine.map((m) => m.def.id), ...this.cpu.map((m) => m.def.id)]);
   }
 
   private isMyTurn(): boolean {
-    if (this.mode === 'free') return this.mine.length < this.size;
+    if (this.mode === 'free') return (this.editing === 'mine' ? this.mine : this.cpu).length < this.size;
     return this.draftIndex < this.size * 2 && draftOrder(this.size)[this.draftIndex];
   }
 
@@ -123,8 +132,8 @@ export class TeamSelectScene extends Phaser.Scene {
     if (this.draftIndex >= order.length || order[this.draftIndex] || this.cpuThinking) return;
     this.cpuThinking = true;
     this.time.delayedCall(550, () => {
-      const pick = pickForTeam(this.cpu, ROSTER, this.size, () => this.rng.next(), this.taken());
-      if (pick) this.cpu.push(pick);
+      const pick = pickForTeam(this.cpu.map((m) => m.def), ROSTER, this.size, () => this.rng.next(), this.taken());
+      if (pick) this.cpu.push({ def: pick, row: defaultRow(pick) });
       this.draftIndex++;
       this.cpuThinking = false;
       this.refresh();
@@ -133,11 +142,27 @@ export class TeamSelectScene extends Phaser.Scene {
   }
 
   private pick(def: FighterDef): void {
-    if (!this.isMyTurn() || this.cpuThinking) return;
+    if (this.cpuThinking) return;
+    // Free pick: a selected slot gets swapped for the clicked fighter.
+    if (this.mode === 'free' && this.replacing) {
+      const { side, idx } = this.replacing;
+      const list = side === 'mine' ? this.mine : this.cpu;
+      if (!list.some((m, k) => k !== idx && m.def.id === def.id)) {
+        sfx(this).play('click');
+        list[idx] = { def, row: defaultRow(def) };
+      }
+      this.replacing = null;
+      this.refresh();
+      return;
+    }
+    if (!this.isMyTurn()) return;
     if (this.mode === 'draft' && this.taken().has(def.id)) return;
-    if (this.mine.some((m) => m.def.id === def.id)) return;
+    const team = this.mode === 'free' && this.editing === 'cpu' ? this.cpu : this.mine;
+    if (team.some((m) => m.def.id === def.id)) return;
     sfx(this).play('click');
-    this.mine.push({ def, row: defaultRow(def) });
+    team.push({ def, row: defaultRow(def) });
+    // Free pick: once the team being edited is full, go back to your own team if it still needs fighters.
+    if (this.mode === 'free' && team.length >= this.size && this.editing === 'cpu' && this.mine.length < this.size) this.editing = 'mine';
     if (this.mode === 'draft') {
       this.draftIndex++;
       this.advanceDraft();
@@ -145,9 +170,9 @@ export class TeamSelectScene extends Phaser.Scene {
     this.refresh();
   }
 
-  private remove(i: number): void {
+  private remove(i: number, cpu = false): void {
     if (this.mode === 'draft') return; // picks are final in a draft
-    this.mine.splice(i, 1);
+    (cpu ? this.cpu : this.mine).splice(i, 1);
     this.refresh();
   }
 
@@ -160,14 +185,14 @@ export class TeamSelectScene extends Phaser.Scene {
     sfx(this).play('click');
     const setup: MatchSetup = {
       playerId: this.mine[0].def.id,
-      enemyId: this.cpu[0].id,
+      enemyId: this.cpu[0].def.id,
       difficulty: this.difficulty,
       seed: newSeed(),
       team: {
         size: this.size,
         mode: this.mode,
         player: this.mine.map((m) => ({ id: m.def.id, row: m.row })),
-        enemy: this.cpu.map((d) => ({ id: d.id, row: defaultRow(d) })),
+        enemy: this.cpu.map((m) => ({ id: m.def.id, row: m.row })),
       },
     };
     this.scene.start('Battle', setup);
@@ -211,12 +236,14 @@ export class TeamSelectScene extends Phaser.Scene {
     if (this.mode === 'draft') {
       status = this.draftIndex >= this.size * 2 ? 'Draft complete. Set your formation and start.' : this.isMyTurn() ? `Your pick (${this.mine.length + 1} of ${this.size})` : 'CPU is picking…';
     } else {
-      status = this.mine.length < this.size ? `Pick ${this.size - this.mine.length} more fighter${this.size - this.mine.length === 1 ? '' : 's'}` : 'Team ready. Click FRONT / BACK to set the formation.';
+      const team = this.editing === 'mine' ? this.mine : this.cpu;
+      const left = this.size - team.length;
+      status = this.replacing ? 'Click a fighter in the roster to swap them in.' : left > 0 ? `Pick ${left} more fighter${left === 1 ? '' : 's'} for ${this.editing === 'mine' ? 'YOUR team' : 'the CPU team'}` : 'Both teams ready. Click FRONT / BACK to set a formation, or ✕ to swap a fighter.';
     }
     this.text(GAME_WIDTH / 2, 116, status, textStyle(14, this.isMyTurn() ? COLORS.ult : COLORS.text, { fontStyle: 'bold' }));
 
-    this.drawTeam(20, 'YOUR TEAM', TEAM_COLOR[0], this.mine.map((m) => ({ def: m.def, row: m.row })), true);
-    this.drawTeam(GAME_WIDTH - 20 - 280, 'CPU TEAM', TEAM_COLOR[1], this.cpu.map((d) => ({ def: d, row: defaultRow(d) })), false);
+    this.drawTeam(20, 'YOUR TEAM', TEAM_COLOR[0], this.mine, 'mine');
+    this.drawTeam(GAME_WIDTH - 20 - 280, 'CPU TEAM', TEAM_COLOR[1], this.cpu, 'cpu');
 
     // Roster grid.
     const taken = this.taken();
@@ -224,9 +251,11 @@ export class TeamSelectScene extends Phaser.Scene {
       const x = GRID_X + (i % 3) * (CARD_W + 8) + CARD_W / 2;
       const y = GRID_Y + Math.floor(i / 3) * (CARD_H + 8) + CARD_H / 2;
       const mineIdx = this.mine.findIndex((m) => m.def.id === def.id);
-      const used = this.mode === 'draft' ? taken.has(def.id) : mineIdx >= 0;
-      const enabled = this.isMyTurn() && !used && !this.cpuThinking;
-      const frame = this.add.rectangle(x, y, CARD_W, CARD_H, COLORS.panel).setStrokeStyle(2, mineIdx >= 0 ? TEAM_COLOR[0] : this.cpu.some((d) => d.id === def.id) && this.mode === 'draft' ? TEAM_COLOR[1] : COLORS.border);
+      const editTeam = this.editing === 'mine' ? this.mine : this.cpu;
+      const used = this.mode === 'draft' ? taken.has(def.id) : editTeam.some((m) => m.def.id === def.id);
+      const swapping = this.mode === 'free' && !!this.replacing;
+      const enabled = (this.isMyTurn() || swapping) && !this.cpuThinking && (swapping ? true : !used);
+      const frame = this.add.rectangle(x, y, CARD_W, CARD_H, COLORS.panel).setStrokeStyle(2, mineIdx >= 0 ? TEAM_COLOR[0] : this.cpu.some((m) => m.def.id === def.id) && (this.mode === 'draft' || this.editing === 'cpu') ? TEAM_COLOR[1] : COLORS.border);
       if (enabled) frame.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.pick(def));
       const portrait = makePortrait(this, x, y - 14, 38, def);
       const name = this.add.text(x, y + 14, def.name.toUpperCase(), impactStyle(12)).setOrigin(0.5);
@@ -242,23 +271,46 @@ export class TeamSelectScene extends Phaser.Scene {
     if (!ready) go.disableInteractive();
     this.text(GAME_WIDTH / 2, GAME_HEIGHT - 18, 'or press ENTER · ESC back', textStyle(11, COLORS.muted));
     if (this.mode === 'free') {
-      this.text(GAME_WIDTH - 20 - 140, GAME_HEIGHT - 110, 'REROLL CPU TEAM', textStyle(12, COLORS.energy, { fontStyle: 'bold' }), () => {
+      this.text(GAME_WIDTH / 2 - 110, 466, 'AUTO-FILL CPU (keeps your picks)', textStyle(11, COLORS.energy), () => {
+        this.rollCpu(this.cpu);
+        this.refresh();
+      });
+      this.text(GAME_WIDTH / 2 + 130, 466, 'REROLL CPU TEAM', textStyle(11, COLORS.muted), () => {
         this.rollCpu();
         this.refresh();
       });
     }
   }
 
-  private drawTeam(x: number, title: string, color: number, members: Member[], mine: boolean): void {
+  private drawTeam(x: number, title: string, color: number, members: Member[], side: 'mine' | 'cpu'): void {
+    const mine = side === 'mine';
+    // Free pick lets both teams be edited; in a draft the CPU side is automatic.
+    const editable = mine || this.mode === 'free';
+    const active = this.mode === 'free' && this.editing === side;
     this.text(x + 140, 150, title, impactStyle(16, color));
+    if (this.mode === 'free') {
+      this.text(x + 140, 172, active ? '▶ picking for this team' : 'click to pick for this team', textStyle(10, active ? COLORS.ult : COLORS.muted), () => {
+        this.editing = side;
+        this.replacing = null;
+        this.refresh();
+      });
+    }
     for (let i = 0; i < this.size; i++) {
       const y = 190 + i * (SLOT_H + 6);
       const m = members[i];
       const bg = this.add.rectangle(x + 140, y + SLOT_H / 2, 280, SLOT_H, COLORS.panel).setStrokeStyle(2, m ? color : COLORS.border, m ? 1 : 0.5);
       this.dyn.add(bg);
       if (!m) {
-        this.text(x + 140, y + SLOT_H / 2, mine && this.isMyTurn() ? 'pick a fighter' : this.mode === 'draft' && !mine ? '…' : 'empty', textStyle(12, COLORS.muted));
+        this.text(x + 140, y + SLOT_H / 2, this.mode === 'draft' && !mine ? '…' : active ? 'pick a fighter' : 'empty', textStyle(12, COLORS.muted));
         continue;
+      }
+      const selected = this.replacing?.side === side && this.replacing.idx === i;
+      if (selected) bg.setStrokeStyle(3, COLORS.ult);
+      if (editable && this.mode === 'free') {
+        bg.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+          this.replacing = selected ? null : { side, idx: i };
+          this.refresh();
+        });
       }
       const portrait = makePortrait(this, x + 36, y + SLOT_H / 2, 52, m.def);
       const name = this.add.text(x + 72, y + 10, m.def.name.toUpperCase(), impactStyle(16)).setOrigin(0, 0);
@@ -269,15 +321,16 @@ export class TeamSelectScene extends Phaser.Scene {
         .text(x + 72, y + 50, m.row === 'front' ? '[ FRONT LINE ]' : '[ BACK LINE ]', textStyle(11, m.row === 'front' ? 0xff9a5a : 0x7ad1ff, { fontStyle: 'bold' }))
         .setOrigin(0, 0);
       this.dyn.add(rowBtn);
-      if (mine) {
+      if (editable) {
         const idx = i;
+        const list = mine ? this.mine : this.cpu;
         rowBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
-          this.mine[idx].row = this.mine[idx].row === 'front' ? 'back' : 'front';
+          list[idx].row = list[idx].row === 'front' ? 'back' : 'front';
           this.refresh();
         });
         if (this.mode === 'free') {
           const x2 = this.add.text(x + 266, y + 6, '✕', textStyle(14, COLORS.muted, { fontStyle: 'bold' })).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
-          x2.on('pointerdown', () => this.remove(idx));
+          x2.on('pointerdown', () => this.remove(idx, !mine));
           x2.on('pointerover', () => x2.setColor(hex(COLORS.danger)));
           x2.on('pointerout', () => x2.setColor(hex(COLORS.muted)));
           this.dyn.add(x2);
