@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Fighter } from '../../sim/Fighter';
-import { ANIM_CONFIG, animKey, fighterSheetKey, type AnimName, type AssetManifest } from '../assets';
+import { ANIM_CONFIG, animKey, fighterSheetKey, type AnimName, FX_PARTS, type AssetManifest } from '../assets';
 import { COLORS, hpColor, impactStyle, shade, textStyle } from '../theme';
 
 const BAR_W = 40;
@@ -127,6 +127,11 @@ export class FighterView {
     }
   }
 
+  /** Whether a skill has custom art for any part, so the generic wind-up ring, pulse and sparks are skipped. */
+  hasAnyFx(skillId: string): boolean {
+    return FX_PARTS.some((p) => this.hasFx(skillId, p));
+  }
+
   /** Whether a skill has a custom effect sprite for this part (so the generic one is skipped). */
   hasFx(skillId: string, part: string): boolean {
     const m = this.scene.registry.get('manifest') as AssetManifest | undefined;
@@ -167,7 +172,7 @@ export class FighterView {
 
   /** Pulse the body (used for transformations and buff casts). */
   pulse(color: number, skillId?: string): void {
-    if (skillId && this.hasFx(skillId, 'body')) return;
+    if (skillId && this.hasAnyFx(skillId)) return;
     const ring = this.scene.add.circle(0, 0, this.f.def.radius, color, 0).setStrokeStyle(4, color);
     this.root.add(ring);
     this.scene.tweens.add({ targets: ring, scale: 4, alpha: 0, duration: 500, onComplete: () => ring.destroy() });
@@ -206,7 +211,7 @@ export class FighterView {
 
     // Wind-up ring.
     this.charge.clear();
-    if (f.casting && !this.hasFx(f.casting.skill.id, 'cast')) {
+    if (f.casting && !this.hasAnyFx(f.casting.skill.id)) {
       const p = 1 - f.casting.remaining / Math.max(0.01, f.casting.skill.castTime);
       this.charge.lineStyle(3, f.casting.skill.color, 0.9);
       this.charge.beginPath();

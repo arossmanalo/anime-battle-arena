@@ -308,7 +308,7 @@ export class BattleScene extends Phaser.Scene {
           this.vfx.fired(f, e.skill, e.x, e.y);
           if (isSelfAura(e.skill)) {
             this.views.get(e.uid)?.pulse(e.skill.color, e.skill.id);
-            if (!this.vfx.hasFx(e.skill.id, 'body')) this.vfx.aura(f.pos.x, f.pos.y, e.skill.color);
+            if (!this.vfx.hasAnyFx(e.skill.id)) this.vfx.aura(f.pos.x, f.pos.y, e.skill.color);
           }
           if (e.skill.domain) {
             this.announcer.banner('DOMAIN EXPANSION', e.skill.id.startsWith('sukuna') ? 0xff3a4a : 0xb79bff, e.skill.name.toUpperCase(), this.teamMode ? 800 : 1300);
@@ -339,7 +339,7 @@ export class BattleScene extends Phaser.Scene {
           break;
         }
         case 'impact':
-          this.vfx.impact(e.x, e.y, e.radius, e.color, e.skillId);
+          this.vfx.impact(e.x, e.y, e.radius, e.color, e.skillId, e.support);
           if (e.radius >= 60) this.sfx.play('explosion');
           break;
         case 'transform': {

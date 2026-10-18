@@ -3,7 +3,7 @@ import type { Beam, Projectile, Zone } from '../../sim/entities';
 import type { Fighter } from '../../sim/Fighter';
 import type { SkillDef } from '../../sim/types';
 import { add, scale } from '../../sim/vec';
-import { EMPTY_MANIFEST, fxKey, type AssetManifest, type FxInfo, type FxPart } from '../assets';
+import { EMPTY_MANIFEST, FX_PARTS, fxKey, type AssetManifest, type FxInfo, type FxPart } from '../assets';
 import { ARENA_HEIGHT, ARENA_WIDTH, ARENA_X, ARENA_Y, GAME_HEIGHT, GAME_WIDTH } from '../layout';
 import { impactStyle, shade } from '../theme';
 
@@ -141,6 +141,10 @@ export class Vfx {
     return !!this.fx(id, part);
   }
 
+  hasAnyFx(id: string | undefined): boolean {
+    return FX_PARTS.some((p) => this.hasFx(id, p));
+  }
+
   /** Creates (but doesn't parent) a sprite playing a part's animation. `size` is the default width in arena px. */
   private createFxSprite(id: string, part: FxPart, info: FxInfo, size: number): Phaser.GameObjects.Sprite {
     const width = info.size ?? size;
@@ -243,11 +247,13 @@ export class Vfx {
     }
   }
 
-  impact(x: number, y: number, radius: number, color: number, skillId?: string): void {
+  /** `support`: a hit on a teammate; skills with custom art but no impact part draw nothing generic there. */
+  impact(x: number, y: number, radius: number, color: number, skillId?: string, support = false): void {
     if (this.oneShot(skillId, 'impact', x, y, Math.max(60, radius * 2.4))) {
       if (radius >= 40) this.crater(x, y, radius * 0.7);
       return;
     }
+    if (support && this.hasAnyFx(skillId)) return;
     const count = Math.min(60, Math.round(8 + radius / 2));
     this.sparks.setParticleTint(color);
     this.sparks.explode(count, x, y);

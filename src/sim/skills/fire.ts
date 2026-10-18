@@ -38,7 +38,8 @@ export function supportTargets(sim: Simulation, f: Fighter, skill: SkillDef): Fi
 function applySupport(sim: Simulation, f: Fighter, skill: SkillDef): void {
   for (const ally of supportTargets(sim, f, skill)) {
     sim.applyEffects(f, ally, skill.support!.effects, skill, f.pos);
-    sim.emit({ type: 'impact', x: ally.pos.x, y: ally.pos.y, radius: 34, color: skill.color, skillId: skill.id });
+    // Area skills already show their own burst; only buffs need a mark on each teammate.
+    if (skill.kind === 'buff') sim.emit({ type: 'impact', x: ally.pos.x, y: ally.pos.y, radius: 34, color: skill.color, skillId: skill.id, support: true });
   }
 }
 
