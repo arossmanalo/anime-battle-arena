@@ -1,6 +1,6 @@
 # Sukuna FX: prompts for ChatGPT
 
-Attach Sukuna's sprite and paste prompt A once. It asks for **one image with 6 rows** of effects. Then prompt B for the **domain background** (a separate 2x2 image, like Gojo's). Send both images back and say they're for Sukuna.
+**Attach Sukuna's sprite (one idle frame or his portrait) when you paste prompt A** and paste it once. It asks for **one image with 6 rows** of effects. Then prompt B for the **domain background** (a separate 2x2 image, like Gojo's). Send both images back and say they're for Sukuna.
 
 Sukuna's look is sharp **red-black cutting slashes**, so every dark effect has a bright crimson or white edge. Black is removed from these images, so nothing visible may be pure black.
 
@@ -29,10 +29,10 @@ ROW 5: DIVINE FLAME / FUGA (fire arrow). 20 frames: frames 1-7 = the fire arrow 
 ROW 6: MALEVOLENT SHRINE (domain opening and finale). 14 frames: frames 1-5 = hands coming together: a crimson glow gathers at the centre and a shrine-shaped silhouette of red light and thin cut lines rises behind it (a simple stylised pagoda-like roof with a skull ornament), brighter each frame, ending in a flash. Frames 6-14 = the final blow: a massive cross-shaped slash: a huge bright red-white X made of two enormous crossing cut lines that expands across the frame, with a white-hot centre, a ring of crimson shockwave and flying sparks, then fading into drifting red embers.
 ```
 
-## B. Domain background (paste this next)
+## B. Domain background (paste this next, same chat, the sprite still attached)
 
 ```
-Using the same style, create a pixel-art background for Sukuna's Domain Expansion: "Malevolent Shrine". Make ONE image containing 4 frames in a 2 x 2 grid (2 across, 2 down), each frame in a WIDE 2.4 : 1 aspect (like 900 x 372), with thin black lines between the frames. The frames are an animation that loops smoothly: they are nearly the same, with small differences.
+Attached is the pixel-art Sukuna sprite from before, for style and colour only. Using the same style as the effects, create a pixel-art background for Sukuna's Domain Expansion: "Malevolent Shrine". Make ONE image containing 4 frames in a 2 x 2 grid (2 across, 2 down), each frame in a WIDE 2.4 : 1 aspect (like 900 x 372), with thin black lines between the frames. The frames are an animation that loops smoothly: they are nearly the same, with small differences.
 
 Each frame: an endless dark crimson sky of deep blood red and near-black, an ominous giant stylised demonic shrine with a curved roof and a skull ornament silhouetted in the centre far background, and hundreds of thin overlapping bright red-white cut lines crossing the whole frame in many directions, a floor of scattered bones and a pale-red haze at the bottom. Across the 4 frames the slash lines shift and a few new ones flash, and the glow of the shrine pulses slightly. No characters, no text.
 ```

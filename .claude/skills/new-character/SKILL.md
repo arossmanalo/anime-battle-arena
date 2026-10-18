@@ -63,7 +63,10 @@ A fighter (`FighterDef`, see `src/sim/types.ts`) has: stats, **4 skills**, **1 u
 
 ## 4. Art prompts (docs)
 
-Create two files and give the user the prompt text in chat too:
+Create two files and give the user the prompt text in chat too.
+
+**Every prompt must tell ChatGPT that the user is attaching a reference image**, in its first sentence, and say what it is for: for the base sprite sheet, "Attached is a reference image of <character>; keep the exact same design"; for a form sheet and for all FX prompts, "Attached is the pixel-art sprite of <character>" used only for style, colour and scale. Also add one line above each prompt block in the doc: "Attach <what> when you paste this." Never write a prompt that assumes ChatGPT already knows the character.
+
 - `docs/<NAME>_SPRITE_PROMPT.md`: the ChatGPT sprite-sheet prompt from `docs/ART_SPEC.md` ("Making sprites with ChatGPT") with the character's look filled in, **6 rows** (idle 4, run 6, cast 4, hit 2, ko 4, attack 4), and a second prompt for each form sheet. Import commands: `npm run import-sheet -- <image> <id> --copy-to "C:/Users/Aryl Ross A. Manalo/Pictures/ABA Sprites/Characters/<Name>"`, `--form` for the transformed sheet, `--attack` to add the attack row to an existing sheet.
 - `docs/<NAME>_FX_PROMPTS.md`: the effect prompt, built like `docs/GOKU_FX_PROMPTS.md`, `docs/NARUTO_FX_PROMPTS.md` or `docs/SASUKE_FX_PROMPTS.md`: one image of rows (one row per skill, basic attack and ultimate, plus a passive trigger row if the passive has a visible trigger), each row a horizontal strip on pure black, the frame counts per part, which parts (`cast`, `body`, `start`, `impact`, plus `muzzle`/`tip` and a stretchable beam-body image for beams). Dark effects need a bright rim because black is keyed out. Part rules are in `docs/FX_SPEC.md`.
 

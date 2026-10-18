@@ -1,13 +1,13 @@
 # Sukuna sprite prompts (ChatGPT)
 
-Two sheets: the base **Ryomen Sukuna** and the **True Form (Heian Era)** used while transformed. Get a design you like first (attach a reference if you have one), then ask for each sheet in the same chat. Import commands are at the bottom.
+Two sheets: the base **Ryomen Sukuna** and the **True Form (Heian Era)** used while transformed. **Attach a reference image of Sukuna (his vessel-form design) when you paste prompt 1**, and attach the finished base sprite when you paste prompt 2. Ask for both sheets in the same chat so the design stays consistent. Import commands are at the bottom.
 
 ## 1. Base sheet
 
 ```
-Create a pixel-art sprite sheet of Ryomen Sukuna from Jujutsu Kaisen in his vessel form, as a cute chibi fighting-game character in the same style as my other fighters (big head, small body, crisp pixel outlines, saturated colours).
+Attached is a reference image of Ryomen Sukuna from Jujutsu Kaisen in his vessel form. Using it as the design reference, create a pixel-art sprite sheet of him as a cute chibi fighting-game character in the same style as my other fighters (big head, small body, crisp pixel outlines, saturated colours). Keep the design from the reference exactly the same in every frame.
 
-Design (keep identical in every frame): spiky pink hair, sharp red eyes, thin black curse markings on the forehead, cheeks and nose (a second pair of eyes is NOT needed), a dark navy jujutsu uniform with a red hood. He fights with BARE HANDS only: no sword and no weapon of any kind.
+Design details to keep (if the reference differs slightly, follow the reference): spiky pink hair, sharp red eyes, thin black curse markings on the forehead, cheeks and nose (a second pair of eyes is NOT needed), a dark navy jujutsu uniform with a red hood. He fights with BARE HANDS only: no sword and no weapon of any kind.
 
 - Transparent background. No text, no labels, no borders.
 - Every frame shows the character from a side / three-quarter view FACING RIGHT.
@@ -24,7 +24,7 @@ Design (keep identical in every frame): spiky pink hair, sharp red eyes, thin bl
 ## 2. True Form (Heian Era) sheet
 
 ```
-Using the attached Sukuna sprite as the exact style reference, create a pixel-art sprite sheet of his TRUE FORM from Jujutsu Kaisen, in the same chibi style, as a more imposing, slightly larger and broader version of the same character: pink hair, FOUR eyes (two pairs, red), black curse markings across the face and body, a bare muscular upper body with FOUR arms (two on each side), the dark navy jujutsu trousers and sash, and a second mouth on his stomach. Fights with bare hands only: no weapon.
+Attached is the pixel-art Sukuna sprite from the first sheet. Using it as the exact style reference, create a pixel-art sprite sheet of his TRUE FORM from Jujutsu Kaisen, in the same chibi style, as a more imposing, slightly larger and broader version of the same character: pink hair, FOUR eyes (two pairs, red), black curse markings across the face and body, a bare muscular upper body with FOUR arms (two on each side), the dark navy jujutsu trousers and sash, and a second mouth on his stomach. Fights with bare hands only: no weapon.
 
 - Transparent background. No text, no labels, no borders.
 - Every frame shows the character from a side / three-quarter view FACING RIGHT, same scale as the base sheet.
