@@ -1,0 +1,9 @@
+{
+  "frameWidth": 141,
+  "frameHeight": 141,
+  "frames": 5,
+  "frameRate": 12,
+  "loop": false,
+  "blend": "add",
+  "size": 80
+}
