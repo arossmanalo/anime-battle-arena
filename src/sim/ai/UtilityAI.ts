@@ -208,6 +208,7 @@ export class UtilityAI {
       // Assume a moving target only eats about half the ticks.
       expected *= (skill.duration / skill.tickInterval) * 0.5;
     }
+    expected += baseDamage({ ...skill, effects: skill.finale ?? [] });
     if (skill.effects.some((e) => e.type === 'stun')) expected += 6;
 
     const reach = skill.range + target.def.radius;

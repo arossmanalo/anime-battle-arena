@@ -1,5 +1,7 @@
 import type { Fighter } from './Fighter';
-import type { Effect } from './types';
+import type { Effect, SkillDef } from './types';
+import type { EffectContext } from './effects';
+import { takeDamage } from './effects';
 
 const HOSTILE: Effect['type'][] = ['damage', 'knockback', 'stun', 'burn', 'slow'];
 /** How long one attack's block/evade verdict is reused, so a beam or zone ticking every ~0.1s counts as one attack. */
@@ -9,6 +11,7 @@ const DECISION_WINDOW = 0.35;
 export function tickPassive(f: Fighter, dt: number): void {
   const p = f.def.passive;
   const state = f.passive;
+  if (state.marks > 0 && (state.markTimer -= dt) <= 0) state.marks = 0;
   for (const [key, d] of state.decided) {
     d.remaining -= dt;
     if (d.remaining <= 0) state.decided.delete(key);
@@ -67,4 +70,39 @@ export function passiveDamageMult(f: Fighter): number {
 export function passiveUltMult(f: Fighter): number {
   const p = f.def.passive;
   return p.kind === 'ultCharge' ? p.mult : 1;
+}
+
+/** The extra hit a consumed set of marks deals. Shown like any other hit (damage number, sound). */
+export const CURSE_BURST: SkillDef = {
+  id: 'curse.burst',
+  name: 'Curse Burst',
+  kind: 'aoe',
+  energyCost: 0,
+  cooldown: 1,
+  castTime: 0,
+  range: 0,
+  effects: [],
+  color: 0xff3a4a,
+};
+
+/**
+ * marks passive: called after `source` damaged `target` with `skill`. Marks stack on the target; hitting a fully
+ * marked target consumes them for bonus damage. Only projectiles, dashes, area hits and default attacks mark, so a
+ * domain's many ticks can't burst on every tick.
+ */
+export function applyMarks(ctx: EffectContext, source: Fighter, target: Fighter, skill: SkillDef): void {
+  const p = source.def.passive;
+  if (p.kind !== 'marks' || source === target || !target.alive) return;
+  if (!['projectile', 'dash', 'aoe'].includes(skill.kind) || skill.id === CURSE_BURST.id) return;
+  const state = target.passive;
+  if (state.marks >= p.stacks) {
+    state.marks = 0;
+    const dealt = takeDamage(target, Math.round(p.bonus * source.damageMult));
+    source.stats.damageDealt += dealt;
+    target.stats.damageTaken += dealt;
+    ctx.onHit(source, target, dealt, CURSE_BURST);
+  } else {
+    state.marks++;
+    state.markTimer = p.expire;
+  }
 }

@@ -1,6 +1,6 @@
 import type { Fighter, StatusType } from './Fighter';
 import type { Effect, SkillDef, Vec } from './types';
-import { negatesAttack, passiveUltMult, survivesHit } from './passives';
+import { applyMarks, negatesAttack, passiveUltMult, survivesHit } from './passives';
 import { norm, scale, sub } from './vec';
 
 /** Energy gained per point of damage dealt / taken. */
@@ -30,9 +30,11 @@ function addStatus(target: Fighter, type: StatusType, remaining: number, value: 
 }
 
 /** Applies damage after shields. Returns the HP actually lost. */
-export function takeDamage(target: Fighter, amount: number): number {
+export function takeDamage(target: Fighter, amount: number, pierce = 0): number {
   if (target.invuln > 0 || !target.alive) return 0;
-  let left = amount;
+  // Piercing damage skips shields; the rest is absorbed as usual.
+  const direct = amount * pierce;
+  let left = amount - direct;
   for (const s of target.statuses) {
     if (s.type !== 'shield' || left <= 0) continue;
     const absorbed = Math.min(s.value, left);
@@ -40,6 +42,7 @@ export function takeDamage(target: Fighter, amount: number): number {
     left -= absorbed;
   }
   target.statuses = target.statuses.filter((s) => s.type !== 'shield' || s.value > 0);
+  left += direct;
   const lost = survivesHit(target, Math.min(target.hp, left));
   target.hp -= lost;
   return lost;
@@ -72,7 +75,7 @@ export function applyEffects(
   for (const e of effects) {
     switch (e.type) {
       case 'damage': {
-        const dealt = takeDamage(target, Math.round(e.amount * source.damageMult * ctx.roll()));
+        const dealt = takeDamage(target, Math.round(e.amount * source.damageMult * ctx.roll()), e.pierce);
         if (dealt > 0) {
           source.stats.damageDealt += dealt;
           source.stats.hits += 1;
@@ -83,6 +86,7 @@ export function applyEffects(
           gainUlt(target, dealt * ULT_ON_TAKE);
         }
         ctx.onHit(source, target, dealt, skill);
+        if (dealt > 0) applyMarks(ctx, source, target, skill);
         break;
       }
       case 'knockback': {
@@ -91,6 +95,8 @@ export function applyEffects(
         break;
       }
       case 'stun':
+        // A move that can't be interrupted (a domain being opened) shrugs stuns off while it winds up.
+        if (target.casting?.skill.uninterruptible) break;
         addStatus(target, 'stun', e.duration, 0, source.uid);
         // A stun interrupts wind-ups and channels.
         target.casting = null;

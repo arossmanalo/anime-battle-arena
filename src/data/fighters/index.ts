@@ -3,11 +3,12 @@ import { gojo } from './gojo';
 import { goku } from './goku';
 import { naruto } from './naruto';
 import { sasuke } from './sasuke';
+import { sukuna } from './sukuna';
 import { tanjiro } from './tanjiro';
 import { vegeta } from './vegeta';
 
 /** Playable roster, in Character Select order. Add a fighter by adding a data file and listing it here. */
-export const ROSTER: FighterDef[] = [naruto, sasuke, goku, vegeta, gojo, tanjiro];
+export const ROSTER: FighterDef[] = [naruto, sasuke, goku, vegeta, gojo, tanjiro, sukuna];
 
 export function fighterById(id: string): FighterDef {
   const def = ROSTER.find((f) => f.id === id);

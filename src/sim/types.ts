@@ -5,7 +5,8 @@ export interface Vec {
 
 /** Effects applied to whoever a skill hits (or to the caster, for `selfEffects`). */
 export type Effect =
-  | { type: 'damage'; amount: number }
+  /** `pierce` (0-1): the share of this damage that ignores shields. */
+  | { type: 'damage'; amount: number; pierce?: number }
   | { type: 'knockback'; force: number }
   | { type: 'stun'; duration: number }
   | { type: 'burn'; dps: number; duration: number }
@@ -48,6 +49,10 @@ export interface SkillDef {
   /** zone: render as a full Domain Expansion. */
   domain?: boolean;
   ultimate?: boolean;
+  /** zone: effects applied once, to everyone still inside, when the zone ends (a domain's final blow). */
+  finale?: Effect[];
+  /** While winding up this skill, the caster can't be stunned or interrupted. */
+  uninterruptible?: boolean;
   color: number;
 }
 
@@ -81,7 +86,9 @@ export type PassiveEffect =
   /** The ultimate meter charges `mult` times as fast. */
   | { kind: 'ultCharge'; mult: number }
   /** Once per match, a lethal hit leaves the fighter on 1 HP and invulnerable for `invuln` seconds. */
-  | { kind: 'lastStand'; invuln: number };
+  | { kind: 'lastStand'; invuln: number }
+  /** Each damaging projectile/dash/area/default-attack hit puts a mark on the target (they expire after `expire` s without a new one); a hit on a target with `stacks` marks consumes them for `bonus` extra damage. */
+  | { kind: 'marks'; stacks: number; bonus: number; expire: number };
 
 export type PassiveDef = { id: string; name: string; description: string } & PassiveEffect;
 

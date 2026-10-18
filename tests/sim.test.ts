@@ -508,3 +508,65 @@ describe('training mode', () => {
     expect(sim.fighters.every((f) => !f.sandbox)).toBe(true);
   });
 });
+
+describe("Sukuna's new mechanics", () => {
+  const dmg = (amount: number, pierce?: number): Effect[] => [{ type: 'damage', amount, pierce }];
+  const sk = (id: string) => ({ id, name: id, kind: 'dash', energyCost: 0, cooldown: 1, castTime: 0, range: 1, effects: [], color: 0 }) as SkillDef;
+
+  it('piercing damage skips part of a shield', () => {
+    const [a, b] = duel('sukuna', 'goku').fighters;
+    b.invuln = 0;
+    b.statuses.push({ type: 'shield', remaining: 5, value: 100, source: b.uid });
+    const before = b.hp;
+    takeDamage(b, 20, 0.5);
+    expect(before - b.hp).toBe(10); // half pierced, half absorbed
+    expect(b.statuses[0].value).toBe(90);
+    void a;
+  });
+
+  it('marks stack on projectile/dash/area hits and burst at three', () => {
+    const sim = duel('sukuna', 'goku');
+    const [s, g] = sim.fighters;
+    g.invuln = 0;
+    const p = s.def.passive;
+    if (p.kind !== 'marks') throw new Error('Sukuna should have marks');
+    for (let i = 0; i < p.stacks; i++) applyEffects(ctx, s, g, dmg(5), sk(`d${i}`), s.pos);
+    expect(g.passive.marks).toBe(p.stacks);
+    const before = g.hp;
+    applyEffects(ctx, s, g, dmg(5), sk('d9'), s.pos);
+    expect(before - g.hp).toBeGreaterThanOrEqual(5 + p.bonus - 1); // the hit plus the burst
+    expect(g.passive.marks).toBe(0);
+  });
+
+  it('marks fade if he stops attacking', () => {
+    const sim = duel('sukuna', 'goku');
+    const [s, g] = sim.fighters;
+    g.invuln = 0;
+    applyEffects(ctx, s, g, dmg(5), sk('d1'), s.pos);
+    expect(g.passive.marks).toBe(1);
+    const p = s.def.passive;
+    stepCollect(sim, Math.ceil(((p.kind === 'marks' ? p.expire : 4) + 0.5) / DT));
+    expect(g.passive.marks).toBe(0);
+  });
+
+  it('the domain deals its finale once when it ends, and cannot be stunned while opening', () => {
+    const sim = duel('sukuna', 'goku');
+    const [s, g] = sim.fighters;
+    s.ult = 100;
+    for (const f of sim.fighters) f.auto = false;
+    sim.tryCast(s, 4);
+    expect(s.casting?.skill.uninterruptible).toBe(true);
+    applyEffects(ctx, g, s, [{ type: 'stun', duration: 1 }], g.skill(0), g.pos);
+    expect(s.casting).not.toBeNull(); // not interrupted
+    expect(s.stunned).toBe(false);
+    g.pos = { x: s.pos.x + 150, y: s.pos.y };
+    g.invuln = 0;
+    const hits: number[] = [];
+    for (let i = 0; i < 60 * 5; i++) {
+      sim.step();
+      for (const e of sim.drainEvents()) if (e.type === 'hit' && e.target === g.uid) hits.push(e.damage);
+    }
+    expect(Math.max(...hits)).toBeGreaterThanOrEqual(25); // the finale
+    expect(hits.filter((h) => h >= 25).length).toBe(1);
+  });
+});

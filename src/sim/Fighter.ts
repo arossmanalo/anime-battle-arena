@@ -48,6 +48,9 @@ export interface PassiveState {
   decided: Map<string, { blocked: boolean; remaining: number }>;
   /** Triggers since the Simulation last looked, turned into events. */
   procs: PassiveProc[];
+  /** marks passive (on the victim): marks currently on this fighter, and seconds until they fade. */
+  marks: number;
+  markTimer: number;
 }
 
 /** Runtime state of one fighter in a match. Pure data plus small helpers — the Simulation drives it. */
@@ -107,6 +110,8 @@ export class Fighter {
       used: false,
       decided: new Map(),
       procs: [],
+      marks: 0,
+      markTimer: 0,
     };
   }
 

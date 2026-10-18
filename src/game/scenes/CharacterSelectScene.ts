@@ -9,10 +9,12 @@ import { makePortrait } from '../view/portrait';
 
 type Slot = 'player' | 'enemy';
 
-const CARD_W = 124;
+// Up to 6 fighters fit in 3 columns; with more, 4 narrower columns keep the grid to 2 rows.
+const GRID_COLS = ROSTER.length > 6 ? 4 : 3;
+const CARD_W = GRID_COLS === 4 ? 104 : 124;
 const CARD_H = 112;
-const GRID_COLS = 3;
-const GRID_X = GAME_WIDTH / 2 - ((CARD_W + 10) * GRID_COLS - 10) / 2 + CARD_W / 2;
+const GRID_GAP = GRID_COLS === 4 ? 8 : 10;
+const GRID_X = GAME_WIDTH / 2 - ((CARD_W + GRID_GAP) * GRID_COLS - GRID_GAP) / 2 + CARD_W / 2;
 const GRID_Y = 150;
 const PANEL_W = 230;
 
@@ -55,7 +57,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     ROSTER.forEach((def, i) => {
-      const x = GRID_X + (i % GRID_COLS) * (CARD_W + 10);
+      const x = GRID_X + (i % GRID_COLS) * (CARD_W + GRID_GAP);
       const y = GRID_Y + Math.floor(i / GRID_COLS) * (CARD_H + 10);
       const frame = this.add
         .rectangle(x, y, CARD_W, CARD_H, COLORS.panel)

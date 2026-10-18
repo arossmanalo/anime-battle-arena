@@ -532,6 +532,13 @@ export class Simulation {
     this.zones = this.zones.filter((z) => {
       if (!z.owner.alive) return false;
       z.remaining -= DT;
+      if (z.remaining <= 0 && z.skill.finale) {
+        // The domain's last blow lands on everyone still inside.
+        for (const e of this.enemiesOf(z.owner)) {
+          if (dist(z.pos, e.pos) <= z.radius + e.def.radius) this.applyEffects(z.owner, e, z.skill.finale, z.skill, z.pos);
+        }
+        this.emit({ type: 'impact', x: z.pos.x, y: z.pos.y, radius: Math.min(z.radius, 260), color: z.skill.color, skillId: z.skill.id });
+      }
       z.tickTimer -= DT;
       if (z.tickTimer <= 0) {
         z.tickTimer = z.skill.tickInterval ?? 0.25;
