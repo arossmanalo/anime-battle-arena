@@ -8,11 +8,13 @@ import { FLOOR_KEY } from '../assets';
 import { sfx, type Sfx } from '../audio/Sfx';
 import { Announcer } from '../hud/Announcer';
 import { Hud } from '../hud/Hud';
+import { ROLE_COLOR, ROLE_LABEL, TEAM_COLOR, TeamHud } from '../hud/TeamHud';
+import { mainRole } from '../../sim/roles';
 import { SkillBar } from '../hud/SkillBar';
 import { TrainingHud } from '../hud/TrainingHud';
 import { PlayerController } from '../input/PlayerController';
 import { ARENA_HEIGHT, ARENA_WIDTH, ARENA_X, ARENA_Y, fitCamera, GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from '../layout';
-import type { MatchResult, MatchSetup } from '../match';
+import { TEAM_ARENAS, type MatchResult, type MatchSetup } from '../match';
 import { COLORS, impactStyle, shade, textStyle } from '../theme';
 import { FighterView } from '../view/FighterView';
 import { Vfx } from '../view/Vfx';
@@ -24,17 +26,23 @@ const hitstopFor = (dmg: number) => (dmg >= 30 ? 0.09 : dmg >= 15 ? 0.05 : dmg >
 export class BattleScene extends Phaser.Scene {
   private setup!: MatchSetup;
   private sim!: Simulation;
-  private player!: Fighter;
+  private player?: Fighter;
+  /** Team battle: everyone is AI-controlled, there is no player fighter. */
+  private teamMode = false;
+  /** World container scale (team arenas are bigger than the screen area and drawn scaled down). */
+  private worldScale = 1;
+  private speedMult = 1;
+  private lastVoiceAt = -10;
   private world!: Phaser.GameObjects.Container;
   private ui!: Phaser.GameObjects.Container;
   private fightersLayer!: Phaser.GameObjects.Container;
   private trailLayer!: Phaser.GameObjects.Container;
   private views = new Map<number, FighterView>();
   private vfx!: Vfx;
-  private hud!: Hud;
-  private bar!: SkillBar;
+  private hud!: Hud | TeamHud;
+  private bar?: SkillBar;
   private announcer!: Announcer;
-  private controller!: PlayerController;
+  private controller?: PlayerController;
   private trainingHud?: TrainingHud;
   private uiCam!: Phaser.Cameras.Scene2D.Camera;
   private sfx!: Sfx;
@@ -53,6 +61,13 @@ export class BattleScene extends Phaser.Scene {
 
   init(setup: MatchSetup): void {
     this.setup = setup;
+    this.teamMode = !!setup.team;
+    this.worldScale = 1;
+    this.speedMult = 1;
+    this.lastVoiceAt = -10;
+    this.player = undefined;
+    this.controller = undefined;
+    this.bar = undefined;
     this.views = new Map();
     this.acc = 0;
     this.timeScale = 1;
@@ -65,25 +80,29 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create(): void {
+    const team = this.setup.team;
     this.sim = new Simulation({
       seed: this.setup.seed,
       difficulty: this.setup.difficulty,
-      arena: { width: ARENA_WIDTH, height: ARENA_HEIGHT },
+      arena: team ? TEAM_ARENAS[team.size] : { width: ARENA_WIDTH, height: ARENA_HEIGHT },
       training: this.setup.training,
-      ...(this.setup.training ? { idleFallback: 0 } : {}),
-      teams: [
-        [{ def: fighterById(this.setup.playerId), controller: 'player' }],
-        this.setup.training
-          ? [{ def: TRAINING_DUMMY, controller: 'dummy' }]
-          : [{ def: fighterById(this.setup.enemyId), controller: 'ai' }],
-      ],
+      ...(this.setup.training || team ? { idleFallback: 0 } : {}),
+      teams: team
+        ? [team.player, team.enemy].map((side) => side.map((m) => ({ def: fighterById(m.id), controller: 'ai' as const, row: m.row })))
+        : [
+            [{ def: fighterById(this.setup.playerId), controller: 'player' }],
+            this.setup.training
+              ? [{ def: TRAINING_DUMMY, controller: 'dummy' }]
+              : [{ def: fighterById(this.setup.enemyId), controller: 'ai' }],
+          ],
     });
-    this.player = this.sim.fighters.find((f) => f.controller === 'player')!;
+    this.worldScale = ARENA_WIDTH / this.sim.arena.width;
+    this.player = this.sim.fighters.find((f) => f.controller === 'player');
     this.sfx = sfx(this);
 
     // World (arena space, offset onto the screen) and UI live on separate cameras,
     // so camera zoom/shake moves the arena but never the HUD.
-    this.world = this.add.container(ARENA_X, ARENA_Y);
+    this.world = this.add.container(ARENA_X, ARENA_Y).setScale(this.worldScale);
     this.ui = this.add.container(0, 0);
     fitCamera(this.cameras.main);
     this.uiCam = this.cameras.add(0, 0, GAME_WIDTH * RENDER_SCALE, GAME_HEIGHT * RENDER_SCALE);
@@ -101,13 +120,20 @@ export class BattleScene extends Phaser.Scene {
 
     this.vfx = new Vfx(this, { floor, zones, fx });
     this.vfx.setClock(() => this.sim.time);
+    this.vfx.setView(this.sim.arena.width, this.sim.arena.height, this.worldScale);
     for (const f of this.sim.fighters) {
-      this.views.set(f.uid, new FighterView(this, f, this.fightersLayer, f === this.player));
+      const role = mainRole(f.def);
+      const teamInfo = this.teamMode ? { color: TEAM_COLOR[f.team], tag: ROLE_LABEL[role], tagColor: ROLE_COLOR[role] } : undefined;
+      this.views.set(f.uid, new FighterView(this, f, this.fightersLayer, f === this.player, teamInfo));
     }
 
-    this.hud = new Hud(this, this.sim, this.ui);
-    this.bar = new SkillBar(this, this.player, this.ui, (a) => this.controller.act(a));
-    this.controller = new PlayerController(this, this.sim, this.player, this.bar);
+    if (this.teamMode) {
+      this.hud = new TeamHud(this, this.sim, this.ui);
+    } else {
+      this.hud = new Hud(this, this.sim, this.ui);
+      this.bar = new SkillBar(this, this.player!, this.ui, (a) => this.controller!.act(a));
+      this.controller = new PlayerController(this, this.sim, this.player!, this.bar);
+    }
     this.announcer = new Announcer(this, this.world, this.ui);
     if (this.setup.training) this.setupTraining();
 
@@ -115,7 +141,11 @@ export class BattleScene extends Phaser.Scene {
       .text(
         GAME_WIDTH - 8,
         GAME_HEIGHT - 4,
-        this.setup.training ? '1-4 skills · U ultimate · T form · A auto · R reset · C cooldowns · D dummy · M mute · ESC pause' : '1-4 skills · U ultimate · T transform · A auto · M mute · ESC pause',
+        this.teamMode
+          ? 'S speed · M mute · ESC pause · everyone is AI-controlled'
+          : this.setup.training
+            ? '1-4 skills · U ultimate · T form · A auto · R reset · C cooldowns · D dummy · M mute · ESC pause'
+            : '1-4 skills · U ultimate · T transform · A auto · M mute · ESC pause',
         textStyle(10, COLORS.muted),
       )
       .setOrigin(1, 1);
@@ -123,12 +153,17 @@ export class BattleScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown-ESC', () => this.togglePause());
     this.input.keyboard?.on('keydown-M', () => this.sfx.toggleMute());
+    this.input.keyboard?.on('keydown-S', () => {
+      if (!this.teamMode) return;
+      this.speedMult = this.speedMult === 1 ? 2 : this.speedMult === 2 ? 0.5 : 1;
+      this.announcer.banner(`${this.speedMult}x`, COLORS.energy, undefined, 400);
+    });
     this.input.keyboard?.on('keydown-Q', () => {
-      if (this.paused) this.scene.start('CharacterSelect', this.setup);
+      if (this.paused) this.scene.start(this.teamMode ? 'TeamSelect' : 'CharacterSelect', this.setup);
     });
 
     this.handleEvents(this.sim.drainEvents()); // intro voice lines
-    this.announcer.banner(this.setup.training ? 'TRAINING' : 'READY', COLORS.ult, undefined, 700);
+    this.announcer.banner(this.setup.training ? 'TRAINING' : this.teamMode ? `${this.setup.team!.size} v ${this.setup.team!.size}` : 'READY', COLORS.ult, undefined, 700);
     this.time.delayedCall(1100, () => {
       if (!this.setup.training) this.announcer.banner('FIGHT!', 0xff5a3c, undefined, 500);
       this.sfx.play('fight');
@@ -157,25 +192,25 @@ export class BattleScene extends Phaser.Scene {
 
   private drawArena(): void {
     if (this.textures.exists(FLOOR_KEY)) {
-      this.world.add(this.add.tileSprite(0, 0, ARENA_WIDTH, ARENA_HEIGHT, FLOOR_KEY).setOrigin(0));
+      this.world.add(this.add.tileSprite(0, 0, this.sim.arena.width, this.sim.arena.height, FLOOR_KEY).setOrigin(0));
     }
     const g = this.add.graphics();
     if (!this.textures.exists(FLOOR_KEY)) {
-      g.fillStyle(0x3a3e4c).fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+      g.fillStyle(0x3a3e4c).fillRect(0, 0, this.sim.arena.width, this.sim.arena.height);
       // Stone tiles with a little deterministic variation.
       const tile = 46;
-      for (let y = 0; y < ARENA_HEIGHT; y += tile) {
-        for (let x = 0; x < ARENA_WIDTH; x += tile) {
+      for (let y = 0; y < this.sim.arena.height; y += tile) {
+        for (let x = 0; x < this.sim.arena.width; x += tile) {
           const v = ((x * 7 + y * 13) % 5) / 5;
-          const w = Math.min(tile, ARENA_WIDTH - x) - 2;
-          const h = Math.min(tile, ARENA_HEIGHT - y) - 2;
+          const w = Math.min(tile, this.sim.arena.width - x) - 2;
+          const h = Math.min(tile, this.sim.arena.height - y) - 2;
           g.fillStyle(shade(0x3a3e4c, -0.08 + v * 0.12)).fillRect(x + 1, y + 1, w, h);
         }
       }
     }
-    g.lineStyle(2, 0xffffff, 0.08).strokeCircle(ARENA_WIDTH / 2, ARENA_HEIGHT / 2, 70);
-    g.lineBetween(ARENA_WIDTH / 2, 0, ARENA_WIDTH / 2, ARENA_HEIGHT);
-    g.lineStyle(4, 0x6a7090).strokeRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+    g.lineStyle(2, 0xffffff, 0.08).strokeCircle(this.sim.arena.width / 2, this.sim.arena.height / 2, 70);
+    g.lineBetween(this.sim.arena.width / 2, 0, this.sim.arena.width / 2, this.sim.arena.height);
+    g.lineStyle(4, 0x6a7090).strokeRect(0, 0, this.sim.arena.width, this.sim.arena.height);
     this.world.add(g);
   }
 
@@ -205,11 +240,11 @@ export class BattleScene extends Phaser.Scene {
 
     if (this.introLeft > 0) {
       this.introLeft -= dt;
-      if (this.introLeft <= 0) this.controller.enabled = true;
+      if (this.introLeft <= 0 && this.controller) this.controller.enabled = true;
     } else if (!this.sim.over) {
       if (this.hitstop > 0) this.hitstop -= dt;
       else {
-        this.acc += dt * this.timeScale;
+        this.acc += dt * this.timeScale * this.speedMult;
         while (this.acc >= DT && !this.sim.over) {
           this.sim.step();
           this.acc -= DT;
@@ -232,7 +267,7 @@ export class BattleScene extends Phaser.Scene {
     this.vfx.syncAttached();
     this.hud.update(dt);
     this.trainingHud?.update();
-    this.bar.update();
+    this.bar?.update();
     this.announcer.update();
   }
 
@@ -249,7 +284,8 @@ export class BattleScene extends Phaser.Scene {
             this.cinematic(f, 0.35, 900, 1.25);
             // The wind-up plays in slow motion, so stretch the charge sound to match.
             this.sfx.play('charge', { duration: e.skill.castTime / 0.35 });
-          } else {
+          } else if (!this.teamMode) {
+            // With many fighters casting at once, only ultimates get a name callout.
             this.announcer.callout(f.pos.x, this.calloutY(f), e.skill.name, e.skill.color);
           }
           break;
@@ -270,8 +306,8 @@ export class BattleScene extends Phaser.Scene {
           break;
         }
         case 'castFailed':
-          if (e.uid === this.player.uid) {
-            this.controller.onCastFailed(e.reason);
+          if (this.player && e.uid === this.player.uid) {
+            this.controller?.onCastFailed(e.reason);
             this.sfx.play('fail');
           }
           break;
@@ -306,6 +342,9 @@ export class BattleScene extends Phaser.Scene {
         }
         case 'voiceLine': {
           const f = this.sim.fighter(e.uid)!;
+          // With many fighters, only let a line through every so often so the subtitles stay readable.
+          if (this.teamMode && this.sim.time - this.lastVoiceAt < 1.5) break;
+          this.lastVoiceAt = this.sim.time;
           this.announcer.say(f.def.name, e.text, f.def.color);
           break;
         }
@@ -362,8 +401,14 @@ export class BattleScene extends Phaser.Scene {
   private cinematic(f: Fighter, slow: number, durationMs: number, zoom: number): void {
     const cam = this.cameras.main;
     this.tweens.killTweensOf(this);
+    // Team battles: many fighters act at once, so cinematics are shorter and gentler.
+    if (this.teamMode) {
+      slow = Math.max(slow, 0.7);
+      durationMs = Math.min(durationMs, 500);
+      zoom = 1 + (zoom - 1) * 0.35;
+    }
     this.timeScale = slow;
-    cam.pan(ARENA_X + f.pos.x, ARENA_Y + f.pos.y, 200, 'Sine.easeOut', true);
+    cam.pan(ARENA_X + f.pos.x * this.worldScale, ARENA_Y + f.pos.y * this.worldScale, 200, 'Sine.easeOut', true);
     cam.zoomTo(zoom * RENDER_SCALE, 200, 'Sine.easeOut', true);
     this.time.delayedCall(durationMs, () => {
       cam.pan(GAME_WIDTH / 2, GAME_HEIGHT / 2, 300, 'Sine.easeInOut', true);
@@ -374,14 +419,14 @@ export class BattleScene extends Phaser.Scene {
 
   private endMatch(winnerTeam: number, reason: 'ko' | 'time'): void {
     this.ending = true;
-    this.controller.enabled = false;
+    if (this.controller) this.controller.enabled = false;
     const winner = this.sim.fighters.find((f) => f.team === winnerTeam);
     this.announcer.banner(reason === 'ko' ? 'K.O.!' : 'TIME UP!', COLORS.danger, undefined, 1000);
     if (winner) this.cinematic(winner, 0.5, 1400, 1.3);
     this.time.delayedCall(1500, () => {
-      const text = winner ? `${winner.def.name.toUpperCase()} WINS` : 'DRAW';
-      const sub = winner ? (winner === this.player ? 'VICTORY' : 'DEFEAT') : undefined;
-      this.announcer.banner(text, winner ? winner.def.color : COLORS.muted, sub, 1500);
+      const text = winner ? (this.teamMode ? (winnerTeam === 0 ? 'YOUR TEAM WINS' : 'ENEMY TEAM WINS') : `${winner.def.name.toUpperCase()} WINS`) : 'DRAW';
+      const sub = winner ? (this.teamMode ? (winnerTeam === 0 ? 'VICTORY' : 'DEFEAT') : winner === this.player ? 'VICTORY' : 'DEFEAT') : undefined;
+      this.announcer.banner(text, winner ? (this.teamMode ? TEAM_COLOR[winnerTeam] : winner.def.color) : COLORS.muted, sub, 1500);
     });
     this.time.delayedCall(4200, () => {
       const result: MatchResult = {
@@ -399,6 +444,8 @@ export class BattleScene extends Phaser.Scene {
           skillsUsed: f.stats.skillsUsed,
           hits: f.stats.hits,
           transformed: f.transformed,
+          team: f.team,
+          healing: Math.round(f.stats.healingDone),
         })),
       };
       this.scene.start('Results', result);

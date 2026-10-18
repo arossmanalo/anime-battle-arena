@@ -339,7 +339,7 @@ export class Simulation {
       f.combo = 0;
       f.attackCd = 0;
       f.cooldowns.clear();
-      f.stats = { damageDealt: 0, damageTaken: 0, skillsUsed: 0, hits: 0 };
+      f.stats = { damageDealt: 0, damageTaken: 0, skillsUsed: 0, hits: 0, healingDone: 0 };
       f.pos = { ...f.home };
       f.passive.hitsLeft = f.def.passive.kind === 'barrier' ? f.def.passive.hits : 0;
       f.passive.recharge = 0;

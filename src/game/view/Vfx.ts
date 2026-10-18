@@ -106,6 +106,19 @@ export class Vfx {
     layers.fx.add([this.trail, this.beamGfx, this.sparks, this.shards, this.slashGfx]);
   }
 
+  /** Arena size in sim units and how much the world container is scaled down on screen (team battles use bigger arenas). */
+  private view = { arenaW: ARENA_WIDTH, arenaH: ARENA_HEIGHT, scale: 1 };
+
+  setView(arenaW: number, arenaH: number, scale: number): void {
+    this.view = { arenaW, arenaH, scale };
+  }
+
+  /** The whole game screen, in world (arena) coordinates. */
+  private screenRect(): { x: number; y: number; w: number; h: number } {
+    const s = this.view.scale;
+    return { x: -ARENA_X / s, y: -ARENA_Y / s, w: GAME_WIDTH / s, h: GAME_HEIGHT / s };
+  }
+
   setClock(clock: () => number): void {
     this.clock = clock;
   }
@@ -425,17 +438,18 @@ export class Vfx {
         let sprite = this.zoneSprites.get(z.id);
         if (!sprite) {
           sprite = this.createFxSprite(z.skill.id, 'body', body, z.radius * 2.3);
-          if (z.skill.domain) sprite.setDisplaySize(ARENA_WIDTH, ARENA_HEIGHT);
+          if (z.skill.domain) sprite.setDisplaySize(this.view.arenaW, this.view.arenaH);
           this.layers.zones.add(sprite);
           this.zoneSprites.set(z.id, sprite);
         }
-        sprite.setPosition(z.skill.domain ? ARENA_WIDTH / 2 : z.pos.x, z.skill.domain ? ARENA_HEIGHT / 2 : z.pos.y).setAlpha(a);
+        sprite.setPosition(z.skill.domain ? this.view.arenaW / 2 : z.pos.x, z.skill.domain ? this.view.arenaH / 2 : z.pos.y).setAlpha(a);
         live.add(z.id);
         continue;
       }
       if (z.skill.domain) {
         // A Domain Expansion paints over the whole screen, not just the arena.
-        g.fillStyle(z.skill.color, 0.72 * a).fillRect(-ARENA_X, -ARENA_Y, GAME_WIDTH, GAME_HEIGHT);
+        const sr = this.screenRect();
+        g.fillStyle(z.skill.color, 0.72 * a).fillRect(sr.x, sr.y, sr.w, sr.h);
         g.lineStyle(2, 0xffffff, 0.15 * a);
         for (let i = 0; i < 6; i++) {
           const r = ((t * 120 + i * 90) % 540) + 10;
@@ -444,8 +458,8 @@ export class Vfx {
         g.fillStyle(0xffffff, 0.5 * a);
         for (let i = 0; i < 40; i++) {
           // Deterministic star field so it doesn't flicker.
-          const sx = (i * 137.5) % ARENA_WIDTH;
-          const sy = (i * 71.3 + t * 8) % ARENA_HEIGHT;
+          const sx = (i * 137.5) % this.view.arenaW;
+          const sy = (i * 71.3 + t * 8) % this.view.arenaH;
           g.fillCircle(sx, sy, 1 + (i % 3));
         }
         continue;
@@ -489,7 +503,8 @@ export class Vfx {
    */
   private drawSlashDomain(z: Zone, a: number): void {
     const g = this.zoneGfx;
-    g.fillStyle(0x2a040c, 0.55 * a).fillRect(-ARENA_X, -ARENA_Y, GAME_WIDTH, GAME_HEIGHT);
+    const sr = this.screenRect();
+    g.fillStyle(0x2a040c, 0.55 * a).fillRect(sr.x, sr.y, sr.w, sr.h);
     const id = z.skill.id;
     const loopInfo = this.fx(id, 'body');
     const castInfo = loopInfo ?? this.fx(id, 'cast');
@@ -512,8 +527,8 @@ export class Vfx {
       this.slashAcc -= 1 / 180;
       this.slashes.push({
         frame: Math.floor(Math.random() * 99),
-        x: Math.random() * GAME_WIDTH - ARENA_X,
-        y: Math.random() * GAME_HEIGHT - ARENA_Y,
+        x: this.screenRect().x + Math.random() * this.screenRect().w,
+        y: this.screenRect().y + Math.random() * this.screenRect().h,
         angle: Math.random() * Math.PI,
         len: 260 + Math.random() * 620,
         width: 1.5 + Math.random() * 2.5,
@@ -591,11 +606,12 @@ export class Vfx {
     if (!d) {
       const sprite = this.createFxSprite(z.skill.id, 'body', info, GAME_WIDTH);
       // Cover the screen without squashing the art, with margin for camera pans and zooms.
-      const cover = Math.max((GAME_WIDTH * DOMAIN_OVERSCAN) / info.frameWidth, (GAME_HEIGHT * DOMAIN_OVERSCAN) / info.frameHeight);
+      const sw = this.screenRect();
+      const cover = Math.max((sw.w * DOMAIN_OVERSCAN) / info.frameWidth, (sw.h * DOMAIN_OVERSCAN) / info.frameHeight);
       const baseW = info.frameWidth * cover;
       const baseH = info.frameHeight * cover;
       sprite.setDisplaySize(baseW, baseH);
-      const vignette = this.scene.add.image(0, 0, this.vignetteTexture()).setDisplaySize(GAME_WIDTH * DOMAIN_OVERSCAN, GAME_HEIGHT * DOMAIN_OVERSCAN);
+      const vignette = this.scene.add.image(0, 0, this.vignetteTexture()).setDisplaySize(this.screenRect().w * DOMAIN_OVERSCAN, this.screenRect().h * DOMAIN_OVERSCAN);
       const maskGfx = this.scene.make.graphics({}, false);
       const mask = new Phaser.Display.Masks.GeometryMask(this.scene, maskGfx);
       sprite.setMask(mask);
@@ -605,8 +621,9 @@ export class Vfx {
       this.domains.set(z.id, d);
     }
     // Screen centre in the world container's coordinates.
-    const cx = GAME_WIDTH / 2 - ARENA_X;
-    const cy = GAME_HEIGHT / 2 - ARENA_Y;
+    const sr = this.screenRect();
+    const cx = sr.x + sr.w / 2;
+    const cy = sr.y + sr.h / 2;
     const t = (this.scene.time.now - d.start) / DOMAIN_OPEN_MS;
     const open = Math.min(1, t);
     const eased = 1 - Math.pow(1 - open, 3);
@@ -614,7 +631,7 @@ export class Vfx {
     const maxR = Math.hypot(GAME_WIDTH, GAME_HEIGHT) * 1.1;
     const radius = eased * maxR;
     if (d.mask) {
-      d.maskGfx.clear().fillStyle(0xffffff).fillCircle(ARENA_X + origin.x, ARENA_Y + origin.y, radius);
+      d.maskGfx.clear().fillStyle(0xffffff).fillCircle(ARENA_X + origin.x * this.view.scale, ARENA_Y + origin.y * this.view.scale, radius * this.view.scale);
       if (open >= 1) {
         d.sprite.clearMask(true);
         d.vignette.clearMask(false);

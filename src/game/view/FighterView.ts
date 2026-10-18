@@ -47,12 +47,15 @@ export class FighterView {
     private readonly f: Fighter,
     parent: Phaser.GameObjects.Container,
     isPlayer: boolean,
+    /** Team battles: a coloured ring under the fighter and a role tag instead of YOU / CPU. */
+    team?: { color: number; tag: string; tagColor: number },
   ) {
     const r = f.def.radius;
     this.root = scene.add.container(f.pos.x, f.pos.y);
     parent.add(this.root);
 
     const shadow = scene.add.ellipse(0, r * 0.85, r * 2.2, r * 0.8, 0x000000, 0.35);
+    const ring = team ? scene.add.ellipse(0, r * 0.85, r * 2.9, r * 1.1).setStrokeStyle(3, team.color, 0.9) : null;
     this.aura = scene.add.image(0, 0, 'glow').setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.charge = scene.add.graphics();
 
@@ -92,14 +95,14 @@ export class FighterView {
 
     this.hpBar = scene.add.graphics();
     const tag = scene.add
-      .text(0, this.headY - 13, f.def.id === 'dummy' ? 'DUMMY' : isPlayer ? 'YOU' : 'CPU', textStyle(9, isPlayer ? COLORS.energy : COLORS.danger, { fontStyle: 'bold' }))
+      .text(0, this.headY - 13, team ? team.tag : f.def.id === 'dummy' ? 'DUMMY' : isPlayer ? 'YOU' : 'CPU', textStyle(9, team ? team.tagColor : isPlayer ? COLORS.energy : COLORS.danger, { fontStyle: 'bold' }))
       .setOrigin(0.5);
     this.status = scene.add.text(0, this.headY - 25, '', textStyle(11, 0xffffff, { fontStyle: 'bold' })).setOrigin(0.5);
 
     // With a real sprite the art itself shows facing and the hit flash tints the sprite instead.
     if (this.sprite) this.facingMark.setVisible(false);
 
-    this.root.add([shadow, this.aura, this.charge, this.body, this.facingMark, this.flash, this.shield, this.hpBar, tag, this.status]);
+    this.root.add([...(ring ? [ring] : []), shadow, this.aura, this.charge, this.body, this.facingMark, this.flash, this.shield, this.hpBar, tag, this.status]);
   }
 
   /** Whether a skill has a custom effect sprite for this part (so the generic one is skipped). */

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { TRAINING_DUMMY } from '../src/data/dummy';
 import { ROSTER, fighterById } from '../src/data/fighters';
+import { draftOrder, fillTeam, maxDraftSize, pickForTeam } from '../src/sim/draft';
+import { roleScores } from '../src/sim/roles';
 import { applyEffects, gainUlt, takeDamage } from '../src/sim/effects';
 import { Rng } from '../src/sim/rng';
 import { DT, Simulation } from '../src/sim/Simulation';
@@ -680,5 +682,33 @@ describe('team mechanics', () => {
       sim.runToEnd();
       expect(sim.over).toBe(true);
     }
+  });
+});
+
+describe('draft and smart picker', () => {
+  const rng = () => 0.5;
+
+  it('the snake order is player, CPU, CPU, player, ...', () => {
+    expect(draftOrder(2)).toEqual([true, false, false, true]);
+    expect(draftOrder(3)).toEqual([true, false, false, true, true, false]);
+    expect(draftOrder(3).filter(Boolean).length).toBe(3);
+  });
+
+  it('the smart picker covers roles: a team with no healer picks one', () => {
+    const team = [fighterById('vegeta'), fighterById('sukuna')];
+    const pick = pickForTeam(team, ROSTER, 3, rng);
+    expect(pick && roleScores(pick).healer + roleScores(pick).tank).toBeGreaterThan(0.3);
+  });
+
+  it('fillTeam makes a full team without duplicates, and respects unavailable fighters', () => {
+    const team = fillTeam([], ROSTER, 4, rng, new Set(['naruto']));
+    expect(team.length).toBe(4);
+    expect(new Set(team.map((d) => d.id)).size).toBe(4);
+    expect(team.some((d) => d.id === 'naruto')).toBe(false);
+  });
+
+  it('a draft can only be as big as half the roster', () => {
+    expect(maxDraftSize(7)).toBe(3);
+    expect(maxDraftSize(8)).toBe(4);
   });
 });

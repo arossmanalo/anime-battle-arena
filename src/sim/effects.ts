@@ -121,7 +121,10 @@ export function applyEffects(
       case 'heal': {
         const before = target.hp;
         target.hp = Math.min(target.maxHp, target.hp + Math.round(e.amount * (ctx.healMult?.() ?? 1)));
-        if (target.hp > before) ctx.onHeal?.(source, target, target.hp - before);
+        if (target.hp > before) {
+          source.stats.healingDone += target.hp - before;
+          ctx.onHeal?.(source, target, target.hp - before);
+        }
         break;
       }
       case 'taunt':

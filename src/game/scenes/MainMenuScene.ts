@@ -40,13 +40,20 @@ export class MainMenuScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.tweens.add({ targets: start, alpha: 0.35, duration: 650, yoyo: true, repeat: -1 });
 
+    const teamBtn = this.add
+      .text(cx, 350, 'TEAM BATTLE  (B)', impactStyle(20, 0xff9a5a))
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    teamBtn.on('pointerover', () => teamBtn.setScale(1.06));
+    teamBtn.on('pointerout', () => teamBtn.setScale(1));
+
     const training = this.add
-      .text(cx, 372, 'TRAINING MODE  (T)', impactStyle(20, COLORS.energy))
+      .text(cx, 392, 'TRAINING MODE  (T)', impactStyle(20, COLORS.energy))
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     training.on('pointerover', () => training.setScale(1.06));
     training.on('pointerout', () => training.setScale(1));
-    this.add.text(cx, 400, 'a dummy to test any move on, with infinite energy', textStyle(12, COLORS.muted)).setOrigin(0.5);
+    this.add.text(cx, 418, 'a dummy to test any move on, with infinite energy', textStyle(12, COLORS.muted)).setOrigin(0.5);
 
     this.add
       .text(
@@ -61,11 +68,14 @@ export class MainMenuScene extends Phaser.Scene {
     const train = () => this.scene.start('CharacterSelect', { training: true });
     this.input.keyboard?.once('keydown-ENTER', go);
     this.input.keyboard?.once('keydown-SPACE', go);
+    const teams = () => this.scene.start('TeamSelect');
     this.input.keyboard?.once('keydown-T', train);
+    this.input.keyboard?.once('keydown-B', teams);
     training.once('pointerdown', train);
+    teamBtn.once('pointerdown', teams);
     // Clicking anywhere else starts a normal match.
     this.input.once('pointerdown', (_p: Phaser.Input.Pointer, over: unknown[]) => {
-      if (!over.includes(training)) go();
+      if (!over.includes(training) && !over.includes(teamBtn)) go();
     });
   }
 }

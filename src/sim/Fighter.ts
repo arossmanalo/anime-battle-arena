@@ -34,6 +34,7 @@ export interface FighterStats {
   damageTaken: number;
   skillsUsed: number;
   hits: number;
+  healingDone: number;
 }
 
 /** Mutable state behind a fighter's passive. */
@@ -96,7 +97,7 @@ export class Fighter {
   /** Seconds since the player last issued a skill command. */
   idleTime = 0;
   passive: PassiveState;
-  stats: FighterStats = { damageDealt: 0, damageTaken: 0, skillsUsed: 0, hits: 0 };
+  stats: FighterStats = { damageDealt: 0, damageTaken: 0, skillsUsed: 0, hits: 0, healingDone: 0 };
 
   constructor(
     readonly uid: number,
