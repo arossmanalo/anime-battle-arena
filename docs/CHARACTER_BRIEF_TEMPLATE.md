@@ -67,6 +67,7 @@ Basic attack: sword slash combo
 Passive: Unbreakable Resolve, once per match he survives a lethal hit on 1 HP and is untouchable for 2 seconds.
 Transformation: Demon Slayer Mark, unlocks when he is badly hurt: faster and stronger, regains some health.
 Feel: fast, aggressive, resilient
+Team role (optional): tank / healer / support / damage, or a mix (for example "tank with some damage"), and what they do for allies in a team battle (taunt and guard, heal, shield or buff teammates). Leave blank for a pure damage dealer.
 Anything else: kind, earnest voice lines ("I'll protect everyone, no matter what!"); keep it a pure close-range fighter.
 ```
 

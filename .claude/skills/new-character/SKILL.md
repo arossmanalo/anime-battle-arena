@@ -50,6 +50,9 @@ A fighter (`FighterDef`, see `src/sim/types.ts`) has: stats, **4 skills**, **1 u
 - A skill's `support: { to: 'lowestAlly' | 'allAllies' | 'nearestAlly', range?, effects[] }` applies effects to teammates (kind `buff`, `effects: []`, caster effects in `selfEffects`).
 - Effects: `heal` (amount 40-50 for a healer, 20-30 for a hybrid), `shield` (24-40), `guard { factor 0.5-0.7, duration 4 }`, `taunt { duration 3-3.5 }` (an `aoe` with `range: 0`, `radius` about 230, taunt in `effects`), `cleanse`, plus the existing buffs.
 - Tank: `aiProfile: 'rushdown'` or `balanced`, roles `{ tank: 0.7+ }`, a taunt + guard skill in its team kit. Healer: roles `{ healer: 0.7, damage: 0.3-0.5 }`, a heal + cleanse in its team kit, `aiProfile: 'zoner'`. Support: shield/buff for allies. Damage fighters can omit the kit.
+- **Team-kit skills reuse the solo skill's `id`** (for example the team `sasuke.susanoo` replaces the solo `sasuke.susanoo` in slot 3). Effect art is keyed by skill id, so a new id means the default effect is drawn instead of the custom art. Keep the same `kind` family too: self-only team skills (taunt, guard, shield on the caster) may be `buff` or an `aoe` with `selfEffects`, and either one shows the solo `body` aura. Do not give a team-kit skill an id that has no FX folder.
+- **Domains** (`domain: true`) are automatically shrunk to a circle of at most 300 radius in team battles (`TEAM_DOMAIN_RADIUS`), and the view draws them clipped to that circle, so no extra work is needed. Check the domain art still reads at that size.
+- **Orders**: the player can order focus, protect, stance and hold ultimates in team battles. The AI honours them through roles, so a correct `roles` score is what makes a fighter behave right under orders: tanks guard the protected ally, healers and supports favour them, damage dealers hunt whoever attacks them. Ultimates are cast with `slot: 4` by the U button, so the ultimate must be a normal `ultimate: true` skill.
 - Run `npm run team-balance -- 2 300` and `-- 4 120`: no fighter or role mix should be far outside about 40-60%, and all-damage teams should lose to a balanced one.
 
 **Voice lines**: 2 each for `intro`, `ultimate`, `transform`, `hurt`, `win`, short and in character (paraphrase, do not quote copyrighted dialogue).
@@ -65,6 +68,7 @@ A fighter (`FighterDef`, see `src/sim/types.ts`) has: stats, **4 skills**, **1 u
 ## 3. Verify and balance
 
 - `npx tsc --noEmit` and `npx vitest run` (the "well-formed" test checks ids and costs).
+- Check each team-kit skill id also exists as a solo skill id (so the art follows it), and in headless Chrome start a 2v2 with the new fighter, cast the team-kit skill and confirm its FX sprite is attached (`window.__sc.vfx.attached`).
 - `npm run team-balance -- 2 300` (and `-- 4 120`) as described under roles.
 - `npm run balance -- 100`: aim for each fighter's overall win rate within about 40-60% and no matchup outside 25-75%. If the new character is off, tune **their** numbers (damage, cooldown, hp) in small steps and re-run; only touch other characters if the new one is fine and the roster shifted. Report the final table.
 
