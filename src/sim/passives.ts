@@ -12,6 +12,7 @@ export function tickPassive(f: Fighter, dt: number): void {
   const p = f.passiveDef;
   const state = f.passive;
   state.calm += dt;
+  if (state.boost > 0) state.boost -= dt;
   if (state.marks > 0 && (state.markTimer -= dt) <= 0) state.marks = 0;
   for (const [key, d] of state.decided) {
     d.remaining -= dt;

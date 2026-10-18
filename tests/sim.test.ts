@@ -930,3 +930,111 @@ describe('Broly juggernaut', () => {
   });
 });
 
+describe('Sakura medical ninja', () => {
+  function squadOf(): Simulation {
+    return new Simulation({
+      seed: 8,
+      idleFallback: 0,
+      teams: [
+        ['sakura', 'vegeta'].map((id) => ({ def: fighterById(id), controller: 'ai' as const })),
+        ['goku', 'sukuna'].map((id) => ({ def: fighterById(id), controller: 'ai' as const })),
+      ],
+    });
+  }
+
+  it('regen heals over time and refreshes instead of stacking', () => {
+    const sim = duel('sakura', 'naruto');
+    const [sak, foe] = sim.fighters;
+    foe.pos = { x: 800, y: 60 };
+    sak.hp = sak.maxHp - 100;
+    const regen: Effect[] = [{ type: 'regen', hps: 10, duration: 2 }];
+    sim.applyEffects(sak, sak, regen, sak.skill(0), sak.pos);
+    sim.applyEffects(sak, sak, regen, sak.skill(0), sak.pos);
+    expect(sak.statuses.filter((x) => x.type === 'regen').length).toBe(1);
+    const before = sak.hp;
+    for (let i = 0; i < Math.ceil(1 / DT); i++) sim.step();
+    expect(sak.hp - before).toBeGreaterThan(5);
+  });
+
+  it('self healing is reduced by selfFactor', () => {
+    const sim = duel('sakura', 'naruto');
+    const [sak, foe] = sim.fighters;
+    sak.hp = sak.maxHp - 100;
+    foe.hp = foe.maxHp - 100;
+    const heal: Effect[] = [{ type: 'heal', amount: 40, selfFactor: 0.5 }];
+    sim.applyEffects(sak, sak, heal, sak.skill(0), sak.pos);
+    sim.applyEffects(sak, foe, heal, sak.skill(0), sak.pos);
+    expect(sak.hp - (sak.maxHp - 100)).toBeLessThan(foe.hp - (foe.maxHp - 100));
+  });
+
+  it('a ward blocks new slows, burns and stuns', () => {
+    const sim = duel('sakura', 'naruto');
+    const [sak, foe] = sim.fighters;
+    sim.applyEffects(sak, sak, [{ type: 'ward', duration: 3 }], sak.skill(1), sak.pos);
+    sim.applyEffects(foe, sak, [{ type: 'slow', factor: 0.5, duration: 2 }, { type: 'burn', dps: 3, duration: 2 }, { type: 'stun', duration: 1 }], foe.skill(0), foe.pos);
+    expect(sak.hasStatus('slow') || sak.hasStatus('burn') || sak.stunned).toBe(false);
+  });
+
+  it('Cherry Blossom Impact stuns enemies close in and only slows those farther out', () => {
+    const sim = duel('sakura', 'naruto');
+    const [sak, foe] = sim.fighters;
+    const impact = sak.def.skills[3];
+    sak.pos = { x: 300, y: 200 };
+    foe.pos = { x: 330, y: 200 };
+    sim.burst(sak, impact, sak.pos, impact.radius!);
+    expect(foe.stunned).toBe(true);
+    foe.statuses = [];
+    foe.pos = { x: 300 + 70 + 40, y: 200 };
+    sim.burst(sak, impact, sak.pos, impact.radius!);
+    expect(foe.stunned).toBe(false);
+    expect(foe.hasStatus('slow')).toBe(true);
+  });
+
+  it('healing a badly hurt ally enlarges the next Impact once', () => {
+    const sim = squadOf();
+    const [sak, ally, foe] = sim.fighters;
+    const impact = sak.def.skills[3];
+    ally.hp = ally.maxHp * 0.2;
+    sim.applyEffects(sak, ally, [{ type: 'heal', amount: 20 }], sak.skill(0), sak.pos);
+    expect(sak.passive.boost).toBeGreaterThan(0);
+    sak.pos = { x: 300, y: 200 };
+    foe.pos = { x: 300 + impact.radius! * 1.15 + foe.def.radius, y: 200 };
+    sim.burst(sak, impact, sak.pos, impact.radius!);
+    expect(foe.hasStatus('slow')).toBe(true);
+    expect(sak.passive.boost).toBe(0);
+    foe.statuses = [];
+    sim.burst(sak, impact, sak.pos, impact.radius!);
+    expect(foe.hasStatus('slow')).toBe(false);
+  });
+
+  it('Katsuyu heals teammates in the zone and slows enemies in it', () => {
+    const sim = squadOf();
+    const [sak, ally, foe] = sim.fighters;
+    const katsuyu = sak.def.skills[2];
+    sak.pos = { x: 300, y: 200 };
+    ally.pos = { x: 340, y: 200 };
+    foe.pos = { x: 380, y: 200 };
+    ally.hp = ally.maxHp - 80;
+    for (const e of sim.fighters.filter((f) => f.team === 1)) e.statuses.push({ type: 'stun', remaining: 9, value: 0, source: 0 });
+    sim.spawnZone(sak, katsuyu, { ...sak.pos });
+    const before = ally.hp;
+    for (let i = 0; i < Math.ceil(2 / DT); i++) {
+      sim.step();
+      ally.pos = { x: 340, y: 200 };
+    }
+    expect(ally.hp).toBeGreaterThan(before);
+    expect(foe.hasStatus('slow')).toBe(true);
+  });
+
+  it('awakens permanently as a pure support with stronger heals', () => {
+    const sim = duel('sakura', 'naruto');
+    const sak = sim.fighters[0];
+    sak.passive.meter = 100;
+    expect(sim.tryTransform(sak)).toBe(true);
+    expect(sak.skill(4).id).toBe('sakura.restoration.awakened');
+    expect(sak.form!.healMult).toBeGreaterThan(1);
+    expect(roleScores({ roles: sak.form!.roles }).support).toBe(1);
+    expect(sak.maxHp).toBe(sak.def.hp);
+  });
+});
+

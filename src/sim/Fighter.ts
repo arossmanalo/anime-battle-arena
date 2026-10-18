@@ -2,7 +2,7 @@ import { passiveDamageMult } from './passives';
 import type { AttackDef, Controller, FighterDef, FormDef, PassiveDef, PassiveProc, SkillDef, SkillSlot, Vec } from './types';
 import { vec } from './vec';
 
-export type StatusType = 'stun' | 'burn' | 'slow' | 'shield' | 'speedBuff' | 'damageBuff' | 'taunt' | 'guard' | 'steady' | 'counter';
+export type StatusType = 'stun' | 'burn' | 'slow' | 'shield' | 'speedBuff' | 'damageBuff' | 'taunt' | 'guard' | 'steady' | 'counter' | 'regen' | 'ward';
 
 export interface Status {
   type: StatusType;
@@ -55,6 +55,8 @@ export interface PassiveState {
   /** awakening: meter 0-100, and seconds since this fighter last lost HP. */
   meter: number;
   calm: number;
+  /** radiusBonus: seconds left on the enlarged next area skill. */
+  boost: number;
 }
 
 /** Runtime state of one fighter in a match. Pure data plus small helpers — the Simulation drives it. */
@@ -123,6 +125,7 @@ export class Fighter {
       markTimer: 0,
       meter: 0,
       calm: 0,
+      boost: 0,
     };
   }
 

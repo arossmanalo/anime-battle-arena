@@ -331,6 +331,11 @@ export class Simulation {
         const dealt = takeDamage(f, s.value * DT);
         if (source && dealt > 0) source.stats.damageDealt += dealt;
         f.stats.damageTaken += dealt;
+      } else if (s.type === 'regen' && f.alive) {
+        const source = this.fighter(s.source);
+        const before = f.hp;
+        f.hp = Math.min(f.maxHp, f.hp + s.value * DT * (source?.form?.healMult ?? 1) * (1 - (1 - DECAY_HEAL_MIN) * this.decayProgress()));
+        if (source && f.hp > before) source.stats.healingDone += f.hp - before;
       }
     }
     f.statuses = f.statuses.filter((s) => s.remaining > 0);
@@ -552,8 +557,17 @@ export class Simulation {
 
   /** Instant area hit centred on `center`. */
   burst(owner: Fighter, skill: SkillDef, center: Vec, radius: number): void {
+    // Healing a badly hurt ally enlarges the next boostable area skill, once.
+    const rb = owner.passiveDef.kind === 'awakening' ? owner.passiveDef.radiusBonus : undefined;
+    if (skill.boostable && rb && owner.passive.boost > 0) {
+      radius *= 1 + rb.bonus;
+      owner.passive.boost = 0;
+    }
     for (const e of this.enemiesOf(owner)) {
-      if (dist(center, e.pos) <= radius + e.def.radius) this.applyEffects(owner, e, skill.effects, skill, center);
+      const gap = dist(center, e.pos);
+      if (gap > radius + e.def.radius) continue;
+      const outer = skill.outer && gap > skill.outer.from ? skill.outer.effects : skill.effects;
+      this.applyEffects(owner, e, outer, skill, center);
     }
     // An area skill that deals no damage (a taunt, a guard) has no blast of its own: the view skips the generic burst when custom art exists.
     const harmless = !skill.effects.some((e) => e.type === 'damage' || e.type === 'knockback');
@@ -618,6 +632,12 @@ export class Simulation {
         z.tickTimer = z.skill.tickInterval ?? 0.25;
         for (const e of this.enemiesOf(z.owner)) {
           if (dist(z.pos, e.pos) <= z.radius + e.def.radius) this.applyEffects(z.owner, e, z.skill.effects, z.skill, z.pos);
+        }
+        // A healing zone also tends the owner's teammates standing in it.
+        if (z.skill.support) {
+          for (const a of this.alliesOf(z.owner)) {
+            if (dist(z.pos, a.pos) <= z.radius + a.def.radius) this.applyEffects(z.owner, a, z.skill.support.effects, z.skill, z.pos);
+          }
         }
       }
       return z.remaining > 0;

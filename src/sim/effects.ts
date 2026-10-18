@@ -82,6 +82,7 @@ export function applyEffects(
   if (!self && (target.invuln > 0 || !target.alive)) return;
   if (!self && negatesAttack(target, effects, `${source.uid}:${skill.id}`, ctx.roll)) return;
 
+  const warded = !self && target.hasStatus('ward');
   for (const e of effects) {
     switch (e.type) {
       case 'damage': {
@@ -111,6 +112,7 @@ export function applyEffects(
         break;
       }
       case 'stun':
+        if (warded) break;
         // A move that can't be interrupted (a domain being opened) shrugs stuns off while it winds up.
         if (target.casting?.skill.uninterruptible) break;
         {
@@ -128,9 +130,11 @@ export function applyEffects(
         target.swing = null;
         break;
       case 'burn':
+        if (warded) break;
         addStatus(target, 'burn', e.duration, e.dps, source.uid);
         break;
       case 'slow':
+        if (warded) break;
         addStatus(target, 'slow', e.duration, e.factor, source.uid);
         break;
       case 'shield':
@@ -139,7 +143,10 @@ export function applyEffects(
         break;
       case 'heal': {
         const before = target.hp;
-        target.hp = Math.min(target.maxHp, target.hp + Math.round(e.amount * (ctx.healMult?.() ?? 1)));
+        const selfMult = source === target ? (e.selfFactor ?? 1) : 1;
+        target.hp = Math.min(target.maxHp, target.hp + Math.round(e.amount * selfMult * (source.form?.healMult ?? 1) * (ctx.healMult?.() ?? 1)));
+        const rb = source.passiveDef.kind === 'awakening' ? source.passiveDef.radiusBonus : undefined;
+        if (rb && source !== target && before < target.maxHp * 0.35 && target.hp > before) source.passive.boost = rb.expire;
         if (target.hp > before) {
           source.stats.healingDone += target.hp - before;
           awakenGain(source, 'support', target.hp - before);
@@ -159,6 +166,12 @@ export function applyEffects(
         target.statuses = kept;
         break;
       }
+      case 'regen':
+        addStatus(target, 'regen', e.duration, e.hps, source.uid);
+        break;
+      case 'ward':
+        addStatus(target, 'ward', e.duration, 1, source.uid);
+        break;
       case 'steady':
         addStatus(target, 'steady', e.duration, e.factor, source.uid);
         break;

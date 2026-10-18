@@ -301,7 +301,8 @@ export class UtilityAI {
     let best = 0;
     for (const e of sup.effects) {
       let s = 0;
-      if (e.type === 'heal') s = hurt >= 0.2 ? 8 + hurt * 48 : 0;
+      if (e.type === 'heal' || e.type === 'regen') s = hurt >= 0.2 ? 8 + hurt * 48 : 0;
+      else if (e.type === 'ward') s = pressured && !targets.every((a) => a.hasStatus('ward')) ? 12 : 0;
       else if (e.type === 'cleanse') s = targets.some((a) => a.stunned || a.hasStatus('burn') || a.hasStatus('slow')) ? 32 : 0;
       else if (e.type === 'shield' || e.type === 'guard') {
         const have = targets.every((a) => a.hasStatus(e.type === 'shield' ? 'shield' : 'guard'));
@@ -313,6 +314,17 @@ export class UtilityAI {
       best = Math.max(best, s);
     }
     return best;
+  }
+
+  /** A burst around the caster: worth it when enemies are inside it, especially ones going for a teammate. */
+  private pointBlankScore(skill: SkillDef): number {
+    const me = this.f;
+    const reach = (skill.radius ?? 100) + 14;
+    const hits = this.sim.enemiesOf(me).filter((e) => dist(me.pos, e.pos) <= reach);
+    if (!hits.length) return 0;
+    const onAllies = hits.filter((e) => e.focus && e.focus !== me && e.focus.team === me.team).length;
+    const dmg = baseDamage(skill);
+    return 6 + hits.length * 4 + onAllies * 8 + dmg * 0.6;
   }
 
   /** A taunt is worth casting when enemies are in reach and are going for someone else. */
@@ -330,6 +342,7 @@ export class UtilityAI {
   private score(skill: SkillDef, target: Fighter, d: number): number {
     if (skill.support) return this.supportScore(skill) + (skill.selfEffects ? 0 : 0);
     if (skill.effects.some((e) => e.type === 'taunt')) return this.tauntScore(skill, d);
+    if (skill.kind === 'aoe' && skill.range === 0 && !skill.ultimate && (skill.outer || skill.boostable)) return this.pointBlankScore(skill);
     if (skill.kind === 'buff') {
       const buffs = (skill.selfEffects ?? []).map((e) => e.type);
       const active = this.f.statuses.some((s) => (buffs as string[]).includes(s.type));

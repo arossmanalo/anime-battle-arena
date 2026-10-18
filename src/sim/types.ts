@@ -12,7 +12,12 @@ export type Effect =
   | { type: 'burn'; dps: number; duration: number }
   | { type: 'slow'; factor: number; duration: number }
   | { type: 'shield'; amount: number; duration: number }
-  | { type: 'heal'; amount: number }
+  /** `selfFactor`: the share of the heal the caster gets when healing themself (0.6 = 40% less). */
+  | { type: 'heal'; amount: number; selfFactor?: number }
+  /** Heals `hps` HP per second for `duration` seconds. Re-applying refreshes it instead of stacking. */
+  | { type: 'regen'; hps: number; duration: number }
+  /** For `duration` seconds the target ignores new burn, slow and stun. */
+  | { type: 'ward'; duration: number }
   | { type: 'speedBuff'; factor: number; duration: number }
   | { type: 'damageBuff'; factor: number; duration: number }
   /** Enemies hit are forced to attack the caster for `duration` seconds. */
@@ -77,6 +82,10 @@ export interface SkillDef {
   support?: SupportDef;
   /** zone: effects applied once, to everyone still inside, when the zone ends (a domain's final blow). */
   finale?: Effect[];
+  /** An area skill with a second ring: enemies farther than `from` from the centre get these effects instead of `effects`. */
+  outer?: { from: number; effects: Effect[] };
+  /** Healing a badly hurt ally can enlarge the next use (see the awakening passive's `radiusBonus`). */
+  boostable?: boolean;
   /** While winding up this skill, the caster can't be stunned or interrupted. */
   uninterruptible?: boolean;
   color: number;
@@ -96,6 +105,8 @@ export interface FormDef {
   /** Skill slot (0-3) → replacement skill while transformed. */
   skillOverrides?: Partial<Record<0 | 1 | 2 | 3, SkillDef>>;
   ultimateOverride?: SkillDef;
+  /** Healing done is multiplied by this while transformed. */
+  healMult?: number;
   /** Max HP multiplier while transformed (the extra HP is granted on transforming). */
   maxHpMult?: number;
   /** Damage taken multiplier while transformed (0.85 = 15% less). */
@@ -143,6 +154,8 @@ export type PassiveEffect =
       knockbackResist?: number;
       /** Damage taken is reduced by up to this much at a full meter. */
       damageReduction?: number;
+      /** Healing an ally under 35% HP enlarges the caster's next `boostable` area skill by `bonus` (0.25 = +25%) for `expire` seconds. */
+      radiusBonus?: { bonus: number; expire: number };
     };
 
 export type PassiveDef = { id: string; name: string; description: string } & PassiveEffect;
