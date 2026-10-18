@@ -42,3 +42,19 @@ Each frame: an endless dark crimson sky of deep blood red and near-black, an omi
 Skill ids: `sukuna.attack`, `sukuna.dismantle`, `sukuna.cleave`, `sukuna.spiderweb`, `sukuna.fuga` (Divine Flame), `sukuna.shrine` (the domain: `body` for the background, `cast` for the opening, `impact` for the final slash), and `sukuna.dismantle2` (the True Form version of Dismantle, which can reuse Dismantle's art). The passive (King of Curses) has no visual trigger; Claude can add a small flash for the Curse Burst later if you want one.
 
 For the domain background, Claude will use `--grid 2x2 --trim 12 --fill --bg none --cell 900x372 --blend normal --fps 6`, the same as Gojo's.
+
+## C. Domain slashes and standing shrine (optional upgrade)
+
+**Attach Sukuna's sprite and the shrine row from your earlier effects image** (the 5 rising-shrine frames) when you paste this. It makes the domain look better: real slash sprites flying across the screen and a living shrine.
+
+```
+Attached are a pixel-art chibi fighter (Ryomen Sukuna) and the pixel-art rising shrine effect from my earlier effects sheet. Keep the same style, crimson palette and crisp pixel edges. Never draw a character; effects only.
+
+Make ONE image on a pure solid black (#000000) background, no text or borders, with 2 rows. Each row is ONE horizontal strip of frames, equally spaced with clear black gaps, each frame centred, same scale across the row.
+
+ROW 1: DOMAIN SLASHES. 6 frames. Each frame is a single long, perfectly HORIZONTAL cutting slash that fills the width of its frame edge to edge: a razor-thin bright white core, a thin bright crimson edge around it, and a soft deep-red glow, with a few tiny red sparks along it. The slash tapers to a fine point at both ends. The 6 frames are different from each other: (1) straight and thin, (2) a slight upward curve, (3) a slight downward curve, (4) thicker and brighter, (5) double slash (two parallel thin cuts, one shorter), (6) a slash with a small bright flare in the middle. Frames are WIDE (about 4 times wider than tall).
+
+ROW 2: STANDING SHRINE LOOP. 4 frames. The same demonic shrine from the attached rising-shrine frames at its FULL size: a curved horned pagoda roof with a skull ornament, pillars, a glowing circular crimson seal on the ground in front of it, and thin red cut lines in the air around it. The 4 frames are almost identical and loop smoothly: only the embers, the glow of the seal and the thin cut lines shift slightly between frames. Same size and position in every frame.
+```
+
+Importing (Claude does this): row 1 becomes the slash sprites the domain scatters across the screen, row 2 replaces the shrine's last frame with a looping animation.
