@@ -92,6 +92,18 @@ export interface FormDef {
   /** Skill slot (0-3) → replacement skill while transformed. */
   skillOverrides?: Partial<Record<0 | 1 | 2 | 3, SkillDef>>;
   ultimateOverride?: SkillDef;
+  /** Max HP multiplier while transformed (the extra HP is granted on transforming). */
+  maxHpMult?: number;
+  /** Damage taken multiplier while transformed (0.85 = 15% less). */
+  damageTaken?: number;
+  /** Knockback taken multiplier while transformed (0.6 = 40% less). */
+  knockbackTaken?: number;
+  /** Replaces the passive while transformed. */
+  passiveOverride?: PassiveDef;
+  /** Replaces the default attack while transformed. */
+  attackOverride?: AttackDef;
+  /** Replaces the team roles while transformed (a support that becomes a frontline tank). */
+  roles?: RoleScores;
   color: number;
 }
 
@@ -110,7 +122,13 @@ export type PassiveEffect =
   /** Once per match, a lethal hit leaves the fighter on 1 HP and invulnerable for `invuln` seconds. */
   | { kind: 'lastStand'; invuln: number }
   /** Each damaging projectile/dash/area/default-attack hit puts a mark on the target (they expire after `expire` s without a new one); a hit on a target with `stacks` marks consumes them for `bonus` extra damage. */
-  | { kind: 'marks'; stacks: number; bonus: number; expire: number };
+  | { kind: 'marks'; stacks: number; bonus: number; expire: number }
+  /**
+   * An awakening meter (0-100) that fills from damage dealt (`perDamage`), damage taken (`perTaken`) and support
+   * actions (`perSupport` per HP healed or shield granted, and a flat bonus for a cleanse). A full meter unlocks the
+   * transformation like low HP does. Also regenerates `hpPerSec` once `regenDelay` seconds have passed without taking damage.
+   */
+  | { kind: 'awakening'; perDamage: number; perTaken: number; perSupport: number; regenDelay: number; hpPerSec: number };
 
 export type PassiveDef = { id: string; name: string; description: string } & PassiveEffect;
 

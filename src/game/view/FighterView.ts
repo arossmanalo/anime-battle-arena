@@ -256,7 +256,7 @@ export class FighterView {
     const swingStarted = f.swinging && !this.wasSwinging;
     this.wasSwinging = f.swinging;
     if (swingStarted) {
-      this.attackDuration = f.def.attack.windup * ATTACK_ANIM_FACTOR;
+      this.attackDuration = f.attack.windup * ATTACK_ANIM_FACTOR;
       this.attackTimer = this.attackDuration;
     }
     if (!this.sprite) return;

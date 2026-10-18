@@ -62,7 +62,7 @@ class SidePanel {
 
   /** Passive name plus whatever live state it has (barrier charges, recharge timer, spent). */
   private passiveLabel(): string {
-    const def = this.f.def.passive;
+    const def = this.f.passiveDef;
     const p = this.f.passive;
     switch (def.kind) {
       case 'barrier':
@@ -71,6 +71,8 @@ class SidePanel {
           : `${def.name.toUpperCase()}  recharging ${Math.ceil(p.recharge)}s`;
       case 'lastStand':
         return `${def.name.toUpperCase()}  ${p.used ? 'spent' : 'ready'}`;
+      case 'awakening':
+        return this.f.form ? def.name.toUpperCase() : `${def.name.toUpperCase()}  ${Math.floor(p.meter)}%`;
       default:
         return def.name.toUpperCase();
     }

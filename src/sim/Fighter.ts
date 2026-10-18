@@ -1,5 +1,5 @@
 import { passiveDamageMult } from './passives';
-import type { Controller, FighterDef, FormDef, PassiveProc, SkillDef, SkillSlot, Vec } from './types';
+import type { AttackDef, Controller, FighterDef, FormDef, PassiveDef, PassiveProc, SkillDef, SkillSlot, Vec } from './types';
 import { vec } from './vec';
 
 export type StatusType = 'stun' | 'burn' | 'slow' | 'shield' | 'speedBuff' | 'damageBuff' | 'taunt' | 'guard';
@@ -52,11 +52,14 @@ export interface PassiveState {
   /** marks passive (on the victim): marks currently on this fighter, and seconds until they fade. */
   marks: number;
   markTimer: number;
+  /** awakening: meter 0-100, and seconds since this fighter last lost HP. */
+  meter: number;
+  calm: number;
 }
 
 /** Runtime state of one fighter in a match. Pure data plus small helpers — the Simulation drives it. */
 export class Fighter {
-  readonly maxHp: number;
+  private readonly baseMaxHp: number;
   hp: number;
   /** Fighters start with some energy so the opening seconds aren't dead air. */
   energy = 40;
@@ -106,7 +109,7 @@ export class Fighter {
     readonly controller: Controller,
     pos: Vec,
   ) {
-    this.maxHp = def.hp;
+    this.baseMaxHp = def.hp;
     this.hp = def.hp;
     this.pos = pos;
     this.auto = controller === 'ai';
@@ -118,11 +121,27 @@ export class Fighter {
       procs: [],
       marks: 0,
       markTimer: 0,
+      meter: 0,
+      calm: 0,
     };
   }
 
   get alive(): boolean {
     return this.hp > 0;
+  }
+
+  get maxHp(): number {
+    return Math.round(this.baseMaxHp * (this.form?.maxHpMult ?? 1));
+  }
+
+  /** The passive in force: a form can replace it. */
+  get passiveDef(): PassiveDef {
+    return this.form?.passiveOverride ?? this.def.passive;
+  }
+
+  /** The default attack in force: a form can replace it. */
+  get attack(): AttackDef {
+    return this.form?.attackOverride ?? this.def.attack;
   }
 
   get transformed(): boolean {
@@ -197,7 +216,7 @@ export class Fighter {
       !!f &&
       !this.form &&
       this.alive &&
-      this.hp <= this.maxHp * f.hpThreshold &&
+      (this.hp <= this.maxHp * f.hpThreshold || (this.passiveDef.kind === 'awakening' && this.passive.meter >= 100)) &&
       this.energy >= f.energyCost
     );
   }

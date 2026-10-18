@@ -786,3 +786,64 @@ describe('team orders', () => {
     expect(sz.radius).toBe(600);
   });
 });
+
+describe('Nezuko awakening', () => {
+  it('the awakening meter fills from support and fighting, and a full meter unlocks the form', () => {
+    const sim = duel('nezuko', 'naruto');
+    const nez = sim.fighters[0];
+    const foe = sim.fighters[1];
+    expect(nez.canTransform).toBe(false);
+    nez.hp = nez.maxHp - 100;
+    sim.applyEffects(nez, nez, [{ type: 'heal', amount: 60 }], nez.skill(1), nez.pos);
+    expect(nez.passive.meter).toBeGreaterThan(0);
+    const before = nez.passive.meter;
+    sim.applyEffects(nez, foe, [{ type: 'damage', amount: 20 }], nez.skill(0), nez.pos);
+    expect(nez.passive.meter).toBeGreaterThan(before);
+    nez.passive.meter = 100;
+    nez.energy = 0;
+    expect(nez.canTransform).toBe(true);
+  });
+
+  it('awakening is permanent and swaps her stats, attack, passive and kit', () => {
+    const sim = duel('nezuko', 'naruto');
+    const nez = sim.fighters[0];
+    const hp = nez.maxHp;
+    nez.passive.meter = 100;
+    expect(sim.tryTransform(nez)).toBe(true);
+    expect(nez.maxHp).toBeGreaterThan(hp);
+    expect(nez.passiveDef.kind).toBe('regen');
+    expect(nez.attack.name).toBe('Demon Fury');
+    expect(nez.skill(2).id).toBe('nezuko.guardiansinstinct');
+    expect(nez.skill(4).id).toBe('nezuko.crimsonwrath');
+    sim.runToEnd(Math.ceil(20 / DT));
+    if (nez.alive) expect(nez.transformed).toBe(true);
+  });
+
+  it('awakened she takes less damage and knockback', () => {
+    const sim = duel('nezuko', 'naruto');
+    const nez = sim.fighters[0];
+    const foe = sim.fighters[1];
+    const hit: Effect[] = [{ type: 'damage', amount: 40 }];
+    const trial = (): number => {
+      nez.hp = nez.maxHp;
+      nez.statuses = [];
+      const before = nez.hp;
+      sim.applyEffects(foe, nez, hit, foe.skill(0), foe.pos);
+      return before - nez.hp;
+    };
+    const base = Array.from({ length: 8 }, trial).reduce((a, b) => a + b, 0);
+    nez.form = nez.def.form!;
+    const awake = Array.from({ length: 8 }, trial).reduce((a, b) => a + b, 0);
+    expect(awake).toBeLessThan(base);
+  });
+
+  it('she shields herself when no ally is near', () => {
+    const sim = duel('nezuko', 'naruto');
+    const nez = sim.fighters[0];
+    nez.energy = 100;
+    sim.tryCast(nez, 2);
+    for (let i = 0; i < Math.ceil(0.6 / DT); i++) sim.step();
+    expect(nez.hasStatus('shield')).toBe(true);
+  });
+});
+

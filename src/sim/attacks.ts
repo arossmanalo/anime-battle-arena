@@ -15,9 +15,8 @@ const cache = new Map<string, SkillDef>();
  * The attack expressed as a SkillDef, so it goes through the same effect pipeline as skills
  * (damage buffs, shields, passives, hit events). Cached: one per fighter and finisher state.
  */
-export function attackSkill(def: FighterDef, finisher: boolean): SkillDef {
-  const a = def.attack;
-  const key = `${def.id}:${finisher}`;
+export function attackSkill(def: FighterDef, finisher: boolean, a: AttackDef = def.attack): SkillDef {
+  const key = `${def.id}:${a.name}:${finisher}`;
   let skill = cache.get(key);
   if (!skill) {
     const strong = finisher && a.combo > 1;

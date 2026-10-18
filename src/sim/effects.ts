@@ -1,6 +1,6 @@
 import type { Fighter, StatusType } from './Fighter';
 import type { Effect, SkillDef, Vec } from './types';
-import { applyMarks, negatesAttack, passiveUltMult, survivesHit } from './passives';
+import { applyMarks, awakenGain, negatesAttack, passiveUltMult, survivesHit } from './passives';
 import { norm, scale, sub } from './vec';
 
 /** Energy gained per point of damage dealt / taken. */
@@ -50,6 +50,7 @@ export function takeDamage(target: Fighter, amount: number, pierce = 0): number 
   left += direct;
   const lost = survivesHit(target, Math.min(target.hp, left));
   target.hp -= lost;
+  if (lost > 0) target.passive.calm = 0;
   return lost;
 }
 
@@ -80,7 +81,7 @@ export function applyEffects(
   for (const e of effects) {
     switch (e.type) {
       case 'damage': {
-        const taken = target.statusMult('guard') * (ctx.defenseMult?.() ?? 1);
+        const taken = target.statusMult('guard') * (target.form?.damageTaken ?? 1) * (ctx.defenseMult?.() ?? 1);
         const dealt = takeDamage(target, Math.round(e.amount * source.damageMult * ctx.roll() * taken), e.pierce);
         if (dealt > 0) {
           source.stats.damageDealt += dealt;
@@ -90,6 +91,8 @@ export function applyEffects(
           gainEnergy(target, dealt * ENERGY_ON_TAKE);
           gainUlt(source, dealt * ULT_ON_DEAL);
           gainUlt(target, dealt * ULT_ON_TAKE);
+          awakenGain(source, 'dealt', dealt);
+          awakenGain(target, 'taken', dealt);
         }
         ctx.onHit(source, target, dealt, skill);
         if (dealt > 0) applyMarks(ctx, source, target, skill);
@@ -97,7 +100,7 @@ export function applyEffects(
       }
       case 'knockback': {
         const dir = norm(sub(target.pos, origin));
-        target.knock = scale(dir, e.force * KNOCKBACK_TAKEN_MULT);
+        target.knock = scale(dir, e.force * KNOCKBACK_TAKEN_MULT * (target.form?.knockbackTaken ?? 1));
         break;
       }
       case 'stun':
@@ -117,12 +120,14 @@ export function applyEffects(
         break;
       case 'shield':
         addStatus(target, 'shield', e.duration, e.amount, source.uid);
+        awakenGain(source, 'support', e.amount * 0.5);
         break;
       case 'heal': {
         const before = target.hp;
         target.hp = Math.min(target.maxHp, target.hp + Math.round(e.amount * (ctx.healMult?.() ?? 1)));
         if (target.hp > before) {
           source.stats.healingDone += target.hp - before;
+          awakenGain(source, 'support', target.hp - before);
           ctx.onHeal?.(source, target, target.hp - before);
         }
         break;
@@ -133,9 +138,12 @@ export function applyEffects(
       case 'guard':
         addStatus(target, 'guard', e.duration, e.factor, source.uid);
         break;
-      case 'cleanse':
-        target.statuses = target.statuses.filter((s) => s.type !== 'stun' && s.type !== 'burn' && s.type !== 'slow');
+      case 'cleanse': {
+        const kept = target.statuses.filter((s) => s.type !== 'stun' && s.type !== 'burn' && s.type !== 'slow');
+        if (kept.length < target.statuses.length) awakenGain(source, 'support', 20);
+        target.statuses = kept;
         break;
+      }
       case 'speedBuff':
         addStatus(target, 'speedBuff', e.duration, e.factor, source.uid);
         break;

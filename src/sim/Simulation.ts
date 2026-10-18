@@ -294,8 +294,9 @@ export class Simulation {
       return true;
     }
     f.energy -= form.energyCost;
+    const oldMax = f.maxHp;
     f.form = form;
-    f.hp = Math.min(f.maxHp, f.hp + Math.round(f.maxHp * form.heal));
+    f.hp = Math.min(f.maxHp, f.hp + (f.maxHp - oldMax) + Math.round(f.maxHp * form.heal));
     f.invuln = TRANSFORM_INVULN;
     f.casting = null;
     f.swing = null;
@@ -366,6 +367,8 @@ export class Simulation {
       f.passive.hitsLeft = f.def.passive.kind === 'barrier' ? f.def.passive.hits : 0;
       f.passive.recharge = 0;
       f.passive.used = false;
+      f.passive.meter = 0;
+      f.passive.calm = 0;
     }
     this.projectiles = [];
     this.beams = [];
@@ -379,7 +382,7 @@ export class Simulation {
 
   /** Starts the default attack if an enemy is in reach and the fighter is free. Returns whether it started. */
   tryAttack(f: Fighter): boolean {
-    const a = f.def.attack;
+    const a = f.attack;
     if (!f.alive || f.stunned || f.busy || f.swing || f.attackCd > 0) return false;
     const target = this.nearestEnemy(f);
     if (!target || this.gap(f, target) > a.range) return false;
@@ -405,9 +408,9 @@ export class Simulation {
   }
 
   private landAttack(f: Fighter, finisher: boolean): void {
-    const a = f.def.attack;
+    const a = f.attack;
     const target = this.nearestEnemy(f);
-    const skill = attackSkill(f.def, finisher);
+    const skill = attackSkill(f.def, finisher, a);
     let landed = false;
     if (target && a.style === 'ranged') {
       const dir = norm(sub(target.pos, f.pos));
@@ -622,7 +625,7 @@ export class Simulation {
   private emitPassiveProcs(): void {
     for (const f of this.fighters) {
       for (const proc of f.passive.procs.splice(0)) {
-        this.emit({ type: 'passive', uid: f.uid, passive: f.def.passive, proc, x: f.pos.x, y: f.pos.y });
+        this.emit({ type: 'passive', uid: f.uid, passive: f.passiveDef, proc, x: f.pos.x, y: f.pos.y });
       }
     }
   }

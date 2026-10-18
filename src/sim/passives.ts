@@ -9,8 +9,9 @@ const DECISION_WINDOW = 0.35;
 
 /** Per-tick upkeep: barrier recharge, conditional regeneration, expiring verdicts. */
 export function tickPassive(f: Fighter, dt: number): void {
-  const p = f.def.passive;
+  const p = f.passiveDef;
   const state = f.passive;
+  state.calm += dt;
   if (state.marks > 0 && (state.markTimer -= dt) <= 0) state.marks = 0;
   for (const [key, d] of state.decided) {
     d.remaining -= dt;
@@ -24,6 +25,8 @@ export function tickPassive(f: Fighter, dt: number): void {
     }
   } else if (p.kind === 'regen' && f.hp <= f.maxHp * p.belowHp) {
     f.hp = Math.min(f.maxHp, f.hp + p.hpPerSec * dt);
+  } else if (p.kind === 'awakening' && state.calm >= p.regenDelay) {
+    f.hp = Math.min(f.maxHp, f.hp + p.hpPerSec * dt);
   }
 }
 
@@ -32,7 +35,7 @@ export function tickPassive(f: Fighter, dt: number): void {
  * `key` identifies one attack (attacker + skill). `roll` is the sim's deterministic damage roll, [0.9, 1.1].
  */
 export function negatesAttack(f: Fighter, effects: Effect[], key: string, roll: () => number): boolean {
-  const p = f.def.passive;
+  const p = f.passiveDef;
   if ((p.kind !== 'barrier' && p.kind !== 'dodge') || !effects.some((e) => HOSTILE.includes(e.type))) return false;
   const state = f.passive;
   const earlier = state.decided.get(key);
@@ -54,7 +57,7 @@ export function negatesAttack(f: Fighter, effects: Effect[], key: string, roll: 
 
 /** Called with the HP a hit is about to remove. Returns how much HP is actually lost. */
 export function survivesHit(f: Fighter, lost: number): number {
-  const p = f.def.passive;
+  const p = f.passiveDef;
   if (p.kind !== 'lastStand' || f.passive.used || lost < f.hp) return lost;
   f.passive.used = true;
   f.invuln = Math.max(f.invuln, p.invuln);
@@ -63,13 +66,21 @@ export function survivesHit(f: Fighter, lost: number): number {
 }
 
 export function passiveDamageMult(f: Fighter): number {
-  const p = f.def.passive;
+  const p = f.passiveDef;
   return p.kind === 'rage' ? 1 + p.maxBonus * (1 - f.hp / f.maxHp) : 1;
 }
 
 export function passiveUltMult(f: Fighter): number {
-  const p = f.def.passive;
+  const p = f.passiveDef;
   return p.kind === 'ultCharge' ? p.mult : 1;
+}
+
+/** What the awakening meter gains from one kind of event (does nothing without that passive, or once awakened). */
+export function awakenGain(f: Fighter, kind: 'dealt' | 'taken' | 'support', amount: number): void {
+  const p = f.passiveDef;
+  if (p.kind !== 'awakening' || f.form || amount <= 0) return;
+  const rate = kind === 'dealt' ? p.perDamage : kind === 'taken' ? p.perTaken : p.perSupport;
+  f.passive.meter = Math.min(100, f.passive.meter + amount * rate);
 }
 
 /** The extra hit a consumed set of marks deals. Shown like any other hit (damage number, sound). */
@@ -91,7 +102,7 @@ export const CURSE_BURST: SkillDef = {
  * domain's many ticks can't burst on every tick.
  */
 export function applyMarks(ctx: EffectContext, source: Fighter, target: Fighter, skill: SkillDef): void {
-  const p = source.def.passive;
+  const p = source.passiveDef;
   if (p.kind !== 'marks' || source === target || !target.alive) return;
   if (!['projectile', 'dash', 'aoe'].includes(skill.kind) || skill.id === CURSE_BURST.id) return;
   const state = target.passive;

@@ -135,9 +135,14 @@ export class UtilityAI {
     f.focus = best;
   }
 
+  /** The role this fighter plays right now: a form can change it (a support that awakens into a tank). */
+  private role(): ReturnType<typeof mainRole> {
+    return mainRole(this.f.form?.roles ? { roles: this.f.form.roles } : this.f.def);
+  }
+
   /** Supports hang back: stand just behind the allies, away from the enemy. */
   private wantsBackline(): boolean {
-    const role = mainRole(this.f.def);
+    const role = this.role();
     return role === 'support' && this.sim.alliesOf(this.f, false).length > 0;
   }
 
@@ -155,7 +160,7 @@ export class UtilityAI {
 
     const gap = dist(this.f.pos, target.pos) - this.f.def.radius - target.def.radius;
     const orders = this.sim.ordersOf(this.f.team);
-    const role = mainRole(this.f.def);
+    const role = this.role();
     // A tank told to protect someone stands between them and the enemy.
     const guarded = orders.protect === null ? undefined : this.sim.alliesOf(this.f, false).find((a) => a.uid === orders.protect);
     if (role === 'tank' && guarded) {
@@ -186,7 +191,7 @@ export class UtilityAI {
       return;
     }
     const melee = this.wantsMelee(gap);
-    let preferred = melee ? this.f.def.attack.range * MELEE_CLOSE : PREFERRED_RANGE[this.f.def.aiProfile];
+    let preferred = melee ? this.f.attack.range * MELEE_CLOSE : PREFERRED_RANGE[this.f.def.aiProfile];
     if (orders.stance === 'aggressive') preferred = Math.min(preferred, 90);
     const slack = melee ? MELEE_SLACK : RANGE_SLACK;
     if (gap > preferred + slack) this.mode = 'approach';
