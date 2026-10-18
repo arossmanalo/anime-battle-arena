@@ -1189,3 +1189,124 @@ describe('training: testing Gojo', () => {
     expect(p.passive.hitsLeft).toBeLessThan(before);
   });
 });
+
+describe('Erwin commander', () => {
+  function squad(): Simulation {
+    const sim = new Simulation({
+      seed: 6,
+      idleFallback: 0,
+      teams: [
+        ['erwin', 'vegeta'].map((id) => ({ def: fighterById(id), controller: 'ai' as const })),
+        ['goku', 'sukuna'].map((id) => ({ def: fighterById(id), controller: 'ai' as const })),
+      ],
+    });
+    // Keep the AI out of the way: only the effects under test act.
+    for (const f of sim.fighters) f.statuses.push({ type: 'stun', remaining: 99, value: 0, source: 0 });
+    return sim;
+  }
+
+  const hit = (n = 20): Effect[] => [{ type: 'damage', amount: n }];
+
+  it('a slow resist weakens slows and unslow shortens them', () => {
+    const { sim, erwin, foe } = (() => {
+      const sim = squad();
+      return { sim, erwin: sim.fighters[0], foe: sim.fighters[2] };
+    })();
+    const slow: Effect[] = [{ type: 'slow', factor: 0.5, duration: 4 }];
+    sim.applyEffects(foe, erwin, slow, foe.skill(0), foe.pos);
+    const plain = erwin.statuses.find((x) => x.type === 'slow')!.value;
+    erwin.statuses = erwin.statuses.filter((x) => x.type !== 'slow');
+    sim.applyEffects(erwin, erwin, [{ type: 'slowResist', share: 0.5, duration: 5 }], erwin.skill(0), erwin.pos);
+    sim.applyEffects(foe, erwin, slow, foe.skill(0), foe.pos);
+    const resisted = erwin.statuses.find((x) => x.type === 'slow')!;
+    expect(resisted.value).toBeGreaterThan(plain);
+    const before = resisted.remaining;
+    sim.applyEffects(erwin, erwin, [{ type: 'unslow', cut: 0.7 }], erwin.skill(4), erwin.pos);
+    expect(erwin.statuses.find((x) => x.type === 'slow')!.remaining).toBeLessThan(before * 0.4);
+  });
+
+  it('marked enemies take extra damage from the marker\'s team only, and marks do not stack', () => {
+    const sim = squad();
+    const [erwin, ally, foe] = sim.fighters;
+    const damageTo = (attacker: typeof ally, victim: typeof foe): number => {
+      victim.hp = victim.maxHp;
+      const before = victim.hp;
+      let total = 0;
+      for (let i = 0; i < 20; i++) {
+        victim.hp = victim.maxHp;
+        sim.applyEffects(attacker, victim, hit(), attacker.skill(0), attacker.pos);
+        total += before - victim.hp;
+      }
+      return total;
+    };
+    const plain = damageTo(ally, foe);
+    sim.applyEffects(erwin, foe, [{ type: 'mark', amount: 1.2, duration: 5 }], erwin.skill(2), erwin.pos);
+    sim.applyEffects(erwin, foe, [{ type: 'mark', amount: 1.2, duration: 5 }], erwin.skill(2), erwin.pos);
+    expect(foe.statuses.filter((x) => x.type === 'marked').length).toBe(1);
+    const marked = damageTo(ally, foe);
+    expect(marked).toBeGreaterThan(plain * 1.1);
+    // The enemy team gets no bonus against its own fighter.
+    const other = sim.fighters[3];
+    const enemyHit = damageTo(other, ally);
+    expect(enemyHit).toBeLessThanOrEqual(plain * 1.15);
+  });
+
+  it('Focused Assault adds a little more against marked enemies', () => {
+    const sim = squad();
+    const [erwin, ally, foe] = sim.fighters;
+    sim.applyEffects(erwin, foe, [{ type: 'mark', amount: 1.15, duration: 9 }], erwin.skill(2), erwin.pos);
+    const sum = (): number => {
+      let total = 0;
+      for (let i = 0; i < 30; i++) {
+        foe.hp = foe.maxHp;
+        sim.applyEffects(ally, foe, hit(), ally.skill(0), ally.pos);
+        total += foe.maxHp - foe.hp;
+      }
+      return total;
+    };
+    const base = sum();
+    sim.applyEffects(erwin, ally, [{ type: 'focus', duration: 9 }], erwin.skill(4), erwin.pos);
+    expect(sum()).toBeGreaterThan(base);
+  });
+
+  it('morale fills when buffed allies hit, with an internal cooldown against instant fills', () => {
+    const sim = squad();
+    const [erwin, ally, foe] = sim.fighters;
+    sim.applyEffects(erwin, ally, [{ type: 'damageBuff', factor: 1.2, duration: 9 }], erwin.skill(0), erwin.pos);
+    expect(erwin.passive.meter).toBe(0);
+    sim.applyEffects(ally, foe, hit(), ally.skill(0), ally.pos);
+    const first = erwin.passive.meter;
+    expect(first).toBeGreaterThan(0);
+    // Hits inside the cooldown add nothing.
+    for (let i = 0; i < 10; i++) sim.applyEffects(ally, foe, hit(), ally.skill(0), ally.pos);
+    expect(erwin.passive.meter).toBe(first);
+  });
+
+  it('a guard from Erwin that soaks damage also fills his morale', () => {
+    const sim = squad();
+    const [erwin, ally, , foe2] = sim.fighters;
+    sim.applyEffects(erwin, ally, [{ type: 'guard', factor: 0.5, duration: 9 }], erwin.skill(1), erwin.pos);
+    sim.applyEffects(foe2, ally, hit(40), foe2.skill(0), foe2.pos);
+    expect(erwin.passive.meter).toBeGreaterThan(0);
+  });
+
+  it('awakening releases a rally pulse and awakened assists give a burst of speed', () => {
+    const sim = squad();
+    const [erwin, ally, foe] = sim.fighters;
+    erwin.statuses = [];
+    erwin.passive.meter = 100;
+    erwin.pos = { x: 300, y: 200 };
+    foe.pos = { x: 360, y: 200 };
+    ally.pos = { x: 260, y: 200 };
+    expect(sim.tryTransform(erwin)).toBe(true);
+    expect(erwin.skill(0).id).toBe('erwin.advance.awakened');
+    expect(erwin.skill(4).id).toBe('erwin.rage.awakened');
+    expect(Math.hypot(foe.knock.x, foe.knock.y)).toBeGreaterThan(50);
+    expect(ally.hasStatus('steady')).toBe(true);
+    erwin.statuses = [];
+    sim.applyEffects(erwin, ally, [{ type: 'damageBuff', factor: 1.1, duration: 3 }], erwin.skill(0), erwin.pos);
+    expect(erwin.hasStatus('speedBuff')).toBe(true);
+    expect(erwin.maxHp).toBe(erwin.def.hp);
+  });
+});
+

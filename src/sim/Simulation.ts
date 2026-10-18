@@ -37,6 +37,8 @@ export const TEAM_TIME_LIMIT = 150;
 /** A team-battle Domain Expansion reaches at most this fraction of the arena's height from the caster. */
 export const TEAM_DOMAIN_SHARE = 0.55;
 /** How far back-row fighters start behind the front row. */
+/** The pulse a form can release when it activates. */
+const RALLY_PULSE: SkillDef = { id: 'rally.pulse', name: 'Rally', kind: 'aoe', energyCost: 0, cooldown: 1, castTime: 0, range: 0, effects: [], color: 0xffd34a };
 const ROW_DEPTH = 70;
 const SWING_MOVE_MULT = 0.6;
 const KNOCK_DECAY = 8;
@@ -99,6 +101,7 @@ export class Simulation {
     this.training = config.training ?? false;
     this.effectCtx = {
       roll: () => this.rng.range(0.9, 1.1),
+      fighters: (uid) => this.fighter(uid),
       healMult: () => 1 - (1 - DECAY_HEAL_MIN) * this.decayProgress(),
       defenseMult: () => 1 + DECAY_DEFENSE * this.decayProgress(),
       onHeal: (source, target, amount) => this.emit({ type: 'heal', uid: target.uid, amount, source: source.uid }),
@@ -314,6 +317,13 @@ export class Simulation {
     f.invuln = TRANSFORM_INVULN;
     f.casting = null;
     f.swing = null;
+    if (form.rally) {
+      // The activation pulse: enemies near are knocked back, the commander and allies near are braced.
+      const pulse: SkillDef = { ...RALLY_PULSE, effects: form.rally.enemyEffects };
+      for (const e of this.enemiesOf(f)) if (dist(f.pos, e.pos) <= form.rally.radius + e.def.radius) this.applyEffects(f, e, form.rally.enemyEffects, pulse, f.pos);
+      for (const a of this.alliesOf(f)) if (dist(f.pos, a.pos) <= form.rally.radius + a.def.radius) this.applyEffects(f, a, form.rally.allyEffects, pulse, f.pos);
+      this.emit({ type: 'impact', x: f.pos.x, y: f.pos.y, radius: form.rally.radius, color: form.color, skillId: RALLY_PULSE.id, support: true });
+    }
     this.emit({ type: 'transform', uid: f.uid, form });
     this.voice(f, 'transform');
     return true;

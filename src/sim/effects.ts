@@ -1,6 +1,6 @@
 import type { Fighter, StatusType } from './Fighter';
 import type { Effect, SkillDef, Vec } from './types';
-import { applyMarks, awakenGain, BRACE_COUNTER, negatesAttack, passiveDamageTaken, passiveKnockbackTaken, passiveUltMult, survivesHit } from './passives';
+import { applyMarks, awakenGain, awakenInterrupt, BRACE_COUNTER, negatesAttack, passiveDamageTaken, passiveKnockbackTaken, passiveUltMult, survivesHit } from './passives';
 import { norm, scale, sub } from './vec';
 
 /** Energy gained per point of damage dealt / taken. */
@@ -24,6 +24,8 @@ export interface EffectContext {
   /** Match-wide multiplier on damage taken (rises over time in team matches). */
   defenseMult?: () => number;
   onHeal?: (source: Fighter, target: Fighter, amount: number) => void;
+  /** Finds a fighter by uid (a status remembers who applied it). */
+  fighters?: (uid: number) => Fighter | undefined;
   onHit: (source: Fighter, target: Fighter, damage: number, skill: SkillDef) => void;
 }
 
@@ -85,7 +87,10 @@ export function applyEffects(
   for (const e of effects) {
     switch (e.type) {
       case 'damage': {
-        const rawDamage = e.amount * source.damageMult * ctx.roll() * (ctx.defenseMult?.() ?? 1);
+        // The marker's team hits a marked target harder; Focused Assault adds a little more.
+        const mark = target.statuses.find((s) => s.type === 'marked' && s.team === source.team);
+        const markMult = mark ? mark.value * (source.hasStatus('focused') ? 1.08 : 1) : 1;
+        const rawDamage = e.amount * source.damageMult * markMult * ctx.roll() * (ctx.defenseMult?.() ?? 1);
         const taken = target.statusMult('guard') * (target.form?.damageTaken ?? 1) * passiveDamageTaken(target);
         const dealt = takeDamage(target, Math.round(rawDamage * taken), e.pierce);
         if (dealt > 0) {
@@ -103,6 +108,17 @@ export function applyEffects(
         ctx.onHit(source, target, dealt, skill);
         if (dealt > 0) applyMarks(ctx, source, target, skill);
         if (dealt > 0 && !self) counterStrike(ctx, source, target, skill);
+        if (dealt > 0 && !self && ctx.fighters) {
+          // A commander earns morale when their orders pay off: a buffed ally hitting, a marked enemy hit, a guard soaking damage.
+          const buff = source.statuses.find((s) => s.type === 'damageBuff' && s.source !== source.uid);
+          const buffer = buff ? ctx.fighters(buff.source) : undefined;
+          if (buffer) awakenGain(buffer, 'support', dealt * 0.5);
+          const marker = mark && mark.source !== source.uid ? ctx.fighters(mark.source) : undefined;
+          if (marker) awakenGain(marker, 'support', dealt * 0.5);
+          const guard = target.statuses.find((s) => s.type === 'guard' && s.source !== target.uid);
+          const guarder = guard ? ctx.fighters(guard.source) : undefined;
+          if (guarder) awakenGain(guarder, 'support', rawDamage * (1 - taken) * 0.8);
+        }
         break;
       }
       case 'knockback': {
@@ -123,6 +139,7 @@ export function applyEffects(
           }
         }
         addStatus(target, 'stun', e.duration, 0, source.uid);
+        if (!self) awakenInterrupt(source);
         // A stun interrupts wind-ups and channels.
         target.casting = null;
         target.channel = null;
@@ -132,10 +149,13 @@ export function applyEffects(
         if (!self && target.hasStatus('ward')) break;
         addStatus(target, 'burn', e.duration, e.dps, source.uid);
         break;
-      case 'slow':
+      case 'slow': {
         if (!self && target.hasStatus('ward')) break;
-        addStatus(target, 'slow', e.duration, e.factor, source.uid);
+        // A slow resist removes a share of the slow's strength.
+        const resist = Math.max(0, ...target.statuses.filter((s) => s.type === 'slowResist').map((s) => s.value));
+        addStatus(target, 'slow', e.duration, 1 - (1 - e.factor) * (1 - resist), source.uid);
         break;
+      }
       case 'shield':
         addStatus(target, 'shield', e.duration, e.amount, source.uid);
         awakenGain(source, 'support', e.amount * 0.5);
@@ -171,6 +191,21 @@ export function applyEffects(
       case 'ward':
         addStatus(target, 'ward', e.duration, 1, source.uid);
         break;
+      case 'slowResist':
+        addStatus(target, 'slowResist', e.duration, e.share, source.uid);
+        break;
+      case 'unslow':
+        for (const s of target.statuses) if (s.type === 'slow') s.remaining *= 1 - e.cut;
+        break;
+      case 'mark': {
+        addStatus(target, 'marked', e.duration, e.amount, source.uid);
+        const m = target.statuses.find((s) => s.type === 'marked' && s.source === source.uid);
+        if (m) m.team = source.team;
+        break;
+      }
+      case 'focus':
+        addStatus(target, 'focused', e.duration, 1, source.uid);
+        break;
       case 'purge':
         target.statuses = target.statuses.filter((s) => !['shield', 'guard', 'damageBuff', 'speedBuff', 'steady', 'ward', 'regen', 'counter'].includes(s.type));
         break;
@@ -189,6 +224,13 @@ export function applyEffects(
       case 'damageBuff':
         addStatus(target, 'damageBuff', e.duration, e.factor, source.uid);
         break;
+    }
+  }
+  // Assisting a teammate can give the helper a short burst of speed (Erwin's awakened passive).
+  if (!self) {
+    const ap = source.passiveDef;
+    if (ap.kind === 'awakening' && ap.assistSpeed && effects.some((x) => x.type === 'guard' || x.type === 'damageBuff' || x.type === 'speedBuff' || x.type === 'steady')) {
+      addStatus(source, 'speedBuff', ap.assistSpeed.duration, ap.assistSpeed.factor, source.uid);
     }
   }
 }

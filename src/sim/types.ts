@@ -20,6 +20,14 @@ export type Effect =
   | { type: 'ward'; duration: number }
   /** Strips the target's shields, guards, buffs, wards and braces. */
   | { type: 'purge' }
+  /** For `duration` seconds any slow on the target is weakened: `share` (0.5 = half) of its strength is removed. */
+  | { type: 'slowResist'; share: number; duration: number }
+  /** Cuts the remaining time of the target's slows by `cut` (0.7 = 70% shorter). */
+  | { type: 'unslow'; cut: number }
+  /** Marks the target: for `duration` seconds the marker's team deals `amount` times damage to it (0.15 more = 1.15). Re-marking refreshes, never stacks. */
+  | { type: 'mark'; amount: number; duration: number }
+  /** For `duration` seconds the target deals a little extra damage to marked enemies (Focused Assault). */
+  | { type: 'focus'; duration: number }
   /** For `duration` seconds nothing the target has (a barrier, a dodge) can stop an attack: every hit on it lands. */
   | { type: 'expose'; duration: number }
   | { type: 'speedBuff'; factor: number; duration: number }
@@ -115,6 +123,8 @@ export interface FormDef {
   /** Skill slot (0-3) → replacement skill while transformed. */
   skillOverrides?: Partial<Record<0 | 1 | 2 | 3, SkillDef>>;
   ultimateOverride?: SkillDef;
+  /** A rally pulse when the form activates: effects on enemies and on allies (and self) within `radius`. */
+  rally?: { radius: number; enemyEffects: Effect[]; allyEffects: Effect[] };
   /** A second life: instead of unlocking at low HP, the form triggers when this fighter would die, reviving them at `reviveHp` of max HP. */
   onDeath?: boolean;
   reviveHp?: number;
@@ -175,6 +185,12 @@ export type PassiveEffect =
       damageReduction?: number;
       /** Healing an ally under 35% HP enlarges the caster's next `boostable` area skill by `bonus` (0.25 = +25%) for `expire` seconds. */
       radiusBonus?: { bonus: number; expire: number };
+      /** Seconds between meter gains, so rapid ticks cannot fill it. */
+      icd?: number;
+      /** Meter gained when this fighter's stun interrupts an enemy. */
+      interruptGain?: number;
+      /** Assisting a teammate (a buff, a guard) gives this fighter a short speed boost. */
+      assistSpeed?: { factor: number; duration: number };
     };
 
 export type PassiveDef = { id: string; name: string; description: string } & PassiveEffect;

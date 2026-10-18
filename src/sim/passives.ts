@@ -13,6 +13,7 @@ export function tickPassive(f: Fighter, dt: number): void {
   const state = f.passive;
   state.calm += dt;
   if (state.boost > 0) state.boost -= dt;
+  if (state.gainCd > 0) state.gainCd -= dt;
   if (state.marks > 0 && (state.markTimer -= dt) <= 0) state.marks = 0;
   for (const [key, d] of state.decided) {
     d.remaining -= dt;
@@ -112,8 +113,23 @@ export const BRACE_COUNTER: SkillDef = {
 export function awakenGain(f: Fighter, kind: 'dealt' | 'taken' | 'support', amount: number): void {
   const p = f.passiveDef;
   if (p.kind !== 'awakening' || f.form || amount <= 0) return;
+  if (p.icd) {
+    if (f.passive.gainCd > 0) return;
+    f.passive.gainCd = p.icd;
+  }
   const rate = kind === 'dealt' ? p.perDamage : kind === 'taken' ? p.perTaken : p.perSupport;
   f.passive.meter = Math.min(100, f.passive.meter + amount * rate);
+}
+
+/** An enemy was stunned by this fighter: some passives pay out for interrupting. */
+export function awakenInterrupt(f: Fighter): void {
+  const p = f.passiveDef;
+  if (p.kind !== 'awakening' || f.form || !p.interruptGain) return;
+  if (p.icd) {
+    if (f.passive.gainCd > 0) return;
+    f.passive.gainCd = p.icd;
+  }
+  f.passive.meter = Math.min(100, f.passive.meter + p.interruptGain);
 }
 
 /** The extra hit a consumed set of marks deals. Shown like any other hit (damage number, sound). */

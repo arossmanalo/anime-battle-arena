@@ -305,8 +305,8 @@ export class UtilityAI {
       if (e.type === 'heal' || e.type === 'regen') s = hurt >= 0.2 ? 8 + hurt * 48 : 0;
       else if (e.type === 'ward') s = pressured && !targets.every((a) => a.hasStatus('ward')) ? 12 : 0;
       else if (e.type === 'cleanse') s = targets.some((a) => a.stunned || a.hasStatus('burn') || a.hasStatus('slow')) ? 32 : 0;
-      else if (e.type === 'shield' || e.type === 'guard') {
-        const have = targets.every((a) => a.hasStatus(e.type === 'shield' ? 'shield' : 'guard'));
+      else if (e.type === 'shield' || e.type === 'guard' || e.type === 'steady') {
+        const have = targets.every((a) => a.hasStatus(e.type === 'shield' ? 'shield' : e.type === 'steady' ? 'steady' : 'guard'));
         s = pressured && !have ? 16 + hurt * 14 : 0;
       } else if (e.type === 'damageBuff' || e.type === 'speedBuff') {
         const have = targets.every((a) => a.hasStatus(e.type));
@@ -343,6 +343,8 @@ export class UtilityAI {
   private score(skill: SkillDef, target: Fighter, d: number): number {
     // A map-wide finisher that is armed (HP gate met) is always worth firing.
     if (skill.requiresHpBelow) return 60;
+    // A signal flare is worth firing at an enemy that is not already marked.
+    if (skill.effects.some((e) => e.type === 'mark')) return d <= skill.range + 40 && !target.hasStatus('marked') ? 26 : 0;
     if (skill.support) return this.supportScore(skill) + (skill.selfEffects ? 0 : 0);
     if (skill.effects.some((e) => e.type === 'taunt')) return this.tauntScore(skill, d);
     if (skill.kind === 'aoe' && skill.range === 0 && !skill.ultimate && (skill.outer || skill.boostable)) return this.pointBlankScore(skill);
