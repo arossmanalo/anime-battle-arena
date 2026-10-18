@@ -1,6 +1,6 @@
 # Nezuko FX: prompts for ChatGPT
 
-**Attach Nezuko's sprite (one idle frame or her portrait) when you paste prompt A**, and paste it once. Prompt A makes **one image with 7 rows** for her base form. Then prompt B (**attach the same sprite plus her awakened sprite if you have it**) makes **one image with 6 rows** for the Awakened Demon Form. Send both images back and say they're for Nezuko.
+**Attach her BASE form sprite (one idle frame or portrait) when you paste prompt A.** Prompt A makes **one image with 7 rows** for her base form. Then **attach TWO images in this order when you paste prompt B: first the base form sprite, then the awakened form sprite.** Prompt B makes **one image with 6 rows** for the Awakened Demon Form. Send both images back and say they're for Nezuko.
 
 Her look is **pink and crimson demonic flames with bright glowing centres**. Base form is gentle (soft pink, sparkles, healing glow); awakened form is aggressive (deep crimson-pink, sharp, heavier). Black is removed from these images, so nothing visible may be pure black.
 
@@ -31,8 +31,10 @@ ROW 7: BURNING BLOOD SANCTUARY, BLAST. 14 frames: a huge circular wave of brilli
 
 ## B. Awakened form effects (paste this next, same chat)
 
+Attach two images: **1) the base form sprite, then 2) the awakened form sprite.**
+
 ```
-Attached is the pixel-art Nezuko sprite (and her awakened form if included), for style, colour and scale only. Create the effects for her AWAKENED DEMON FORM as ONE pixel-art game VFX sprite sheet in the same style as the effects you just made, but MORE INTENSE: deep crimson-red and hot pink flames with white-hot cores, sharper shapes, heavier impacts. Never draw a character, only effects.
+Attached are two pixel-art sprites of Nezuko: the FIRST image is her base form and the SECOND image is her awakened demon form (taller, with a horn and vine-like markings). Use them only for style, colour and scale: the flames should match the second (awakened) sprite's intensity, and the colours should stay consistent with the first. Create the effects for her AWAKENED DEMON FORM as ONE pixel-art game VFX sprite sheet in the same style as the effects you just made, but MORE INTENSE: deep crimson-red and hot pink flames with white-hot cores, sharper shapes, heavier impacts. Never draw a character, only effects.
 
 RULES: same as before: pure solid black (#000000) background, no text/labels/borders, 6 rows, each row ONE horizontal strip of equally spaced frames with clear black gaps, same scale across the row, exact frame counts, nothing visible may be pure black (flames must have bright pink or white cores and rims).
 
