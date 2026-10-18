@@ -87,6 +87,9 @@ export interface FxConfig {
   behind?: boolean;
   /** A dome whose base sits at the fighter's feet, so the fighter stands inside it. */
   ground?: boolean;
+  /** ground: where the centre of the ground ring is inside the frame (0-1), so the ring centres on the fighter's feet. */
+  anchorX?: number;
+  anchorY?: number;
 }
 
 export interface FxInfo {
@@ -100,6 +103,8 @@ export interface FxInfo {
   rotate: boolean;
   behind?: boolean;
   ground?: boolean;
+  anchorX?: number;
+  anchorY?: number;
 }
 
 export const FX_DEFAULTS: Record<FxPart, { loop: boolean; frameRate: number }> = {

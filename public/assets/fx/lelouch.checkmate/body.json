@@ -7,5 +7,7 @@
   "blend": "add",
   "size": 150,
   "behind": true,
-  "ground": true
+  "ground": true,
+  "anchorX": 0.58,
+  "anchorY": 0.77
 }

@@ -220,7 +220,7 @@ export class Vfx {
     const startedAt = this.clock();
     const s = this.createFxSprite(skillId, 'body', body, 130).setPosition(f.pos.x, f.pos.y - BODY_LIFT);
     (body.behind ? this.layers.zones : this.layers.fx).add(s);
-    if (body.ground) s.setOrigin(0.5, 0.93);
+    if (body.ground) s.setOrigin(body.anchorX ?? 0.5, body.anchorY ?? 0.9);
     const auras = this.auraUids();
     auras.add(f.uid);
     this.attached.push({
@@ -256,7 +256,7 @@ export class Vfx {
         this.attached.splice(i, 1);
         continue;
       }
-      if (a.ground) a.sprite.setPosition(a.fighter.pos.x, a.fighter.pos.y + a.fighter.def.radius + 8);
+      if (a.ground) a.sprite.setPosition(a.fighter.pos.x, a.fighter.pos.y + a.fighter.def.radius + 4);
       else if (!a.fixed) a.sprite.setPosition(a.fighter.pos.x, a.fighter.pos.y - BODY_LIFT);
       if (a.endsAt !== undefined) a.sprite.setAlpha(Math.min(1, (a.endsAt - this.clock()) / FX_FADE));
     }
