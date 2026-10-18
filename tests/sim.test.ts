@@ -541,6 +541,8 @@ describe("Sukuna's new mechanics", () => {
   it('marks fade if he stops attacking', () => {
     const sim = duel('sukuna', 'goku');
     const [s, g] = sim.fighters;
+    sim.tryAttack = () => false; // the AI must not keep attacking (and re-marking) while we wait
+    for (const f of sim.fighters) f.auto = false;
     g.invuln = 0;
     applyEffects(ctx, s, g, dmg(5), sk('d1'), s.pos);
     expect(g.passive.marks).toBe(1);
