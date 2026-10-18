@@ -20,6 +20,7 @@
  *   --fps N           frame rate        --loop | --once      override the default for this part
  *   --size PX         on-screen width in arena px (the arena is 900 wide, a fighter is about 90)
  *   --blend add|normal   how it is drawn (default: add for black backgrounds, otherwise normal)
+ *   --no-feather      keep the hard cut edges of frames (by default they fade out over a small margin)
  *   --no-rotate       a projectile body should not turn to face its heading
  *   --copy-to FOLDER  also save the source and results there
  *
@@ -50,7 +51,7 @@ interface Rect {
 function parseArgs(argv: string[]) {
   const positional: string[] = [];
   const opts: Record<string, string | true> = {};
-  const flags = new Set(['fill', 'loop', 'once', 'no-rotate']);
+  const flags = new Set(['fill', 'loop', 'once', 'no-rotate', 'no-feather']);
   for (let i = 0; i < argv.length; i++) {
     if (argv[i].startsWith('--')) {
       const name = argv[i].slice(2);
@@ -324,7 +325,26 @@ async function main(): Promise<void> {
     }
     const sw = Math.max(1, Math.round(f.width * scale));
     const sh = Math.max(1, Math.round(f.height * scale));
-    const img = await crop.resize(sw, sh, { kernel: 'lanczos3' }).png().toBuffer();
+    // Where a frame was cut out of a neighbouring glow or haze, the cut edge would show as a hard square.
+    // Fade the alpha out over a margin along each edge so frames blend away smoothly (--no-feather to skip).
+    const piece = Buffer.alloc(f.width * f.height * 4);
+    const margin = Math.max(6, Math.round(Math.min(f.width, f.height) * 0.09));
+    for (let y = 0; y < f.height; y++) {
+      for (let x = 0; x < f.width; x++) {
+        const from = ((f.top + y) * w + f.left + x) * 4;
+        const edge = Math.min(x, y, f.width - 1 - x, f.height - 1 - y);
+        const k = opts['no-feather'] ? 1 : Math.min(1, edge / margin);
+        const smooth = k * k * (3 - 2 * k);
+        piece[(y * f.width + x) * 4] = data[from];
+        piece[(y * f.width + x) * 4 + 1] = data[from + 1];
+        piece[(y * f.width + x) * 4 + 2] = data[from + 2];
+        piece[(y * f.width + x) * 4 + 3] = Math.round(data[from + 3] * smooth);
+      }
+    }
+    const img = await sharp(piece, { raw: { width: f.width, height: f.height, channels: 4 } })
+      .resize(sw, sh, { kernel: 'lanczos3' })
+      .png()
+      .toBuffer();
     layers.push({ input: img, left: i * cellW + Math.round((cellW - sw) / 2), top: Math.round((cellH - sh) / 2) });
   }
 
