@@ -1,0 +1,78 @@
+---
+name: new-character
+description: Turn a natural-language character description into a playable fighter for Anime Battle Arena (data file, roster entry, balance check, sprite and FX prompts). Use when the user says /new-character or asks to add, design or create a character, fighter or roster member.
+---
+
+# New character
+
+Input: a plain-language description of a character (name, series, what they can do, personality, look). It may be loose. Output: a working, balanced fighter in the game plus everything needed to make its art.
+
+## 0. Read the brief
+
+Fill the blanks from the description using the defaults below. Only ask the user when something changes the design a lot (for example "which two of these five moves?"). Never ask more than 3 questions, and prefer picking a sensible default and saying so.
+
+The user can use the template in `docs/CHARACTER_BRIEF_TEMPLATE.md`, but any wording works.
+
+## 1. Design the kit
+
+A fighter (`FighterDef`, see `src/sim/types.ts`) has: stats, **4 skills**, **1 ultimate**, **1 default attack**, **1 passive** and an optional **form**. Look at two existing files in `src/data/fighters/` for style before writing one.
+
+**Archetype -> AI profile and stats**
+
+| Archetype | `aiProfile` | `hp` | `speed` | Notes |
+|---|---|---|---|---|
+| Brawler / swordsman | `rushdown` | 500-545 | 175-190 | melee default attack, short-range dashes, burst damage |
+| All-rounder | `balanced` | 500-540 | 170-180 | mix of projectile, dash and a beam or area |
+| Ranged / caster | `zoner` | 500-550 | 160-175 | ranged default attack (weak bolt), zones, beams, longer cooldowns |
+
+`radius` 18, `energyRegen` 7 (7.5 for slow casters). Colours: `color` is the main body colour, `accent` the secondary (hex numbers like `0xff8a1f`).
+
+**Skills** (`kind`: projectile, beam, dash, aoe, zone, buff). Map the character's famous moves onto these:
+- Use each of the 4 slots for a different job: a cheap spammy poke (energy 8-12, cooldown 2-3, 4-6 total damage per volley), a mobility or gap-closer dash (energy 15-22, cooldown 5-6, damage 17-24), a signature heavy hit (beam, big projectile or area; energy 25-30, cooldown 7-9, total 20-30), and a utility or buff (energy 20-25, cooldown 12-16: shield 22-58, damage/speed buff 1.2-1.4 for 4-6 s, heal).
+- **Ultimate**: `ultimate: true`, `energyCost: 0`, `cooldown: 4`, cast time 0.7-1.2 s, damage 48-56 (beams: damage per tick 3.5-7 over 1-1.4 s). Include knockback or a stun/burn rider.
+- Effects: `damage`, `knockback`, `stun` (keep <= 1 s), `burn`, `slow`, `shield`, `heal`, `speedBuff`, `damageBuff`. Self effects go in `selfEffects`.
+- Every `id` is unique and starts with the character id (`<id>.<skill>`).
+- `color` per skill = the dominant colour of its effect.
+
+**Default attack** (`attack`): melee punch/slash combo (`style: 'melee'`, range 48-56, damage 3.5-8, `combo: 3`, `cooldown` 0.45-0.55, `windup` 0.12-0.14, `knockback` 160-180) or a ranged bolt (`style: 'ranged'`, range 300-320, damage 5-9, `combo: 1`, `cooldown` 0.9, `speed` 500-520). Ranged attackers (zoners) get the bolt.
+
+**Passive** (`passive`, one of the kinds in `PassiveEffect`): pick the one that fits the character's identity, with these tuned values as the guide.
+- `barrier` (blocks hits, e.g. an untouchable defence): `hits: 2`, `cooldown: 24`
+- `dodge` (evasion, precognition): `chance: 0.15`
+- `regen` (regeneration): `hpPerSec: 4`, `belowHp: 0.6`
+- `rage` (stronger when hurt): `maxBonus: 0.3`
+- `ultCharge` (ultimate fills faster): `mult: 1.5`
+- `lastStand` (refuses to die): `invuln: 2`
+
+**Form** (optional, `form`): a transformation unlocked at low HP. `hpThreshold` 0.45-0.5, `energyCost` 40 (50 for a domain-style one), `speedMult` 1.1-1.25, `damageMult` 1.15-1.25, `energyRegenMult` 1.3-1.5, `heal` 0.05-0.1. It may replace a skill (`skillOverrides`) or the ultimate. Give it a `color`.
+
+**Voice lines**: 2 each for `intro`, `ultimate`, `transform`, `hurt`, `win`, short and in character (paraphrase, do not quote copyrighted dialogue).
+
+`initials`: 2 letters for the placeholder disc. `series`: the show or game.
+
+## 2. Write the code
+
+1. Create `src/data/fighters/<id>.ts` exporting `export const <id>: FighterDef`, matching the style of the others (single quotes, 2-space indent, `import type { FighterDef } from '../../sim/types';`).
+2. Add it to `ROSTER` in `src/data/fighters/index.ts` (import and list it).
+3. Character Select lays out 3 columns; with more than 6 fighters check `CharacterSelectScene.ts` still fits and adjust the grid if not.
+
+## 3. Verify and balance
+
+- `npx tsc --noEmit` and `npx vitest run` (the "well-formed" test checks ids and costs).
+- `npm run balance -- 100`: aim for each fighter's overall win rate within about 40-60% and no matchup outside 25-75%. If the new character is off, tune **their** numbers (damage, cooldown, hp) in small steps and re-run; only touch other characters if the new one is fine and the roster shifted. Report the final table.
+
+## 4. Art prompts (docs)
+
+Create two files and give the user the prompt text in chat too:
+- `docs/<NAME>_SPRITE_PROMPT.md`: the ChatGPT sprite-sheet prompt from `docs/ART_SPEC.md` ("Making sprites with ChatGPT") with the character's look filled in, **6 rows** (idle 4, run 6, cast 4, hit 2, ko 4, attack 4), and a second prompt for each form sheet. Import commands: `npm run import-sheet -- <image> <id> --copy-to "C:/Users/Aryl Ross A. Manalo/Pictures/ABA Sprites/Characters/<Name>"`, `--form` for the transformed sheet, `--attack` to add the attack row to an existing sheet.
+- `docs/<NAME>_FX_PROMPTS.md`: the effect prompt, built like `docs/GOKU_FX_PROMPTS.md`, `docs/NARUTO_FX_PROMPTS.md` or `docs/SASUKE_FX_PROMPTS.md`: one image of rows (one row per skill, basic attack and ultimate, plus a passive trigger row if the passive has a visible trigger), each row a horizontal strip on pure black, the frame counts per part, which parts (`cast`, `body`, `start`, `impact`, plus `muzzle`/`tip` and a stretchable beam-body image for beams). Dark effects need a bright rim because black is keyed out. Part rules are in `docs/FX_SPEC.md`.
+
+## 5. Importing the art (when the user sends images)
+
+- Sprites: `docs/ART_SPEC.md`, `npm run import-sheet`. Also save a copy to `C:\Users\Aryl Ross A. Manalo\Pictures\ABA Sprites\Characters\<Name>\`.
+- FX: `npm run import-fx -- <image> <skill-id> <part> --crop L,T,R,B --frames N --pick A-B --size PX --copy-to ...Characters\<Name>\FX`. Find each row's band by looking at the image (or the brightness profile), count frames by eye, and check one frame sheet visually before committing. Sizes are in arena pixels (a fighter is about 90 wide).
+- Test in headless Chrome rather than the preview pane (the pane is throttled): drive `window.game` and take screenshots.
+
+## 6. Finish
+
+Commit and push to `origin` after each milestone with a plain message and **no co-author line**. Summarise: the kit (4 skills, ultimate, attack, passive, form), the balance table, and exactly what the user needs to generate next.
