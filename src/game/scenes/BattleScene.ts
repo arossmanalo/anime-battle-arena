@@ -17,7 +17,7 @@ import { ARENA_HEIGHT, ARENA_WIDTH, ARENA_X, ARENA_Y, fitCamera, GAME_HEIGHT, GA
 import { TEAM_ARENAS, type MatchResult, type MatchSetup } from '../match';
 import { COLORS, impactStyle, shade, textStyle } from '../theme';
 import { FighterView } from '../view/FighterView';
-import { Vfx } from '../view/Vfx';
+import { Vfx, isSelfAura } from '../view/Vfx';
 
 const INTRO_TIME = 1.9;
 /** Seconds of real time to freeze the sim on a hit, by damage. */
@@ -306,7 +306,7 @@ export class BattleScene extends Phaser.Scene {
           const f = this.sim.fighter(e.uid)!;
           this.playFireSound(e.skill);
           this.vfx.fired(f, e.skill, e.x, e.y);
-          if (e.skill.kind === 'buff') {
+          if (isSelfAura(e.skill)) {
             this.views.get(e.uid)?.pulse(e.skill.color, e.skill.id);
             if (!this.vfx.hasFx(e.skill.id, 'body')) this.vfx.aura(f.pos.x, f.pos.y, e.skill.color);
           }

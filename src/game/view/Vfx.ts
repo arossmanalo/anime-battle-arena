@@ -48,6 +48,11 @@ export interface VfxLayers {
 }
 
 /** Everything in the arena that isn't a fighter: projectiles, beams, zones, particles, craters, damage numbers. */
+/** Buffs, and team-kit skills that only act on the caster (taunt, guard), show their body art as a lasting aura. */
+export function isSelfAura(skill: SkillDef): boolean {
+  return skill.kind === 'buff' || (skill.kind === 'aoe' && !!skill.selfEffects?.length);
+}
+
 export class Vfx {
   private readonly sparks: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly shards: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -193,7 +198,7 @@ export class Vfx {
   /** A skill just went off: muzzle / blink-out sprite at the caster, and a lasting aura for buffs. */
   fired(f: Fighter, skill: SkillDef, x: number, y: number): void {
     this.oneShot(skill.id, 'start', x, y - BODY_LIFT, 100);
-    const body = skill.kind === 'buff' ? this.fx(skill.id, 'body') : undefined;
+    const body = isSelfAura(skill) ? this.fx(skill.id, 'body') : undefined;
     if (!body) return;
     const duration = Math.max(1, ...(skill.selfEffects ?? []).map((e) => ('duration' in e ? e.duration : 0)));
     const startedAt = this.clock();
