@@ -20,7 +20,7 @@ import {
 } from '../src/game/assets';
 
 const root = join(import.meta.dirname, '..', 'public', 'assets');
-const manifest: AssetManifest = { fighters: {}, floor: existsSync(join(root, 'arena', 'floor.png')), sfx: {}, fx: {} };
+const manifest: AssetManifest = { version: String(Date.now()), fighters: {}, floor: existsSync(join(root, 'arena', 'floor.png')), sfx: {}, fx: {} };
 const problems: string[] = [];
 
 /** Width and height from a PNG's IHDR chunk. */

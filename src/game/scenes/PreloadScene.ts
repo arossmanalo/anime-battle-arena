@@ -47,32 +47,33 @@ export class PreloadScene extends Phaser.Scene {
 
   private loadAssets(manifest: AssetManifest): void {
     this.registry.set('manifest', manifest);
+    const v = manifest.version ? `?v=${manifest.version}` : '';
 
     for (const [id, f] of Object.entries(manifest.fighters)) {
       const dir = `${ASSET_ROOT}fighters/${id}/`;
       if (f.sheet) {
-        this.load.spritesheet(fighterSheetKey(id), `${dir}sheet.png`, {
+        this.load.spritesheet(fighterSheetKey(id), `${dir}sheet.png${v}`, {
           frameWidth: f.sheet.frameWidth,
           frameHeight: f.sheet.frameHeight,
         });
       }
       if (f.formSheet) {
-        this.load.spritesheet(fighterSheetKey(id, true), `${dir}form/sheet.png`, {
+        this.load.spritesheet(fighterSheetKey(id, true), `${dir}form/sheet.png${v}`, {
           frameWidth: f.formSheet.frameWidth,
           frameHeight: f.formSheet.frameHeight,
         });
       }
-      if (f.portrait) this.load.image(portraitKey(id), `${dir}portrait.png`);
+      if (f.portrait) this.load.image(portraitKey(id), `${dir}portrait.png${v}`);
     }
     for (const [id, parts] of Object.entries(manifest.fx ?? {})) {
       for (const [part, info] of Object.entries(parts)) {
-        this.load.spritesheet(fxKey(id, part as FxPart), `${ASSET_ROOT}fx/${id}/${part}.png`, {
+        this.load.spritesheet(fxKey(id, part as FxPart), `${ASSET_ROOT}fx/${id}/${part}.png${v}`, {
           frameWidth: info.frameWidth,
           frameHeight: info.frameHeight,
         });
       }
     }
-    if (manifest.floor) this.load.image(FLOOR_KEY, `${ASSET_ROOT}arena/floor.png`);
+    if (manifest.floor) this.load.image(FLOOR_KEY, `${ASSET_ROOT}arena/floor.png${v}`);
     for (const [name, path] of Object.entries(manifest.sfx)) this.load.audio(sfxKey(name as SfxName), `${ASSET_ROOT}${path}`);
 
     if (this.load.list.size === 0) {

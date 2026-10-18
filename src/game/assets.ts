@@ -114,6 +114,8 @@ export interface SheetInfo {
 }
 
 export interface AssetManifest {
+  /** Changes whenever the manifest is rebuilt; appended to asset URLs so the browser never shows a stale cached image. */
+  version?: string;
   fighters: Record<string, { sheet: SheetInfo | null; portrait: boolean; formSheet?: SheetInfo | null }>;
   /** Custom effect sprites by skill id. */
   fx?: Record<string, Partial<Record<FxPart, FxInfo>>>;
