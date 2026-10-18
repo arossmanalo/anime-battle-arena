@@ -1,0 +1,9 @@
+{
+  "frameWidth": 190,
+  "frameHeight": 190,
+  "frames": 6,
+  "frameRate": 18,
+  "loop": false,
+  "blend": "add",
+  "size": 115
+}
