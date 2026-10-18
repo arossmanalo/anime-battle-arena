@@ -1,28 +1,34 @@
-# Erwin sprite prompts (ChatGPT)
+# Erwin sprite prompt (ChatGPT): base and Unyielding Commander in ONE prompt
 
-Two sheets: the base **Erwin Smith** and the **Unyielding Commander** form used after he awakens. These prompts deliberately do **not** describe how Erwin looks: the attached reference image is the only source for his design, so ChatGPT cannot drift towards a written description.
+One prompt makes both sprite sheets. It deliberately does **not** describe how Erwin looks: the attached reference images are the only source for his design, so ChatGPT cannot drift towards a written description.
 
-**Prompt 1: attach these images, in this order:**
-1. **A reference image of Erwin Smith** (the exact design you want kept).
-2. **One of your existing pixel sprites** (for example Tanjiro's or Sakura's idle frame), for pixel style, scale and density only.
+**Attach these images, in this order, when you paste the prompt:**
+1. **Reference image of Erwin's BASE form** (the exact design you want kept).
+2. **Reference image of Erwin's TRANSFORMED form (Unyielding Commander)**.
+3. **One of your existing pixel sprites** (for example Tanjiro's or Sakura's idle frame), for pixel style, scale and density only.
 
-**Prompt 2: attach these images, in this order:**
-1. **The finished Erwin base sprite** (idle frame from prompt 1's result).
-2. **A reference image of the awakened look** (optional: Erwin with the battle-worn cloak, golden glow and intense expression). If you have none, attach only the base sprite.
+ChatGPT should answer with **two images**: sheet 1 (base) then sheet 2 (transformed). Import commands are at the bottom.
 
-Ask for both sheets in the same chat so the design stays consistent. Import commands are at the bottom.
-
-## 1. Base sheet
+## Prompt
 
 ```
-Attached are images. The FIRST image is the reference for the character: reproduce the character in the first image exactly: same hair, face, outfit, accessories, equipment, colours and proportions. Do not add, remove or change any detail. If these instructions ever differ from the first image, the first image wins. The SECOND image is one of my existing pixel-art fighters and is ONLY for pixel style, scale and pixel density: do not copy its design, outfit or colours.
+Attached are three images, in this order:
+- IMAGE 1 is the reference for the BASE form of the character.
+- IMAGE 2 is the reference for the TRANSFORMED form of the same character.
+- IMAGE 3 is one of my existing pixel-art fighters. It is ONLY for pixel style, scale and pixel density: do not copy its design, outfit or colours.
 
-Create a pixel-art sprite sheet of the character from the first image as a chibi fighting-game character in the same style as my other fighters (big head, small body). He fights with the sword(s) shown in the reference: keep them as in the image and add no other weapon.
+Reproduce each form exactly as it appears in its own image: same hair, face, outfit, accessories, equipment, colours and proportions. Do not add, remove or change any detail, and do not mix details between image 1 and image 2. If these instructions ever differ from the images, the images win.
 
+Create TWO pixel-art sprite sheets, as two separate images, in the same style as my other fighters (chibi fighting-game character: big head, small body):
+- SHEET 1: the character from IMAGE 1 (base form).
+- SHEET 2: the character from IMAGE 2 (transformed form), at the same size and with the same poses as sheet 1.
+He fights with the sword(s) shown in the references: keep them as in the images and add no other weapon.
+
+Rules for BOTH sheets:
 - PIXEL-ART STYLE (important): this must be TRUE low-resolution pixel art like a 16-bit fighting game, NOT a smooth illustration. Draw the character about 64 pixels tall on a visible pixel grid, with chunky square pixels, hard 1-pixel dark outlines, a limited palette (about 24 colours), flat colour shading in 2-3 tones, and NO anti-aliasing, NO soft gradients, NO blur, NO painterly or vector smoothing. Keep it crisp enough that individual pixels are visible when zoomed in.
 - Transparent background. No text, no labels, no borders.
 - Every frame shows the character from a side / three-quarter view FACING RIGHT.
-- Arrange it as a grid: 6 rows, up to 6 frames per row, all cells the same size, the character centred in each cell, FEET ON THE SAME BASELINE in every frame, the same scale in every frame. LEAVE A CLEAR GAP BETWEEN ROWS so that no frame touches the row above or below.
+- Arrange each sheet as a grid: 6 rows, up to 6 frames per row, all cells the same size, the character centred in each cell, FEET ON THE SAME BASELINE in every frame, the same scale in every frame. LEAVE A CLEAR GAP BETWEEN ROWS so that no frame touches the row above or below.
 - Row 1: idle fighting stance, upright and disciplined, sword held ready (4 frames).
 - Row 2: running (6 frames).
 - Row 3: casting a command: one arm raised and pointing forward, as if giving an order (4 frames).
@@ -32,26 +38,11 @@ Create a pixel-art sprite sheet of the character from the first image as a chibi
 - No glowing energy, swirls, speed lines or particles. Character only.
 ```
 
-## 2. Unyielding Commander sheet
-
-```
-Attached are images. The FIRST image is the pixel-art sprite of the character from my first sheet (his base form). The SECOND image (if present) is a reference for his awakened look. Reproduce the character exactly as in the first image: same design, same proportions, same size, same pixel style and palette. Where the second image shows a difference (a more battle-worn cloak, a golden glow, a more intense expression), apply ONLY that difference. Do not add, remove or change any other detail. If these instructions ever differ from the images, the images win.
-
-Create a pixel-art sprite sheet of this awakened version as a chibi fighting-game character in the same style as the first image. Same weapons as the first image: no other weapon.
-
-- PIXEL-ART STYLE (important): this must be TRUE low-resolution pixel art like a 16-bit fighting game, NOT a smooth illustration. Draw the character about 64 pixels tall on a visible pixel grid, with chunky square pixels, hard 1-pixel dark outlines, a limited palette (about 24 colours), flat colour shading in 2-3 tones, and NO anti-aliasing, NO soft gradients, NO blur, NO painterly or vector smoothing.
-- Transparent background. No text, no labels, no borders.
-- Every frame shows the character from a side / three-quarter view FACING RIGHT.
-- Arrange it as a grid: 6 rows, up to 6 frames per row, all cells the same size, the character centred in each cell, feet on the same baseline in every frame. LEAVE A CLEAR GAP BETWEEN ROWS so that no frame touches the row above or below.
-- Row 1: idle stance, more intense, cloak stirring (4 frames). Row 2: running with the cloak streaming behind him (6 frames). Row 3: casting a command: sword raised high and pointing forward (4 frames). Row 4: recoiling from a hit, barely shaken (2 frames). Row 5: falling down knocked out (4 frames). Row 6: a quick sword attack, faster and more precise: two quick slashes then a finishing strike (4 frames: wind-up, strike, follow-through, recover).
-- No separate energy effects, swirls, speed lines or particles. Character only.
-```
-
 ## Importing
 
 ```
-npm run import-sheet -- path/to/base.webp erwin --copy-to "C:/Users/Aryl Ross A. Manalo/Pictures/ABA Sprites/Characters/Erwin"
-npm run import-sheet -- path/to/commander.webp erwin --form --copy-to "C:/Users/Aryl Ross A. Manalo/Pictures/ABA Sprites/Characters/Erwin/Commander"
+npm run import-sheet -- path/to/sheet1-base.webp erwin --copy-to "C:/Users/Aryl Ross A. Manalo/Pictures/ABA Sprites/Characters/Erwin"
+npm run import-sheet -- path/to/sheet2-commander.webp erwin --form --copy-to "C:/Users/Aryl Ross A. Manalo/Pictures/ABA Sprites/Characters/Erwin/Commander"
 npm run assets
 ```
 
