@@ -282,7 +282,11 @@ table.keys td:first-child { width: 36%; white-space: nowrap; }
 .tile.off { opacity: 0.5; cursor: not-allowed; box-shadow: var(--frame); background: var(--panel-2); filter: grayscale(0.8); }
 .tile-name { font-weight: 700; font-size: 20px; line-height: 1.1; }
 .tile-role { font-weight: 600; font-size: 14px; }
-.tile-badge { position: absolute; top: 4px; right: 6px; font-weight: 700; font-size: 13px; }
+.tile-badge { position: absolute; top: -8px; right: -6px; padding: 3px 6px; font-weight: 700; font-size: 13px; line-height: 1; color: #fff; box-shadow: 0 0 0 2px var(--edge); }
+.tile-badge.you { background: var(--you); }
+.tile-badge.cpu { background: var(--foe); }
+.tile.off:has(.tile-badge) { opacity: 1; filter: none; color: var(--muted); }
+.tile.off:has(.tile-badge) .portrait { filter: grayscale(1); opacity: 0.55; }
 
 /* ---- team builder --------------------------------------------------------------------------- */
 .teams { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; }

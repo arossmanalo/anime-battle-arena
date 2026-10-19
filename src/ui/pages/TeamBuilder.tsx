@@ -7,7 +7,7 @@ import { roleScores } from '../../sim/roles';
 import type { FighterDef } from '../../sim/types';
 import { FighterGrid } from '../components/FighterGrid';
 import { Button, PageHeader, Sprite } from '../components/kit';
-import { ROLE_META, hexColor, mainRoleOf } from '../info';
+import { ROLE_META, hexColor } from '../info';
 import { useStore } from '../store';
 
 interface Slot {
@@ -240,7 +240,7 @@ export function TeamBuilder() {
       <FighterGrid
         onPick={onPick}
         disabled={[...taken, ...(mode === 'draft' && !myTurn ? ROSTER.map((d) => d.id) : [])]}
-        badge={(d) => (taken.has(d.id) ? <span className="tile-badge" style={{ color: ROLE_META[mainRoleOf(d)].color }}>{mine.some((s) => s.id === d.id) ? 'Yours' : 'CPU'}</span> : null)}
+        badge={(d) => (taken.has(d.id) ? mine.some((s) => s.id === d.id) ? <span className="tile-badge you">Yours</span> : <span className="tile-badge cpu">CPU</span> : null)}
       />
       {!ready && <p className="hint">Both teams need {size} fighters before the battle can start.</p>}
     </div>
