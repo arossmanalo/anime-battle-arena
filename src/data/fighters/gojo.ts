@@ -137,11 +137,17 @@ export const gojo: FighterDef = {
         atTarget: true,
         duration: 5,
         tickInterval: 0.25,
-        // A huge singularity that stays 5 seconds, drags everyone in reach to its centre and grinds them down.
+        // A huge singularity that stays 5 seconds, drags everyone in reach to its centre, grinds them down, then explodes.
         pull: 90,
         effects: [
           { type: 'damage', amount: 5 },
           { type: 'slow', factor: 0.6, duration: 0.5 },
+        ],
+        // When the spin ends the singularity detonates: a big blast on everyone still caught in it.
+        finale: [
+          { type: 'damage', amount: 45 },
+          { type: 'knockback', force: 700 },
+          { type: 'stun', duration: 0.6 },
         ],
         color: 0x2f6bff,
       },

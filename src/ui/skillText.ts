@@ -31,7 +31,7 @@ const T: Record<string, [string, string]> = {
   'gojo|Infinity: Barrier': ['He widens the gap so the people behind him are safe too.', 'Team kit: a shield for you and a smaller one for allies.'],
   'gojo|Hollow Purple': ['Red and Blue collide and erase everything in the way.', 'Ultimate. Long projectile with huge damage and knockback.'],
   'gojo|Maximum: Red': ['Red at full output, ricocheting off the arena.', 'Awakened. Hits harder than Red and ricochets twice.'],
-  'gojo|Maximum: Blue': ['Blue at its widest, dragging everything toward him.', 'Awakened. Large zone that pulls enemies in and hurts more than Blue.'],
+  'gojo|Maximum: Blue': ['Blue at its widest, dragging everything toward him.', 'Awakened. Large zone that pulls enemies in and grinds them, then explodes for big damage and a stun.'],
   'gojo|Infinite Void': ['The Domain Expansion: everything in it is shown infinite information at once.', 'Awakened. Wipes buffs and shields, stuns, cannot be dodged.'],
   'gojo|Black Flash': ['A hit landed within a ten-thousandth of a second of the cursed energy, so it bites harder.', 'Awakened. Dash that hits hard, shoves, and stuns.'],
   'gojo|Maximum: Purple': ['Hollow Purple with nothing held back.', 'Awakened ultimate. Only below 30% HP, enormous burst around you.'],

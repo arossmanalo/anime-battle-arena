@@ -103,6 +103,7 @@ export function describeSkill(skill: SkillDef): SkillInfo {
   if (skill.empower?.length) tags.push('Empowered by Tactical Advantage');
   const lines = skill.effects.map(describeEffect).filter(Boolean);
   const allies = [...(skill.selfEffects ?? []), ...(skill.support?.initial ?? []), ...(skill.support?.effects ?? [])].map(describeEffect).filter(Boolean);
+  if (skill.finale?.length) lines.push(`final blast: ${skill.finale.map(describeEffect).filter(Boolean).join(', ')}`);
   if (skill.outer) lines.push(`outer ring: ${skill.outer.effects.map(describeEffect).join(', ')}`);
   return { skill, kindLabel: KIND_LABEL[skill.kind], lines, allies, tags };
 }
