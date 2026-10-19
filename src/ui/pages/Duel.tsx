@@ -21,6 +21,10 @@ export function Duel() {
   const [enemy, setEnemy] = useState<FighterDef | undefined>();
   const [active, setActive] = useState<'player' | 'enemy'>(player ? 'enemy' : 'player');
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
+  // The active side's portrait follows the cursor, as on an arcade select screen.
+  const [hover, setHover] = useState<FighterDef | undefined>();
+  const shownPlayer = active === 'player' ? hover ?? player : player;
+  const shownEnemy = active === 'enemy' ? hover ?? enemy : enemy;
 
   const pick = (d: FighterDef) => {
     if (active === 'player') {
@@ -37,11 +41,23 @@ export function Duel() {
 
   return (
     <div className="page wide">
-      <PageHeader title="Choose your fighters">Click a side, then pick from the grid. Random works too.</PageHeader>
+      <PageHeader title="Choose your fighters">Click a side, then pick from the grid. The ? tile picks for you.</PageHeader>
       <div className="select-screen">
-        <FighterPreview def={player} label="You" active={active === 'player'} onClick={() => setActive('player')} empty="Pick your fighter" />
+        <FighterPreview def={shownPlayer} label="1P" active={active === 'player'} onClick={() => setActive('player')} empty="Pick your fighter" quote />
         <div className="select-center">
-          <FighterGrid onPick={pick} selected={player ? [player.id] : []} rival={enemy ? [enemy.id] : []} />
+          <FighterGrid
+            onPick={pick}
+            onHover={setHover}
+            onRandom={() => pick(pickRandom(active === 'player' ? enemy?.id : player?.id))}
+            selected={player ? [player.id] : []}
+            rival={enemy ? [enemy.id] : []}
+            badge={(d) => (
+              <>
+                {d.id === player?.id && <span className="tile-badge you">1P</span>}
+                {d.id === enemy?.id && <span className={`tile-badge cpu ${d.id === player?.id ? 'left' : ''}`}>CPU</span>}
+              </>
+            )}
+          />
           <div className="select-actions">
             <div className="seg" role="radiogroup" aria-label="CPU difficulty">
               {(['easy', 'normal', 'hard'] as Difficulty[]).map((d) => (
@@ -50,12 +66,7 @@ export function Duel() {
                 </button>
               ))}
             </div>
-            <Button variant="plain" onClick={() => setPlayer(pickRandom(enemy?.id))}>
-              Random me
-            </Button>
-            <Button variant="plain" onClick={() => setEnemy(pickRandom(player?.id))}>
-              Random opponent
-            </Button>
+            <span className="select-hint">Picking for {active === 'player' ? '1P' : 'the CPU'}</span>
           </div>
           <div className="fight-row">
             <Button onClick={start} disabled={!player || !enemy}>
@@ -63,7 +74,7 @@ export function Duel() {
             </Button>
           </div>
         </div>
-        <FighterPreview def={enemy} label="CPU" side="right" active={active === 'enemy'} onClick={() => setActive('enemy')} empty="Pick the opponent" />
+        <FighterPreview def={shownEnemy} label="CPU" side="right" active={active === 'enemy'} onClick={() => setActive('enemy')} empty="Pick the opponent" quote />
       </div>
     </div>
   );

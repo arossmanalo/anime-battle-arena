@@ -23,6 +23,7 @@ export function Training() {
   const { setSetup, setBackTo } = useStore();
   const first = params.get('fighter');
   const [def, setDef] = useState<FighterDef | undefined>(first && ROSTER.some((d) => d.id === first) ? fighterById(first) : undefined);
+  const [hover, setHover] = useState<FighterDef | undefined>();
   const start = () => {
     if (!def) return;
     setBackTo('/training');
@@ -33,7 +34,7 @@ export function Training() {
     <div className="page">
       <PageHeader title="Pick someone to test">A target dummy, infinite energy and a full ultimate meter. Press D in the fight to make the dummy hit you back.</PageHeader>
       <div className="split">
-        <FighterPreview def={def} label="Training" empty="Pick a fighter" extra={<Button onClick={start} disabled={!def}>Start training</Button>} />
+        <FighterPreview def={hover ?? def} label="Training" empty="Pick a fighter" quote extra={<Button onClick={start} disabled={!def}>Start training</Button>} />
         <div className="card">
           <h3>Training keys</h3>
           <table className="keys">
@@ -48,7 +49,7 @@ export function Training() {
           </table>
         </div>
       </div>
-      <FighterGrid onPick={setDef} selected={[def?.id ?? '']} />
+      <FighterGrid onPick={setDef} onHover={setHover} onRandom={() => setDef(ROSTER[Math.floor(Math.random() * ROSTER.length)])} selected={[def?.id ?? '']} />
     </div>
   );
 }

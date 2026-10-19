@@ -282,10 +282,17 @@ table.keys td:first-child { width: 36%; white-space: nowrap; }
 .tile.rival { background: var(--red); color: var(--on-accent); }
 .tile.selected .tile-role, .tile.rival .tile-role { color: var(--on-accent) !important; }
 .tile.off { opacity: 0.5; cursor: not-allowed; box-shadow: var(--frame); background: var(--panel-2); filter: grayscale(0.8); }
+.tile.random { justify-content: center; background: var(--panel-2); color: var(--text); }
+.random-mark { display: grid; place-items: center; width: 56px; height: 56px; font-weight: 700; font-size: 40px; line-height: 1; color: var(--yellow); background: var(--bar); box-shadow: 0 -2px 0 0 var(--edge), 0 2px 0 0 var(--edge), -2px 0 0 0 var(--edge), 2px 0 0 0 var(--edge); }
+.tile.random:hover .random-mark { animation: blink 0.4s steps(2) infinite; }
+@keyframes blink { 50% { color: var(--bar-text); } }
+.preview-quote { margin: 10px 0 0; font-size: 15px; color: var(--muted); }
+.select-hint { font-weight: 600; color: var(--bg-muted); }
 .tile-name { font-weight: 700; font-size: 20px; line-height: 1.1; }
 .tile-role { font-weight: 600; font-size: 14px; }
 .tile-badge { position: absolute; top: -8px; right: -6px; padding: 3px 6px; font-weight: 700; font-size: 13px; line-height: 1; color: #fff; box-shadow: 0 0 0 2px var(--edge); }
 .tile-badge.you { background: var(--you); }
+.tile-badge.left { right: auto; left: -6px; }
 .tile-badge.cpu { background: var(--foe); }
 .tile.off:has(.tile-badge) { opacity: 1; filter: none; color: var(--muted); }
 .tile.off:has(.tile-badge) .portrait { filter: grayscale(1); opacity: 0.55; }

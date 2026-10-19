@@ -25,6 +25,8 @@ export function FighterGrid({
   disabled = [],
   badge,
   columns,
+  onHover,
+  onRandom,
 }: {
   onPick: (def: FighterDef) => void;
   selected?: string[];
@@ -33,6 +35,10 @@ export function FighterGrid({
   disabled?: string[];
   badge?: (def: FighterDef) => ReactNode;
   columns?: number;
+  /** The fighter under the cursor or keyboard focus, so a preview can follow it; undefined when it leaves the grid. */
+  onHover?: (def: FighterDef | undefined) => void;
+  /** Adds the "?" tile that picks someone at random. */
+  onRandom?: () => void;
 }) {
   const [q, setQ] = useState('');
   const [role, setRole] = useState<Role | 'all'>('all');
@@ -46,13 +52,13 @@ export function FighterGrid({
         <input className="input" placeholder="Search fighters or series" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search fighters" />
         <RoleFilter value={role} onChange={setRole} />
       </div>
-      <div className="picker-grid" style={columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}>
+      <div className="picker-grid" style={columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined} onMouseLeave={() => onHover?.(undefined)}>
         {list.map((d) => {
           const off = disabled.includes(d.id);
           const on = selected.includes(d.id);
           const foe = !on && rival.includes(d.id);
           return (
-            <button key={d.id} className={`tile ${on ? 'selected' : ''} ${foe ? 'rival' : ''} ${off ? 'off' : ''}`} style={{ ['--accent' as string]: hexColor(d.color) }} disabled={off} onClick={() => onPick(d)} title={`${d.name}, ${d.series}`}>
+            <button key={d.id} className={`tile ${on ? 'selected' : ''} ${foe ? 'rival' : ''} ${off ? 'off' : ''}`} style={{ ['--accent' as string]: hexColor(d.color) }} disabled={off} onClick={() => onPick(d)} onMouseEnter={() => onHover?.(d)} onFocus={() => onHover?.(d)} onBlur={() => onHover?.(undefined)} title={`${d.name}, ${d.series}`}>
               <Portrait def={d} size={56} />
               <span className="tile-name">{d.name}</span>
               <span className="tile-role" style={{ color: ROLE_META[mainRoleOf(d)].color }}>
@@ -62,6 +68,12 @@ export function FighterGrid({
             </button>
           );
         })}
+        {onRandom && list.length > 0 && (
+          <button className="tile random" onClick={onRandom} title="Pick a random fighter">
+            <span className="random-mark" aria-hidden>?</span>
+            <span className="tile-name">Random</span>
+          </button>
+        )}
         {!list.length && <div className="empty">No fighter matches that search.</div>}
       </div>
     </div>
@@ -69,8 +81,8 @@ export function FighterGrid({
 }
 
 /** Big preview of a chosen fighter (sprite, name, role). `side` flips the sprite to face the other way. */
-export function FighterPreview({ def, label, side = 'left', empty = 'Pick a fighter', active, onClick, extra }: { def?: FighterDef; label: string; side?: 'left' | 'right'; empty?: string; active?: boolean; onClick?: () => void; extra?: ReactNode }) {
-  const accent = def ? hexColor(def.color) : 'var(--paper-2)';
+export function FighterPreview({ def, label, side = 'left', empty = 'Pick a fighter', active, onClick, extra, quote }: { def?: FighterDef; label: string; side?: 'left' | 'right'; empty?: string; active?: boolean; onClick?: () => void; extra?: ReactNode; quote?: boolean }) {
+  const accent = def ? hexColor(def.color) : 'var(--panel-2)';
   return (
     <div className={`preview ${active ? 'active' : ''}`} style={{ ['--accent' as string]: accent }} onClick={onClick} role={onClick ? 'button' : undefined}>
       <div className="preview-label">{label}</div>
@@ -82,6 +94,7 @@ export function FighterPreview({ def, label, side = 'left', empty = 'Pick a figh
           <div className="preview-name">{def.name}</div>
           <div className="preview-series">{def.series}</div>
           <Tag label={ROLE_META[mainRoleOf(def)].label} color={ROLE_META[mainRoleOf(def)].color} />
+          {quote && def.voiceLines.intro[0] && <p className="preview-quote">“{def.voiceLines.intro[0]}”</p>}
         </div>
       )}
       {extra}

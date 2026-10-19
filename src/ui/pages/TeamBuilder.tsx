@@ -239,6 +239,10 @@ export function TeamBuilder() {
 
       <FighterGrid
         onPick={onPick}
+        onRandom={() => {
+          const pool = ROSTER.filter((d) => !taken.has(d.id));
+          if (pool.length) onPick(pool[Math.floor(Math.random() * pool.length)]);
+        }}
         disabled={[...taken, ...(mode === 'draft' && !myTurn ? ROSTER.map((d) => d.id) : [])]}
         badge={(d) => (taken.has(d.id) ? mine.some((s) => s.id === d.id) ? <span className="tile-badge you">Yours</span> : <span className="tile-badge cpu">CPU</span> : null)}
       />
