@@ -1,0 +1,12 @@
+{
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "frames": {
+    "idle": 3,
+    "run": 6,
+    "cast": 4,
+    "hit": 2,
+    "ko": 4,
+    "attack": 4
+  }
+}
