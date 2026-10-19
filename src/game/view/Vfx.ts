@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Beam, Projectile, Zone } from '../../sim/entities';
 import type { Fighter } from '../../sim/Fighter';
-import type { SkillDef } from '../../sim/types';
+import type { SkillDef, Vec } from '../../sim/types';
 import { add, scale } from '../../sim/vec';
 import { EMPTY_MANIFEST, FX_PARTS, fxKey, type AssetManifest, type FxInfo, type FxPart } from '../assets';
 import { ARENA_HEIGHT, ARENA_WIDTH, ARENA_X, ARENA_Y, GAME_HEIGHT, GAME_WIDTH } from '../layout';
@@ -341,6 +341,18 @@ export class Vfx {
       .setDepth(10_000);
     this.layers.fx.add(t);
     this.scene.tweens.add({ targets: t, y: t.y - 36, alpha: 0, duration: 800, ease: 'Cubic.out', onComplete: () => t.destroy() });
+  }
+
+  /** A barrier threw damage back: a bright line from the barrier to the attacker, with sparks where it lands. */
+  reflectPulse(from: Vec, to: Vec, cursed: boolean): void {
+    const color = cursed ? 0xff3347 : 0x39e07a;
+    const g = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    g.lineStyle(7, color, 0.8).lineBetween(from.x, from.y, to.x, to.y);
+    g.lineStyle(2, 0xffffff, 1).lineBetween(from.x, from.y, to.x, to.y);
+    this.layers.fx.add(g);
+    this.scene.tweens.add({ targets: g, alpha: 0, duration: 280, ease: 'Cubic.out', onComplete: () => g.destroy() });
+    this.sparks.setParticleTint(color);
+    this.sparks.explode(10, to.x, to.y);
   }
 
   syncProjectiles(list: Projectile[]): void {

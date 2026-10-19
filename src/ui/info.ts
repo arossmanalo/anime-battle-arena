@@ -33,7 +33,7 @@ export function describeEffect(e: Effect): string {
     case 'slow':
       return `slows ${pct(e.factor)} for ${e.duration}s`;
     case 'shield':
-      return `${e.amount} shield (${e.duration}s)`;
+      return `${e.amount} shield (${e.duration}s)${e.reflect ? `, reflects ${Math.round(e.reflect * 100)}% of what it absorbs (max ${e.cap ?? '-'} per hit)` : ''}${e.curse ? ', burns the attacker' : ''}${e.charge ? ', stores Retaliation' : ''}`;
     case 'heal':
       return `heals ${e.amount}`;
     case 'speedBuff':
@@ -66,6 +66,10 @@ export function describeEffect(e: Effect): string {
       return `marks: +${pct(e.amount)} damage taken (${e.duration}s)`;
     case 'focus':
       return `bonus damage to marked enemies (${e.duration}s)`;
+    case 'cage':
+      return `cages the target for ${e.duration}s (${e.hp} durability): it cannot walk and takes ${Math.round(e.reflect * 100)}% of its own hits back${e.curse ? ' and burns' : ''}`;
+    case 'stance':
+      return `${e.duration}s stance: stores blocked damage, then releases a shockwave (up to ${e.release.cap} damage, radius ${e.release.radius}${e.release.burn ? ', burns' : ''})`;
     case 'geass':
       return `stops the target ${e.duration}s (once per enemy)`;
     case 'rescue':

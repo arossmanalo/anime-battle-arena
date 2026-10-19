@@ -23,6 +23,8 @@ export class FighterView {
   private readonly body: Phaser.GameObjects.Container;
   private readonly flash: Phaser.GameObjects.Arc;
   private readonly shield: Phaser.GameObjects.Arc;
+  /** The most shield HP seen since the barrier went up, so the bubble can show how much is left. */
+  private shieldMax = 0;
   private readonly charge: Phaser.GameObjects.Graphics;
   private readonly hpBar: Phaser.GameObjects.Graphics;
   private readonly marker: Phaser.GameObjects.Graphics;
@@ -109,6 +111,22 @@ export class FighterView {
     if (this.sprite) this.facingMark.setVisible(false);
 
     this.root.add([...(ring ? [ring] : []), shadow, this.marker, this.aura, this.charge, this.body, this.facingMark, this.flash, this.shield, this.orbs, this.hpBar, tag, this.status]);
+  }
+
+  /** Colours and fades the shield bubble: green (or red when cursed) for a reflecting barrier, brighter the more it has left, flickering when nearly gone. */
+  private paintShield(f: Fighter): void {
+    const shields = f.statuses.filter((s) => s.type === 'shield');
+    const value = shields.reduce((n, s) => n + s.value, 0);
+    if (!shields.length) {
+      this.shieldMax = 0;
+      return;
+    }
+    this.shieldMax = Math.max(this.shieldMax, value);
+    const frac = Math.min(1, value / Math.max(1, this.shieldMax));
+    const reflecting = shields.find((s) => s.reflect);
+    const color = reflecting ? (reflecting.curse ? 0xff3347 : 0x39e07a) : 0x9fd8ff;
+    const flicker = frac < 0.3 ? 0.6 + Math.sin(this.scene.time.now / 60) * 0.4 : 1;
+    this.shield.setStrokeStyle(2, color, (0.35 + 0.65 * frac) * flicker).setFillStyle(color, (0.05 + 0.13 * frac) * flicker);
   }
 
   /** Team battles: a crosshair on the enemy your team is told to focus, a shield ring on the ally it protects. */
@@ -230,6 +248,7 @@ export class FighterView {
     this.drawOrbs();
     // A skill with its own aura art (a dome, a barrier) replaces the generic blue bubble.
     this.shield.setVisible(f.hasStatus('shield') && !this.customAura());
+    this.paintShield(f);
     this.body.setAlpha(f.invuln > 0 ? 0.6 + Math.sin(this.scene.time.now / 40) * 0.3 : 1);
 
     // Wind-up ring.

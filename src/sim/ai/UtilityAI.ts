@@ -348,6 +348,18 @@ export class UtilityAI {
     if (geass) return d <= skill.range ? (target.geassBy.has(this.f.uid) ? 9 : 30) : 0;
     // A signal flare is worth firing at an enemy that is not already marked.
     if (skill.effects.some((e) => e.type === 'mark')) return d <= skill.range + 40 && !target.hasStatus('marked') ? 26 : 0;
+    // A shield prison goes on an enemy that is not already caged, and matters most when it is pressing an ally.
+    if (skill.effects.some((e) => e.type === 'cage')) {
+      if (d > skill.range + 30 || target.hasStatus('cage')) return 0;
+      const onAlly = target.focus && target.focus !== this.f && target.focus.team === this.f.team;
+      return onAlly ? 30 : 20;
+    }
+    // A defensive stance is worth it when enemies are closing in.
+    if (skill.selfEffects?.some((e) => e.type === 'stance') && !skill.support) {
+      if (this.f.hasStatus('stance')) return 0;
+      const near = this.sim.enemiesOf(this.f).filter((e) => dist(this.f.pos, e.pos) <= 240).length;
+      return near ? 16 + near * 5 : 0;
+    }
     if (skill.support) return this.supportScore(skill) + (skill.selfEffects ? 0 : 0);
     if (skill.effects.some((e) => e.type === 'taunt')) return this.tauntScore(skill, d);
     if (skill.kind === 'aoe' && skill.range === 0 && !skill.ultimate && (skill.outer || skill.boostable)) return this.pointBlankScore(skill);

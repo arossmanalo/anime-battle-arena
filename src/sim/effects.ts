@@ -1,4 +1,4 @@
-import type { Fighter, StatusType } from './Fighter';
+import type { Fighter, Status, StatusType } from './Fighter';
 import type { Effect, SkillDef, Vec } from './types';
 import { applyMarks, awakenBuff, awakenGain, awakenInterrupt, awakenSave, BRACE_COUNTER, negatesAttack, passiveDamageTaken, passiveKnockbackTaken, passiveUltMult, survivesHit } from './passives';
 import { norm, scale, sub } from './vec';
@@ -15,6 +15,8 @@ const KNOCKBACK_TAKEN_MULT = 1;
 const COUNTER_REACH = 70;
 const COUNTER_STUN = 0.7;
 const COUNTER_KNOCKBACK = 300;
+/** The most Retaliation a stance or formation can store. */
+export const RETALIATION_CAP = 160;
 
 export interface EffectContext {
   /** Random multiplier for damage rolls, in [0.9, 1.1]. Injected so effects stay deterministic. */
@@ -27,21 +29,29 @@ export interface EffectContext {
   /** Finds a fighter by uid (a status remembers who applied it). */
   fighters?: (uid: number) => Fighter | undefined;
   onHit: (source: Fighter, target: Fighter, damage: number, skill: SkillDef) => void;
+  /** A barrier or cage threw damage back: `holder` held it, `attacker` takes `amount`. */
+  onReflect?: (holder: Fighter, attacker: Fighter, amount: number, cursed: boolean) => void;
 }
 
-function addStatus(target: Fighter, type: StatusType, remaining: number, value: number, source: number): void {
+function addStatus(target: Fighter, type: StatusType, remaining: number, value: number, source: number, extra: Partial<Status> = {}): void {
   // Re-applying a status refreshes it instead of stacking duplicates.
   const existing = target.statuses.find((s) => s.type === type && s.source === source);
   if (existing) {
     existing.remaining = Math.max(existing.remaining, remaining);
     existing.value = type === 'shield' ? existing.value + value : value;
+    if (type === 'shield') {
+      existing.reflect = Math.max(existing.reflect ?? 0, extra.reflect ?? 0) || undefined;
+      existing.cap = Math.max(existing.cap ?? 0, extra.cap ?? 0) || undefined;
+      existing.curse = Math.max(existing.curse ?? 0, extra.curse ?? 0) || undefined;
+      existing.charge = existing.charge || extra.charge;
+    } else Object.assign(existing, extra);
     return;
   }
-  target.statuses.push({ type, remaining, value, source });
+  target.statuses.push({ type, remaining, value, source, ...extra });
 }
 
 /** Applies damage after shields. Returns the HP actually lost. */
-export function takeDamage(target: Fighter, amount: number, pierce = 0): number {
+export function takeDamage(target: Fighter, amount: number, pierce = 0, onAbsorb?: (shield: Status, absorbed: number) => void): number {
   if (target.invuln > 0 || !target.alive) return 0;
   // Piercing damage skips shields; the rest is absorbed as usual.
   const direct = amount * pierce;
@@ -51,6 +61,7 @@ export function takeDamage(target: Fighter, amount: number, pierce = 0): number 
     const absorbed = Math.min(s.value, left);
     s.value -= absorbed;
     left -= absorbed;
+    if (absorbed > 0) onAbsorb?.(s, absorbed);
   }
   target.statuses = target.statuses.filter((s) => s.type !== 'shield' || s.value > 0);
   left += direct;
@@ -92,7 +103,9 @@ export function applyEffects(
         const markMult = mark ? mark.value * (source.hasStatus('focused') ? 1.08 : 1) : 1;
         const rawDamage = e.amount * source.damageMult * markMult * ctx.roll() * (ctx.defenseMult?.() ?? 1);
         const taken = target.statusMult('guard') * (target.form?.damageTaken ?? 1) * passiveDamageTaken(target);
-        const dealt = takeDamage(target, Math.round(rawDamage * taken), e.pierce);
+        // A stance stores the damage it mitigates as Retaliation.
+        if (!self && target.hasStatus('stance')) target.retaliation = Math.min(RETALIATION_CAP, target.retaliation + rawDamage * (1 - taken));
+        const dealt = takeDamage(target, Math.round(rawDamage * taken), e.pierce, self ? undefined : (s, absorbed) => shieldAbsorbed(ctx, source, target, s, absorbed));
         if (dealt > 0) {
           source.stats.damageDealt += dealt;
           source.stats.hits += 1;
@@ -108,6 +121,7 @@ export function applyEffects(
         ctx.onHit(source, target, dealt, skill);
         if (dealt > 0) applyMarks(ctx, source, target, skill);
         if (dealt > 0 && !self) counterStrike(ctx, source, target, skill);
+        if (dealt > 0 && !self) cageStrike(ctx, source, dealt);
         if (dealt > 0 && !self && ctx.fighters) {
           // A commander earns morale when their orders pay off: a buffed ally hitting, a marked enemy hit, a guard soaking damage.
           const buff = source.statuses.find((s) => s.type === 'damageBuff' && s.source !== source.uid);
@@ -157,7 +171,7 @@ export function applyEffects(
         break;
       }
       case 'shield':
-        addStatus(target, 'shield', e.duration, e.amount, source.uid);
+        addStatus(target, 'shield', e.duration, e.amount, source.uid, { reflect: e.reflect, cap: e.cap, curse: e.curse, charge: e.charge });
         awakenGain(source, 'support', e.amount * 0.5);
         break;
       case 'heal': {
@@ -221,6 +235,13 @@ export function applyEffects(
       case 'counter':
         addStatus(target, 'counter', e.duration, e.damage, source.uid);
         break;
+      case 'cage':
+        if (self) break;
+        addStatus(target, 'cage', e.duration, e.hp, source.uid, { reflect: e.reflect, cap: e.cap, curse: e.curse });
+        break;
+      case 'stance':
+        addStatus(target, 'stance', e.duration, 1, source.uid, { release: e.release });
+        break;
       case 'speedBuff':
         addStatus(target, 'speedBuff', e.duration, e.factor, source.uid);
         if (!self) awakenBuff(source);
@@ -264,6 +285,43 @@ export function applyEffects(
       addStatus(source, 'speedBuff', ap.assistSpeed.duration, ap.assistSpeed.factor, source.uid);
     }
   }
+}
+
+/** A barrier soaked `absorbed` damage from `attacker`: it charges its caster's Retaliation and throws a share back at the attacker. */
+function shieldAbsorbed(ctx: EffectContext, attacker: Fighter, holder: Fighter, shield: Status, absorbed: number): void {
+  const owner = ctx.fighters?.(shield.source);
+  if (owner) {
+    if (shield.charge) owner.retaliation = Math.min(RETALIATION_CAP, owner.retaliation + absorbed);
+    // Shielding someone else counts for more than shielding yourself.
+    awakenGain(owner, owner === holder ? 'taken' : 'support', absorbed);
+  }
+  if (!shield.reflect || !attacker.alive) return;
+  const amount = Math.min(shield.cap ?? Infinity, Math.round(absorbed * shield.reflect));
+  if (amount <= 0) return;
+  // Reflected damage goes straight to the attacker and never passes through a reflecting barrier.
+  const lost = takeDamage(attacker, amount);
+  if (lost <= 0) return;
+  if (owner) owner.stats.damageDealt += lost;
+  attacker.stats.damageTaken += lost;
+  if (shield.curse) addStatus(attacker, 'burn', 2, shield.curse, shield.source);
+  ctx.onReflect?.(holder, attacker, lost, !!shield.curse);
+}
+
+/** A caged fighter's own damaging hits count as strikes on the cage: it takes a share back and the cage wears down. */
+function cageStrike(ctx: EffectContext, prisoner: Fighter, dealt: number): void {
+  const cage = prisoner.statuses.find((s) => s.type === 'cage');
+  if (!cage || !prisoner.alive) return;
+  const owner = ctx.fighters?.(cage.source);
+  const amount = Math.min(cage.cap ?? Infinity, Math.round(dealt * (cage.reflect ?? 0)));
+  cage.value -= dealt;
+  if (cage.value <= 0) prisoner.statuses = prisoner.statuses.filter((s) => s !== cage);
+  if (amount <= 0) return;
+  const lost = takeDamage(prisoner, amount);
+  if (lost <= 0) return;
+  if (owner) owner.stats.damageDealt += lost;
+  prisoner.stats.damageTaken += lost;
+  if (cage.curse) addStatus(prisoner, 'burn', 2, cage.curse, cage.source);
+  ctx.onReflect?.(owner ?? prisoner, prisoner, lost, !!cage.curse);
 }
 
 /** A braced target answers the first close-range hit that lands: damage, a stun and knockback, once per use. */

@@ -96,6 +96,16 @@ const T: Record<string, [string, string]> = {
   'lelouch|Imperial Medical Network': ["The empire's medics, deployed across the field.", 'Awakened. Bigger heal zone with a shield.'],
   "lelouch|Emperor's Decree": ['The Geass in its final form: obey.', 'Awakened. Freezes one enemy in place. Works once per enemy.'],
   'lelouch|Imperial Safeguard': ['The Emperor will not fall on this board.', 'Awakened. Big heal, shield and slow immunity.'],
+  'naofumi|Air Strike Shield': ['A floating green barrier appears in front of the person he is protecting, and anything that hits it pays for it.', 'Shield on an ally (or you) that throws half of what it absorbs back at the attacker.'],
+  'naofumi|Shield Prison': ['Shields snap shut around one enemy. Fighting their way out hurts.', 'Cages an enemy so they cannot walk. Every hit they land batters the cage and damages them.'],
+  'naofumi|Counter Stance': ['He plants his feet, raises the shield and takes the hit, then gives it all back at once.', 'Big damage reduction, slow, no attacks. Stores what it blocks and slams it out as a shockwave.'],
+  "naofumi|Guardian's Protection": ['Green barriers spread across the whole team, joined by faint lines of light.', 'Shield on every nearby ally that reflects half of what it absorbs. You get a bigger one.'],
+  "naofumi|Shield Hero's Retribution": ['The shield goes up, and every attack on his team is turned around.', 'Ultimate. 5s of barriers that reflect everything they absorb, then a shockwave based on what was soaked.'],
+  'naofumi|Cursed Air Strike Shield': ['The barrier turns black and red. Every hit it throws back leaves the attacker burning.', 'Awakened. Tougher shield that reflects 65% and sets the attacker alight.'],
+  'naofumi|Cursed Shield Prison': ['Jagged cursed shields close in, spikes out.', 'Awakened. Bigger, tougher cage with stronger retaliation and a burn.'],
+  'naofumi|Wrathful Counter': ['The stance, with the curse burning behind it.', 'Awakened. More damage reduction, a larger shockwave and a burn.'],
+  'naofumi|Wrathful Guardian': ['Black and crimson shields close around the whole team.', 'Awakened. Stronger team shields that reflect 65% and burn attackers.'],
+  'naofumi|Shield of Wrath: Retribution': ['Cursed flames pour out of the shield, and the whole team stands in them.', 'Awakened ultimate. Tougher barriers, a bigger shockwave and a burn.'],
   'lelouch|Imperial Edict: Absolute Checkmate': ['The game is over, and he has already won.', 'Awakened ultimate. Wider, stronger version of Grand Strategy.'],
 };
 

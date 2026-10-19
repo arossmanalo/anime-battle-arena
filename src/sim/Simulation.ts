@@ -14,6 +14,7 @@ import {
   Command,
   Difficulty,
   Effect,
+  Retort,
   SimConfig,
   SimEvent,
   SkillDef,
@@ -105,6 +106,7 @@ export class Simulation {
       healMult: () => 1 - (1 - DECAY_HEAL_MIN) * this.decayProgress(),
       defenseMult: () => 1 + DECAY_DEFENSE * this.decayProgress(),
       onHeal: (source, target, amount) => this.emit({ type: 'heal', uid: target.uid, amount, source: source.uid }),
+      onReflect: (holder, attacker, amount, cursed) => this.emit({ type: 'reflect', from: holder.uid, to: attacker.uid, amount, cursed }),
       onHit: (source, target, damage, skill) =>
         this.emit({ type: 'hit', source: source.uid, target: target.uid, damage, x: target.pos.x, y: target.pos.y, skill }),
     };
@@ -366,7 +368,25 @@ export class Simulation {
         if (source && f.hp > before) source.stats.healingDone += f.hp - before;
       }
     }
+    // A stance or formation that just ended releases the Retaliation it stored.
+    const ended = f.statuses.filter((s) => s.remaining <= 0 && s.type === 'stance' && s.release);
     f.statuses = f.statuses.filter((s) => s.remaining > 0);
+    for (const s of ended) this.releaseRetort(f, s.release!);
+  }
+
+  /** Slams the stored Retaliation out as a shockwave around the fighter. */
+  private releaseRetort(f: Fighter, r: Retort): void {
+    const damage = Math.min(r.cap, r.base + f.retaliation * r.perCharge);
+    f.retaliation = 0;
+    if (!f.alive) return;
+    const effects: Effect[] = [{ type: 'damage', amount: damage }, { type: 'knockback', force: r.knockback }];
+    if (r.stun) effects.push({ type: 'stun', duration: r.stun });
+    if (r.burn) effects.push({ type: 'burn', dps: r.burn.dps, duration: r.burn.duration });
+    const skill: SkillDef = { id: r.skillId, name: 'Retaliation', kind: 'aoe', energyCost: 0, cooldown: 0, castTime: 0, range: 0, radius: r.radius, effects, color: r.color };
+    for (const e of this.enemiesOf(f)) {
+      if (dist(f.pos, e.pos) <= r.radius + e.def.radius) this.applyEffects(f, e, effects, skill, f.pos);
+    }
+    this.emit({ type: 'impact', x: f.pos.x, y: f.pos.y, radius: r.radius, color: r.color, skillId: r.skillId });
   }
 
   /** The training dummy: stays at (or paces around) its home spot and faces the player. */
@@ -406,6 +426,7 @@ export class Simulation {
       f.passive.used = false;
       f.passive.meter = 0;
       f.passive.calm = 0;
+      f.retaliation = 0;
     }
     this.projectiles = [];
     this.beams = [];
@@ -420,7 +441,7 @@ export class Simulation {
   /** Starts the default attack if an enemy is in reach and the fighter is free. Returns whether it started. */
   tryAttack(f: Fighter): boolean {
     const a = f.attack;
-    if (!f.alive || f.stunned || f.busy || f.swing || f.attackCd > 0 || f.hasStatus('counter')) return false;
+    if (!f.alive || f.stunned || f.busy || f.swing || f.attackCd > 0 || f.hasStatus('counter') || f.hasStatus('stance')) return false;
     const target = this.nearestEnemy(f);
     if (!target || this.gap(f, target) > a.range) return false;
     const finisher = isFinisher(a, f.combo);
@@ -493,7 +514,7 @@ export class Simulation {
         d.remaining = 0;
       }
       if (d.remaining <= 0 || this.outOfBounds(f.pos, f.def.radius)) f.dash = null;
-    } else if (!f.stunned && !f.channel) {
+    } else if (!f.stunned && !f.channel && !f.hasStatus('cage')) {
       const mult = f.casting ? CAST_MOVE_MULT : f.swing ? SWING_MOVE_MULT : 1;
       f.pos = add(f.pos, scale(f.vel, DT * mult));
     }

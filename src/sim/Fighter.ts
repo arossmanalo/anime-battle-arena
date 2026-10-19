@@ -1,8 +1,8 @@
 import { passiveDamageMult } from './passives';
-import type { AttackDef, Controller, FighterDef, FormDef, PassiveDef, PassiveProc, SkillDef, SkillSlot, Vec } from './types';
+import type { AttackDef, Controller, FighterDef, FormDef, PassiveDef, PassiveProc, Retort, SkillDef, SkillSlot, Vec } from './types';
 import { vec } from './vec';
 
-export type StatusType = 'stun' | 'burn' | 'slow' | 'shield' | 'speedBuff' | 'damageBuff' | 'taunt' | 'guard' | 'steady' | 'counter' | 'regen' | 'ward' | 'exposed' | 'slowResist' | 'marked' | 'focused';
+export type StatusType = 'stun' | 'burn' | 'slow' | 'shield' | 'speedBuff' | 'damageBuff' | 'taunt' | 'guard' | 'steady' | 'counter' | 'regen' | 'ward' | 'exposed' | 'slowResist' | 'marked' | 'focused' | 'cage' | 'stance';
 
 export interface Status {
   type: StatusType;
@@ -12,6 +12,14 @@ export interface Status {
   source: number;
   /** marked: the marker's team, so only that team's attacks gain the bonus. */
   team?: number;
+  /** shield / cage: the share of absorbed damage thrown back at the attacker, the most per hit, and a burn added to it. */
+  reflect?: number;
+  cap?: number;
+  curse?: number;
+  /** shield: absorbed damage is stored as Retaliation for its caster. */
+  charge?: boolean;
+  /** stance: the shockwave released when it ends. */
+  release?: Retort;
 }
 
 export interface Casting {
@@ -105,6 +113,8 @@ export class Fighter {
   comboTimer = 0;
   /** Seconds of invulnerability left (transform cinematic). */
   invuln = 0;
+  /** Damage stored by a stance or formation, released as a shockwave when it ends. */
+  retaliation = 0;
   auto: boolean;
   /** Seconds since the player last issued a skill command. */
   idleTime = 0;

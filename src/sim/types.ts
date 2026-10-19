@@ -11,7 +11,12 @@ export type Effect =
   | { type: 'stun'; duration: number }
   | { type: 'burn'; dps: number; duration: number }
   | { type: 'slow'; factor: number; duration: number }
-  | { type: 'shield'; amount: number; duration: number }
+  /**
+   * A barrier that absorbs `amount` damage. With `reflect`, that share of the damage it actually absorbs is thrown back at the
+   * attacker (at most `cap` per hit, `curse` adds a short burn, `charge` stores the absorbed damage as Retaliation for the shield's caster).
+   * Reflected damage never reflects again.
+   */
+  | { type: 'shield'; amount: number; duration: number; reflect?: number; cap?: number; curse?: number; charge?: boolean }
   /** `selfFactor`: the share of the heal the caster gets when healing themself (0.6 = 40% less). */
   | { type: 'heal'; amount: number; selfFactor?: number }
   /** Heals `hps` HP per second for `duration` seconds. Re-applying refreshes it instead of stacking. */
@@ -48,7 +53,32 @@ export type Effect =
   /** For `duration` seconds knockback taken is multiplied by `factor` and stuns are shortened by it (at 0.3 or less they are ignored and nothing interrupts a cast). */
   | { type: 'steady'; factor: number; duration: number }
   /** Braces for `duration` seconds: no default attacks, and the first close-range hit that lands is answered with `damage`, a stun and knockback. */
-  | { type: 'counter'; duration: number; damage: number };
+  | { type: 'counter'; duration: number; damage: number }
+  /**
+   * A cage of shields around the target: it cannot walk, and every damaging hit it lands counts as a strike on the cage, which has `hp` durability
+   * and throws `reflect` of each strike back (at most `cap`). The cage breaks when its durability is gone. `curse` adds a short burn to the reflection.
+   */
+  | { type: 'cage'; hp: number; duration: number; reflect: number; cap: number; curse?: number }
+  /**
+   * A defensive stance (also the Retribution formation): for `duration` seconds damage the caster mitigates is stored as Retaliation (`store` is the
+   * share of mitigated damage kept). When it ends (or the caster dies) the Retaliation is released as a shockwave around the caster.
+   */
+  | { type: 'stance'; duration: number; release: Retort };
+
+/** The shockwave a stance or formation releases: `base` + `perCharge` x stored Retaliation damage (never above `cap`), within `radius`. */
+export interface Retort {
+  radius: number;
+  base: number;
+  perCharge: number;
+  cap: number;
+  knockback: number;
+  burn?: { dps: number; duration: number };
+  stun?: number;
+  /** Effect art id and colour of the release. */
+  skillId: string;
+  color: number;
+}
+
 
 export type SkillKind = 'projectile' | 'beam' | 'dash' | 'aoe' | 'zone' | 'buff';
 
@@ -339,6 +369,8 @@ export type SimEvent =
   | { type: 'heal'; uid: number; amount: number; source: number }
   | { type: 'attack'; uid: number; attack: AttackDef; finisher: boolean }
   | { type: 'passive'; uid: number; passive: PassiveDef; proc: PassiveProc; x: number; y: number }
+  /** A barrier threw damage back at an attacker. `from` is whoever held the barrier. */
+  | { type: 'reflect'; from: number; to: number; amount: number; cursed: boolean }
   | { type: 'ko'; uid: number }
   | { type: 'transform'; uid: number; form: FormDef }
   | { type: 'voiceLine'; uid: number; text: string }
