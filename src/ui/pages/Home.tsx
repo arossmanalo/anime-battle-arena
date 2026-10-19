@@ -38,6 +38,9 @@ function Lineup() {
   );
 }
 
+const WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen', 'Twenty'];
+const countWord = (n: number): string => WORDS[n] ?? String(n);
+
 const MODES = [
   { to: '/duel', title: 'Duel', body: 'You and one CPU opponent. Every skill, the ultimate and the awakening are on your keys.', cls: 'red' },
   { to: '/team', title: 'Team battle', body: 'Draft two to four fighters a side, set who stands in front, then call the orders.', cls: 'yellow' },
@@ -49,7 +52,7 @@ export function Home() {
     <div className="home">
       <section className="hero">
         <h1 className="hero-title">
-          Twelve fighters.
+          {countWord(ROSTER.length)} fighters.
           <br />
           One arena.
         </h1>
