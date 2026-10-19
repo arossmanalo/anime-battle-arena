@@ -366,6 +366,9 @@ export class Vfx {
         this.projectiles.set(p.id, view);
       }
       view.setPosition(p.pos.x, p.pos.y);
+      // Custom art that points along its flight must follow direction changes (ricochets).
+      const art = this.fx(p.skill.id, 'body');
+      if (art?.rotate && this.customProjectiles.has(p.id) && (p.vel.x || p.vel.y)) view.rotation = Math.atan2(p.vel.y, p.vel.x);
       if (p.radius >= 12 && !this.customProjectiles.has(p.id)) {
         view.rotation += 0.3;
         this.trail.setParticleTint(p.skill.color);
