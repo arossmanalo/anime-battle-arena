@@ -236,6 +236,7 @@ table.keys td:first-child { width: 36%; white-space: nowrap; }
 .mode-row { display: grid; grid-template-columns: 220px 1fr auto; gap: 24px; align-items: center; padding: 26px 28px; color: var(--on-accent); text-decoration: none; box-shadow: var(--bevel), var(--frame), var(--drop); transition: transform 0.12s steps(2); }
 .mode-row:hover { transform: translate(calc(var(--px) * -1), calc(var(--px) * -1)); }
 .mode-row h2 { font-size: 48px; }
+.mode-cast { display: flex; align-items: flex-end; gap: 2px; margin-top: 10px; min-height: 72px; }
 .mode-row p { margin: 0; font-size: 19px; font-weight: 500; }
 .mode-row ul { margin: 0; padding: 0; list-style: none; font-weight: 600; font-size: 16px; text-align: right; }
 .mode-row li { margin: 2px 0; }
