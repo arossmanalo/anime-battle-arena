@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { startBattle, type BattleHost } from '../phaserHost';
 import { Button } from '../components/kit';
+import { VersusSplash } from '../components/VersusSplash';
 import { useStore } from '../store';
 
 export function Battle() {
@@ -10,9 +11,11 @@ export function Battle() {
   const holder = useRef<HTMLDivElement>(null);
   const host = useRef<BattleHost | null>(null);
   const [ready, setReady] = useState(false);
+  // Duels and team battles open on the versus splash; the game loads once it has played.
+  const [versus, setVersus] = useState(() => !!setup && !setup.training);
 
   useEffect(() => {
-    if (!setup || !holder.current) return;
+    if (!setup || versus || !holder.current) return;
     const h = startBattle(holder.current, setup, {
       ready: () => setReady(true),
       result: (r) => {
@@ -27,11 +30,12 @@ export function Battle() {
       host.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setup]);
+  }, [setup, versus]);
 
   if (!setup) return <Navigate to="/play" replace />;
   return (
     <div className="battle-page">
+      {versus && <VersusSplash setup={setup} onDone={() => setVersus(false)} />}
       <div className="battle-bar">
         <span className="battle-title">{setup.training ? 'Training' : setup.team ? `${setup.team.size}v${setup.team.size} team battle` : 'Duel'}</span>
         <span className="grow" />

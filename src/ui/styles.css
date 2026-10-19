@@ -430,6 +430,31 @@ ul.plain li { margin: 6px 0; }
 .spinner { width: 48px; height: 48px; background: conic-gradient(#ffc23d 25%, #4a5078 0 50%, #ffc23d 0 75%, #4a5078 0); animation: spin 0.8s steps(4) infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ---- versus splash (before every duel and team battle) --------------------------------------- */
+.vs-splash { position: fixed; inset: 0; z-index: 50; overflow: hidden; background: #07070d; color: #f2f3f7; cursor: pointer; }
+.vs-side { position: absolute; inset: 0; background: var(--c); animation: vs-in-left 0.36s steps(6) both; }
+.vs-side::before { content: ''; position: absolute; inset: 0; background-image: conic-gradient(rgba(0, 0, 0, 0.18) 25%, transparent 0 50%, rgba(0, 0, 0, 0.18) 0 75%, transparent 0); background-size: 8px 8px; }
+.vs-side.left { clip-path: polygon(0 0, 56% 0, 44% 100%, 0 100%); }
+.vs-side.right { clip-path: polygon(56% 0, 100% 0, 100% 100%, 44% 100%); animation-name: vs-in-right; }
+.vs-cast { position: absolute; bottom: 30vh; display: flex; align-items: flex-end; gap: 4px; }
+.vs-side.left .vs-cast { left: 7vw; }
+.vs-side.right .vs-cast { right: 7vw; }
+.vs-plate { position: absolute; bottom: 7vh; display: flex; flex-direction: column; gap: 6px; max-width: 40vw; padding: 14px 20px; background: #0b0b12; box-shadow: 0 -4px 0 0 #f2f3f7, 0 4px 0 0 #f2f3f7, -4px 0 0 0 #f2f3f7, 4px 0 0 0 #f2f3f7, 8px 12px 0 0 #000; }
+.vs-side.left .vs-plate { left: 6vw; }
+.vs-side.right .vs-plate { right: 6vw; text-align: right; align-items: flex-end; }
+.vs-label { align-self: flex-start; padding: 3px 8px; font-weight: 700; font-size: 16px; line-height: 1; color: #0b0b12; background: #ffc23d; }
+.vs-side.right .vs-label { align-self: flex-end; background: #ff4d4d; }
+.vs-name { font-weight: 700; font-size: clamp(32px, 5vw, 72px); line-height: 1; }
+.vs-plate.team .vs-name { font-size: clamp(20px, 2.2vw, 32px); line-height: 1.2; }
+.vs-series { font-size: 18px; color: #9aa0b8; }
+.vs-quote { font-size: 18px; color: #f2f3f7; }
+.vs-mark { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); font-weight: 700; font-size: clamp(110px, 16vw, 230px); line-height: 1; color: #ffc23d; text-shadow: 6px 0 0 #0b0b12, -6px 0 0 #0b0b12, 0 6px 0 #0b0b12, 0 -6px 0 #0b0b12, 14px 14px 0 #000; animation: vs-slam 0.32s 0.34s steps(4) both, vs-shake 0.24s 0.66s steps(3); }
+.vs-skip { position: absolute; left: 50%; bottom: 2vh; transform: translateX(-50%); font-size: 15px; color: #f2f3f7; opacity: 0.8; white-space: nowrap; }
+@keyframes vs-in-left { from { transform: translateX(-60%); } to { transform: none; } }
+@keyframes vs-in-right { from { transform: translateX(60%); } to { transform: none; } }
+@keyframes vs-slam { from { transform: translate(-50%, -50%) scale(3); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+@keyframes vs-shake { 33% { transform: translate(calc(-50% - 8px), -50%); } 66% { transform: translate(calc(-50% + 8px), calc(-50% + 4px)); } }
+
 @media (max-width: 1100px) {
   .select-screen { grid-template-columns: 1fr 1fr; grid-template-areas: 'p1 p2' 'grid grid'; gap: 16px; }
 }
@@ -441,6 +466,10 @@ ul.plain li { margin: 6px 0; }
   .nav { flex-wrap: wrap; gap: 8px 20px; }
 }
 @media (max-width: 640px) {
+  .vs-cast .sprite { zoom: 0.5; }
+  .vs-plate { max-width: 46vw; padding: 10px 12px; }
+  .vs-name { font-size: 26px; }
+  .vs-quote { display: none; }
   .select-screen .preview { padding: 8px; }
   .select-screen .preview-stage { min-height: 150px; }
   .select-screen .preview .sprite { zoom: 0.6; }
