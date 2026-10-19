@@ -1,7 +1,7 @@
 import { Navigate, useNavigate } from 'react-router-dom';
 import { fighterById } from '../../data/fighters';
 import { newSeed } from '../../game/match';
-import { Button, Portrait } from '../components/kit';
+import { Button, Portrait, Sprite } from '../components/kit';
 import { hexColor } from '../info';
 import { useStore } from '../store';
 
@@ -16,6 +16,11 @@ export function Results() {
   const color = draw ? 'var(--bg-text)' : won ? 'var(--yellow)' : 'var(--red)';
   const maxDmg = Math.max(1, ...result.fighters.map((f) => f.damageDealt));
   const teams = [0, 1];
+  // Win screen: the winning side's top damage dealer strikes a pose and says a win line.
+  const star = draw ? undefined : result.fighters.filter((f, i) => (f.team ?? i) === result.winnerTeam).sort((a, b) => b.damageDealt - a.damageDealt)[0];
+  const starDef = star ? fighterById(star.id) : undefined;
+  const winLines = starDef?.voiceLines.win ?? [];
+  const winLine = winLines.length ? winLines[Math.floor(result.duration * 10) % winLines.length] : undefined;
 
   return (
     <div className="page results">
@@ -25,6 +30,19 @@ export function Results() {
       <p className="lede center-text">
         {result.reason === 'ko' ? 'Knockout' : 'Time out'} after {result.duration.toFixed(1)} seconds
       </p>
+
+      {star && starDef && (
+        <section className="win-quote" style={{ ['--accent' as string]: hexColor(starDef.color) }}>
+          <div className="win-stage">
+            <Sprite def={starDef} form={star.transformed} anim="cast" size={220} />
+          </div>
+          <div className="win-text">
+            <span className="win-label">{won ? 'Your winner' : 'Winner'}</span>
+            <h2>{star.name}</h2>
+            {winLine && <p className="win-line">“{winLine}”</p>}
+          </div>
+        </section>
+      )}
 
       <div className="result-teams">
         {teams.map((t) => {
