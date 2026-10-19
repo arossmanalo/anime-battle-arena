@@ -57,7 +57,7 @@ export function Roster() {
                   <div className="fighter-card-series">{d.series}</div>
                   <div className="chips">
                     <Tag label={ROLE_META[role2].label} color={ROLE_META[role2].color} />
-                    <Tag label={AI_LABEL[d.aiProfile]} color="#565a7e" />
+                    <Tag label={AI_LABEL[d.aiProfile]} color="var(--muted)" />
                   </div>
                   <div className="mini">
                     <span>HP {d.hp}</span>

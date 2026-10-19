@@ -1,5 +1,6 @@
 import { HashRouter, Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { PixelIcon } from './components/PixelIcon';
 import { Battle } from './pages/Battle';
 import { Duel } from './pages/Duel';
 import { FighterDetail } from './pages/FighterDetail';
@@ -20,10 +21,44 @@ const LINKS = [
   { to: '/how-to-play', label: 'How to play' },
 ];
 
+type Theme = 'light' | 'dark';
+
+const systemTheme = (): Theme => (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+/** Follows the system until the player picks one; the pick is remembered. */
+function ThemeToggle() {
+  const [theme, setTheme] = useState<Theme>(() => {
+    const t = document.documentElement.dataset.theme;
+    return t === 'light' || t === 'dark' ? t : systemTheme();
+  });
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    meta?.setAttribute('content', theme === 'dark' ? '#161827' : '#2b3cff');
+  }, [theme]);
+  const flip = () => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try {
+      localStorage.setItem('aba-theme', next);
+    } catch {
+      /* storage blocked: the choice lasts for this visit */
+    }
+    setTheme(next);
+  };
+  const dark = theme === 'dark';
+  return (
+    <button className="theme-toggle" onClick={flip} aria-pressed={dark} title={dark ? 'Switch to light mode' : 'Switch to dark mode'}>
+      <PixelIcon name={dark ? 'moon' : 'sun'} />
+      {dark ? 'Dark' : 'Light'}
+    </button>
+  );
+}
+
 function Navbar() {
   return (
     <nav className="nav">
       <Link to="/" className="brand" aria-label="Anime Battle Arena, home">
+        <PixelIcon name="brand" className="brand-mark" />
         Anime Battle Arena
       </Link>
       <div className="nav-links">
@@ -33,6 +68,7 @@ function Navbar() {
           </NavLink>
         ))}
       </div>
+      <ThemeToggle />
     </nav>
   );
 }

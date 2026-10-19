@@ -41,7 +41,7 @@ export function Duel() {
       <div className="select-screen">
         <FighterPreview def={player} label="You" active={active === 'player'} onClick={() => setActive('player')} empty="Pick your fighter" />
         <div className="select-center">
-          <FighterGrid onPick={pick} selected={[player?.id ?? '', enemy?.id ?? '']} />
+          <FighterGrid onPick={pick} selected={player ? [player.id] : []} rival={enemy ? [enemy.id] : []} />
           <div className="select-actions">
             <div className="seg" role="radiogroup" aria-label="CPU difficulty">
               {(['easy', 'normal', 'hard'] as Difficulty[]).map((d) => (

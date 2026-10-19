@@ -21,12 +21,15 @@ export function RoleFilter({ value, onChange }: { value: Role | 'all'; onChange:
 export function FighterGrid({
   onPick,
   selected = [],
+  rival = [],
   disabled = [],
   badge,
   columns,
 }: {
   onPick: (def: FighterDef) => void;
   selected?: string[];
+  /** Picked for the other side: marked red instead of yellow. */
+  rival?: string[];
   disabled?: string[];
   badge?: (def: FighterDef) => ReactNode;
   columns?: number;
@@ -47,8 +50,9 @@ export function FighterGrid({
         {list.map((d) => {
           const off = disabled.includes(d.id);
           const on = selected.includes(d.id);
+          const foe = !on && rival.includes(d.id);
           return (
-            <button key={d.id} className={`tile ${on ? 'selected' : ''} ${off ? 'off' : ''}`} style={{ ['--accent' as string]: hexColor(d.color) }} disabled={off} onClick={() => onPick(d)} title={`${d.name}, ${d.series}`}>
+            <button key={d.id} className={`tile ${on ? 'selected' : ''} ${foe ? 'rival' : ''} ${off ? 'off' : ''}`} style={{ ['--accent' as string]: hexColor(d.color) }} disabled={off} onClick={() => onPick(d)} title={`${d.name}, ${d.series}`}>
               <Portrait def={d} size={56} />
               <span className="tile-name">{d.name}</span>
               <span className="tile-role" style={{ color: ROLE_META[mainRoleOf(d)].color }}>

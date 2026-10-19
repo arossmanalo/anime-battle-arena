@@ -13,7 +13,7 @@ export function Results() {
   const won = result.winnerTeam === 0;
   const draw = result.winnerTeam === -1;
   const headline = draw ? 'DRAW' : won ? 'VICTORY' : 'DEFEAT';
-  const color = draw ? '#dfe3ff' : won ? '#ffd400' : '#ff3347';
+  const color = draw ? 'var(--bg-text)' : won ? 'var(--yellow)' : 'var(--red)';
   const maxDmg = Math.max(1, ...result.fighters.map((f) => f.damageDealt));
   const teams = [0, 1];
 
@@ -48,7 +48,7 @@ export function Results() {
                         {f.transformed && <span className="tag small">Awakened</span>}
                         <span className={f.hpLeft > 0 ? 'alive' : 'ko'}>{f.hpLeft > 0 ? 'alive' : 'KO'}</span>
                       </div>
-                      <div className="bar"><i style={{ width: `${frac * 100}%`, background: frac > 0.5 ? '#4dd266' : frac > 0.25 ? '#e0b73a' : '#e0503a' }} /></div>
+                      <div className="bar"><i style={{ width: `${frac * 100}%`, background: frac > 0.5 ? 'var(--hp)' : frac > 0.25 ? 'var(--hp-mid)' : 'var(--hp-low)' }} /></div>
                       <div className="result-stats">
                         <span>HP {f.hpLeft}/{f.maxHp}</span>
                         <span>Damage {f.damageDealt}</span>

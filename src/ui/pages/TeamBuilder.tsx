@@ -219,9 +219,9 @@ export function TeamBuilder() {
       )}
 
       <div className="teams">
-        <TeamColumn title="Your team" slots={mine} size={size} active={mode === 'free' && side === 'mine'} onActivate={() => setSide('mine')} onRemove={mode === 'free' ? remove(setMine) : undefined} onRow={flip(setMine)} accent="#4aa3ff" note={mine.length === size ? `Balance ${coverage(mine).toFixed(1)}` : undefined} />
+        <TeamColumn title="Your team" slots={mine} size={size} active={mode === 'free' && side === 'mine'} onActivate={() => setSide('mine')} onRemove={mode === 'free' ? remove(setMine) : undefined} onRow={flip(setMine)} accent="var(--you)" note={mine.length === size ? `Balance ${coverage(mine).toFixed(1)}` : undefined} />
         <div className="vs small">VS</div>
-        <TeamColumn title="CPU team" slots={cpu} size={size} active={mode === 'free' && side === 'cpu'} onActivate={() => setSide('cpu')} onRemove={mode === 'free' ? remove(setCpu) : undefined} onRow={mode === 'free' ? flip(setCpu) : undefined} accent="#ff5a5a" note={cpu.length === size ? `Balance ${coverage(cpu).toFixed(1)}` : undefined} />
+        <TeamColumn title="CPU team" slots={cpu} size={size} active={mode === 'free' && side === 'cpu'} onActivate={() => setSide('cpu')} onRemove={mode === 'free' ? remove(setCpu) : undefined} onRow={mode === 'free' ? flip(setCpu) : undefined} accent="var(--foe)" note={cpu.length === size ? `Balance ${coverage(cpu).toFixed(1)}` : undefined} />
       </div>
 
       {mode === 'free' && (

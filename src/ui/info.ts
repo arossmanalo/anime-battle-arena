@@ -5,9 +5,9 @@ import type { Effect, FighterDef, Role, SkillDef } from '../sim/types';
 export const hexColor = (c: number): string => `#${c.toString(16).padStart(6, '0')}`;
 
 export const ROLE_META: Record<Role, { label: string; color: string; blurb: string }> = {
-  tank: { label: 'Tank', color: '#1f4fd8', blurb: 'Soaks damage, draws enemies and holds the front line.' },
-  damage: { label: 'Damage', color: '#d6202f', blurb: 'Kills things quickly. Fragile if left unprotected.' },
-  support: { label: 'Support', color: '#0a8a60', blurb: 'Heals, shields and buffs the team, or controls the enemy.' },
+  tank: { label: 'Tank', color: 'var(--role-tank)', blurb: 'Soaks damage, draws enemies and holds the front line.' },
+  damage: { label: 'Damage', color: 'var(--role-damage)', blurb: 'Kills things quickly. Fragile if left unprotected.' },
+  support: { label: 'Support', color: 'var(--role-support)', blurb: 'Heals, shields and buffs the team, or controls the enemy.' },
 };
 
 export function mainRoleOf(def: FighterDef): Role {

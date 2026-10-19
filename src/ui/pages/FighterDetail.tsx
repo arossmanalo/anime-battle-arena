@@ -42,7 +42,7 @@ function SkillCard({ fighter, slot, skill }: { fighter: string; slot: string; sk
         {info.tags.length > 0 && (
           <div className="chips">
             {info.tags.map((t) => (
-              <Tag key={t} label={t} color="#0b0d1c" />
+              <Tag key={t} label={t} color="var(--text)" />
             ))}
           </div>
         )}
@@ -119,8 +119,8 @@ export function FighterDetail() {
           <h1>{def.name}</h1>
           <div className="chips">
             <Tag label={ROLE_META[role].label} color={ROLE_META[role].color} />
-            <Tag label={AI_LABEL[def.aiProfile]} color="#565a7e" />
-            {def.form?.onDeath && <Tag label="Second life" color="#8a5a00" />}
+            <Tag label={AI_LABEL[def.aiProfile]} color="var(--muted)" />
+            {def.form?.onDeath && <Tag label="Second life" color="var(--gold-text)" />}
           </div>
           <p className="quote">
             <span key={quote % lines.length}>“{lines[quote % lines.length]}”</span>
@@ -170,7 +170,7 @@ export function FighterDetail() {
         </div>
         {awakened && def.form && (
           <p className="note">
-            {def.form.onDeath ? 'Triggers when he would die.' : `Unlocks at ${Math.round(def.form.hpThreshold * 100)}% HP, or when its meter is full.`} Permanent for the rest of the match.
+            {def.form.onDeath ? 'Triggers on what would be a knockout.' : `Unlocks at ${Math.round(def.form.hpThreshold * 100)}% HP, or when its meter is full.`} Permanent for the rest of the match.
           </p>
         )}
         <div className="skills">
