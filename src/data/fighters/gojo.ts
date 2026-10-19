@@ -116,11 +116,11 @@ export const gojo: FighterDef = {
         castTime: 0.3,
         range: 520,
         speed: 620,
-        radius: 16,
+        radius: 30,
         // Bounces off the walls and ricochets from enemy to enemy.
         bounces: 2,
         effects: [
-          { type: 'damage', amount: 16 },
+          { type: 'damage', amount: 40 },
           { type: 'knockback', force: 500 },
         ],
         color: 0xff2d2d,
@@ -140,7 +140,7 @@ export const gojo: FighterDef = {
         // A huge singularity that stays 5 seconds, drags everyone in reach to its centre and grinds them down.
         pull: 90,
         effects: [
-          { type: 'damage', amount: 2 },
+          { type: 'damage', amount: 5 },
           { type: 'slow', factor: 0.6, duration: 0.5 },
         ],
         color: 0x2f6bff,
