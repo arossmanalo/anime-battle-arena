@@ -1053,7 +1053,7 @@ describe('Gojo second life', () => {
     expect(gojo.passive.hitsLeft).toBe(5);
   });
 
-  it('dying triggers the form once: revived at 10% HP, untouchable for 10s with free energy', () => {
+  it('dying triggers the form once: revived at 10% HP, untouchable for 6s with 10s of free energy', () => {
     const { sim, gojo } = bout();
     expect(gojo.canTransform).toBe(false);
     gojo.hp = 0;
@@ -1062,7 +1062,7 @@ describe('Gojo second life', () => {
     expect(gojo.alive).toBe(true);
     expect(gojo.transformed).toBe(true);
     expect(gojo.hp).toBe(Math.round(gojo.maxHp * 0.1));
-    expect(gojo.invuln).toBeGreaterThan(9);
+    expect(gojo.invuln).toBeGreaterThan(5);
     expect(gojo.freeEnergy).toBeGreaterThan(9);
     // For those seconds every skill is free.
     gojo.energy = 0;
@@ -1174,7 +1174,7 @@ describe('training: testing Gojo', () => {
     const sim = training();
     const [p] = sim.fighters;
     expect(sim.tryTransform(p)).toBe(true);
-    expect(p.invuln).toBeGreaterThan(9);
+    expect(p.invuln).toBeGreaterThan(5);
     expect(p.freeEnergy).toBeGreaterThan(9);
     expect(sim.tryTransform(p)).toBe(true);
     expect(p.transformed).toBe(false);
