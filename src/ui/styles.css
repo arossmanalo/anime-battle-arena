@@ -45,6 +45,7 @@ button { font-family: inherit; }
 /* ---- common --------------------------------------------------------------------------------- */
 .page { max-width: 1200px; margin: 0 auto; padding: 36px clamp(16px, 4vw, 40px) 72px; }
 .page.narrow { max-width: 820px; }
+.page.wide { max-width: 1440px; }
 .page.center { text-align: center; }
 .page-header { margin-bottom: 28px; }
 .page-header h1 { font-size: clamp(52px, 8vw, 96px); }
@@ -151,6 +152,21 @@ table.keys td:first-child { width: 36%; white-space: nowrap; }
 .preview-info { text-align: center; }
 .preview-name { font-family: var(--display); font-weight: 900; font-size: 52px; line-height: 0.9; }
 .preview-series { color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+
+/* Arcade select: the two sides flank the roster, the fight button sits under it. */
+.select-screen { display: grid; grid-template-columns: minmax(250px, 1fr) minmax(0, 2fr) minmax(250px, 1fr); grid-template-areas: 'p1 grid p2'; gap: 24px; align-items: stretch; }
+.select-screen > .preview:first-child { grid-area: p1; }
+.select-screen > .preview:last-child { grid-area: p2; }
+.select-screen .preview { min-height: 0; }
+.select-center { grid-area: grid; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.select-center .picker-bar .input { flex: 1; min-width: 160px; }
+.select-center .picker-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.select-center .tile-name { font-size: 23px; }
+.select-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.select-actions .btn { font-size: 20px; padding: 9px 16px 7px; }
+.fight-row { margin-top: auto; }
+.fight-row .btn { width: 100%; font-size: 44px; padding: 16px 20px 12px; }
+.preview-empty { text-align: center; }
 
 .picker-bar { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 16px; }
 .picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 12px; }
@@ -293,6 +309,16 @@ ul.plain li { margin: 6px 0; }
   .vs { text-align: center; }
   .nav { flex-wrap: wrap; gap: 8px 20px; }
   .modes .mode-panel { margin-left: 0; margin-top: -3px; }
+}
+@media (max-width: 1100px) {
+  .select-screen { grid-template-columns: 1fr 1fr; grid-template-areas: 'p1 p2' 'grid grid'; gap: 16px; }
+}
+@media (max-width: 640px) {
+  .select-screen .preview { padding: 8px; }
+  .select-screen .preview-stage { min-height: 150px; }
+  .select-screen .preview .sprite { zoom: 0.6; }
+  .select-screen .preview-name { font-size: 34px; }
+  .fight-row .btn { font-size: 34px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }

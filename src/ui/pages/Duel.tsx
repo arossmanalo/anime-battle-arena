@@ -36,33 +36,35 @@ export function Duel() {
   };
 
   return (
-    <div className="page">
-      <PageHeader title="Choose your fighters">Click a side, then pick from the roster. Or let fate decide.</PageHeader>
-      <div className="versus">
+    <div className="page wide">
+      <PageHeader title="Choose your fighters">Click a side, then pick from the grid. Random works too.</PageHeader>
+      <div className="select-screen">
         <FighterPreview def={player} label="You" active={active === 'player'} onClick={() => setActive('player')} empty="Pick your fighter" />
-        <div className="vs">VS</div>
+        <div className="select-center">
+          <FighterGrid onPick={pick} selected={[player?.id ?? '', enemy?.id ?? '']} />
+          <div className="select-actions">
+            <div className="seg" role="radiogroup" aria-label="CPU difficulty">
+              {(['easy', 'normal', 'hard'] as Difficulty[]).map((d) => (
+                <button key={d} className={difficulty === d ? 'on' : ''} onClick={() => setDifficulty(d)} role="radio" aria-checked={difficulty === d}>
+                  {d[0].toUpperCase() + d.slice(1)}
+                </button>
+              ))}
+            </div>
+            <Button variant="plain" onClick={() => setPlayer(pickRandom(enemy?.id))}>
+              Random me
+            </Button>
+            <Button variant="plain" onClick={() => setEnemy(pickRandom(player?.id))}>
+              Random opponent
+            </Button>
+          </div>
+          <div className="fight-row">
+            <Button onClick={start} disabled={!player || !enemy}>
+              {player && enemy ? 'Fight!' : 'Pick both fighters'}
+            </Button>
+          </div>
+        </div>
         <FighterPreview def={enemy} label="CPU" side="right" active={active === 'enemy'} onClick={() => setActive('enemy')} empty="Pick the opponent" />
       </div>
-      <div className="toolbar">
-        <div className="seg" role="radiogroup" aria-label="CPU difficulty">
-          {(['easy', 'normal', 'hard'] as Difficulty[]).map((d) => (
-            <button key={d} className={difficulty === d ? 'on' : ''} onClick={() => setDifficulty(d)} role="radio" aria-checked={difficulty === d}>
-              {d[0].toUpperCase() + d.slice(1)}
-            </button>
-          ))}
-        </div>
-        <Button variant="plain" onClick={() => setPlayer(pickRandom(enemy?.id))}>
-          Random me
-        </Button>
-        <Button variant="plain" onClick={() => setEnemy(pickRandom(player?.id))}>
-          Random opponent
-        </Button>
-        <span className="grow" />
-        <Button onClick={start} disabled={!player || !enemy}>
-          Fight!
-        </Button>
-      </div>
-      <FighterGrid onPick={pick} selected={[player?.id ?? '', enemy?.id ?? '']} />
     </div>
   );
 }

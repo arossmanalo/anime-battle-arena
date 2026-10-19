@@ -66,7 +66,7 @@ export function FighterGrid({
 
 /** Big preview of a chosen fighter (sprite, name, role). `side` flips the sprite to face the other way. */
 export function FighterPreview({ def, label, side = 'left', empty = 'Pick a fighter', active, onClick, extra }: { def?: FighterDef; label: string; side?: 'left' | 'right'; empty?: string; active?: boolean; onClick?: () => void; extra?: ReactNode }) {
-  const accent = def ? hexColor(def.color) : '#444';
+  const accent = def ? hexColor(def.color) : 'var(--paper-2)';
   return (
     <div className={`preview ${active ? 'active' : ''}`} style={{ ['--accent' as string]: accent }} onClick={onClick} role={onClick ? 'button' : undefined}>
       <div className="preview-label">{label}</div>
