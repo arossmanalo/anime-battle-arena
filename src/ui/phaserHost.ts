@@ -20,11 +20,17 @@ export function startBattle(parent: HTMLElement, setup: MatchSetup, on: { ready:
     width: GAME_WIDTH * RENDER_SCALE,
     height: GAME_HEIGHT * RENDER_SCALE,
     render: { antialias: true },
+    // Timer-driven loop: background tabs still tick (about once a second) instead of stopping with requestAnimationFrame.
+    fps: { forceSetTimeOut: true },
     backgroundColor: '#07070d',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: [BootScene, PreloadScene, BattleScene],
     callbacks: {
-      preBoot: (g) => g.registry.set('launch', { scene: 'Battle', data: setup }),
+      preBoot: (g) => {
+        g.registry.set('launch', { scene: 'Battle', data: setup });
+        // Keep the match running when the tab or window loses focus (Phaser would otherwise pause the whole loop).
+        (g as unknown as { onHidden: () => void }).onHidden = () => {};
+      },
     },
   });
   game.events.on('aba:result', on.result);

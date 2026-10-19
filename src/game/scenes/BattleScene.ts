@@ -242,7 +242,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   update(_time: number, deltaMs: number): void {
-    const dt = Math.min(deltaMs / 1000, 0.1);
+    // In a background tab the browser throttles updates to about 1 per second, so let the sim catch up in bigger slices.
+    const dt = Math.min(deltaMs / 1000, document.hidden ? 1.5 : 0.1);
     if (this.paused) return;
 
     if (this.introLeft > 0) {
