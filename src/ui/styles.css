@@ -439,7 +439,12 @@ ul.plain li { margin: 6px 0; }
   .select-screen .preview-name { font-size: 28px; }
   .fight-row .btn { font-size: 30px; }
   .input { min-width: 0; width: 100%; }
-  .theme-toggle { margin-left: 0; }
+  .nav { gap: 10px 12px; padding: 10px 16px; }
+  .brand { font-size: 20px; }
+  .brand-mark { width: 18px; height: 18px; }
+  .theme-toggle { order: 2; margin-left: auto; }
+  .nav-links { order: 3; width: 100%; flex-wrap: nowrap; overflow-x: auto; gap: 4px; }
+  .nav-links a { white-space: nowrap; font-size: 16px; padding: 4px 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
