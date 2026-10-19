@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { ROSTER } from '../../data/fighters';
 import type { Role } from '../../sim/types';
 import { RoleFilter } from '../components/FighterGrid';
-import { PageHeader, Sprite, Tag } from '../components/kit';
-import { AI_LABEL, ROLE_META, hexColor, mainRoleOf } from '../info';
+import { PageHeader, Pips, Sprite, Tag } from '../components/kit';
+import { AI_LABEL, ROLE_META, hexColor, mainRoleOf, statBars } from '../info';
 
 type Sort = 'roster' | 'name' | 'hp' | 'speed';
 
@@ -60,8 +60,11 @@ export function Roster() {
                     <Tag label={AI_LABEL[d.aiProfile]} color="var(--muted)" />
                   </div>
                   <div className="mini">
-                    <span>HP {d.hp}</span>
-                    <span>SPD {d.speed}</span>
+                    {statBars(d)
+                      .slice(0, 2)
+                      .map((s) => (
+                        <Pips key={s.label} label={s.label} value={s.value} text={s.text} />
+                      ))}
                   </div>
                 </div>
               </div>

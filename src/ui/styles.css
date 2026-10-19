@@ -119,7 +119,7 @@
   color-scheme: dark;
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; font-variant-ligatures: none; font-feature-settings: "liga" 0, "clig" 0; }
 html, body, #root { margin: 0; min-height: 100%; }
 body { background: var(--bg); color: var(--bg-text); font-family: var(--font); font-size: 18px; line-height: 1.5; -webkit-font-smoothing: none; font-smooth: never; font-variant-ligatures: none; }
 a { color: inherit; }
@@ -327,7 +327,11 @@ table.keys td:first-child { width: 36%; white-space: nowrap; }
 .fighter-card-body { padding: 16px 14px 14px; }
 .fighter-card-name { font-weight: 700; font-size: 34px; line-height: 1; }
 .fighter-card-series { color: var(--muted); font-weight: 500; }
-.mini { display: flex; gap: 14px; margin-top: 10px; font-weight: 600; font-size: 15px; }
+.mini { margin-top: 12px; font-size: 15px; }
+.mini .pips { grid-template-columns: 58px 1fr 38px; gap: 8px; margin: 4px 0; }
+.mini .pips-row { gap: 3px; }
+.mini .pips-row i { height: 10px; }
+.mini .pips-text { font-size: 16px; }
 
 /* ---- fighter page ---------------------------------------------------------------------------- */
 .crumbs { display: flex; flex-wrap: wrap; gap: 12px 22px; font-weight: 500; margin-bottom: 18px; }
