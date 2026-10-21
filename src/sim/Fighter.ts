@@ -45,6 +45,69 @@ export interface FighterStats {
   skillsUsed: number;
   hits: number;
   healingDone: number;
+  /** Damage this fighter's own shields soaked. */
+  damageBlocked: number;
+  /** Damage guards and resistances took off hits on this fighter. */
+  damageMitigated: number;
+  /** Damage soaked by shields this fighter put on OTHER fighters. */
+  damageProtected: number;
+  /** Total shield HP this fighter handed out (to anyone, themself included). */
+  shieldGiven: number;
+  /** Damage this fighter dealt by reflecting (barriers, cages). Also counted in damageDealt. */
+  reflected: number;
+  healingReceived: number;
+  kills: number;
+  assists: number;
+  ultsUsed: number;
+  /** Seconds of stun, slow and cage this fighter put on enemies. */
+  controlTime: number;
+  biggestHit: number;
+  /** Attacks a passive blocked or evaded outright. */
+  attacksAvoided: number;
+  /** Match time of this fighter's KO, and of their transformation (null = never). */
+  diedAt: number | null;
+  transformedAt: number | null;
+  /** Damage dealt by skill name, damage dealt to each fighter (uid), damage taken from each fighter (uid). */
+  bySkill: Record<string, number>;
+  dealtTo: Record<number, number>;
+  takenFrom: Record<number, number>;
+}
+
+export const newStats = (): FighterStats => ({
+  damageDealt: 0,
+  damageTaken: 0,
+  skillsUsed: 0,
+  hits: 0,
+  healingDone: 0,
+  damageBlocked: 0,
+  damageMitigated: 0,
+  damageProtected: 0,
+  shieldGiven: 0,
+  reflected: 0,
+  healingReceived: 0,
+  kills: 0,
+  assists: 0,
+  ultsUsed: 0,
+  controlTime: 0,
+  biggestHit: 0,
+  attacksAvoided: 0,
+  diedAt: null,
+  transformedAt: null,
+  bySkill: {},
+  dealtTo: {},
+  takenFrom: {},
+});
+
+/** Books `dealt` damage from `source` to `target` under `label` (a skill name) and remembers who last hit the target. */
+export function recordDamage(source: Fighter | undefined, target: Fighter, dealt: number, label: string): void {
+  if (dealt <= 0) return;
+  if (source) {
+    source.stats.bySkill[label] = (source.stats.bySkill[label] ?? 0) + dealt;
+    source.stats.dealtTo[target.uid] = (source.stats.dealtTo[target.uid] ?? 0) + dealt;
+    source.stats.biggestHit = Math.max(source.stats.biggestHit, dealt);
+    target.stats.takenFrom[source.uid] = (target.stats.takenFrom[source.uid] ?? 0) + dealt;
+    if (source.team !== target.team) target.lastHitBy = source.uid;
+  }
 }
 
 /** Mutable state behind a fighter's passive. */
@@ -119,7 +182,9 @@ export class Fighter {
   /** Seconds since the player last issued a skill command. */
   idleTime = 0;
   passive: PassiveState;
-  stats: FighterStats = { damageDealt: 0, damageTaken: 0, skillsUsed: 0, hits: 0, healingDone: 0 };
+  stats: FighterStats = newStats();
+  /** uid of the enemy that last damaged this fighter (credited with the KO). */
+  lastHitBy: number | null = null;
 
   constructor(
     readonly uid: number,

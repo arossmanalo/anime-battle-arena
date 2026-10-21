@@ -1,3 +1,4 @@
+import type { FighterStats } from '../sim/Fighter';
 import type { Difficulty } from '../sim/types';
 
 /** A team battle: both sides' fighters and formation. Everyone is AI-controlled. */
@@ -48,5 +49,9 @@ export interface MatchResult {
     /** Team battles: 0 = your team, 1 = the other. */
     team?: number;
     healing?: number;
+    /** Sim uid, so the per-fighter stats (damage dealt to / taken from) can name the other fighters. */
+    uid: number;
+    /** Everything the sim tracked for this fighter. */
+    stats: FighterStats;
   }[];
 }

@@ -472,6 +472,8 @@ export class BattleScene extends Phaser.Scene {
           transformed: f.transformed,
           team: f.team,
           healing: Math.round(f.stats.healingDone),
+          uid: f.uid,
+          stats: structuredClone(f.stats),
         })),
       };
       this.game.events.emit('aba:result', result);

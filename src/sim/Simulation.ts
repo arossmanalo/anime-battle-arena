@@ -4,7 +4,7 @@ import { attackSkill, COMBO_WINDOW, FINISHER_MULT, isFinisher, REACH_LEEWAY } fr
 import { tickPassive } from './passives';
 import { applyEffects as applyEffectsTo, gainUlt, takeDamage, ULT_REGEN, type EffectContext } from './effects';
 import type { Beam, Projectile, Zone } from './entities';
-import { Fighter } from './Fighter';
+import { Fighter, newStats, recordDamage } from './Fighter';
 import { Rng } from './rng';
 import { fireSkill } from './skills/fire';
 import {
@@ -290,6 +290,7 @@ export class Simulation {
     f.cooldowns.set(skill.id, skill.cooldown);
     f.casting = { skill, remaining: skill.castTime };
     f.stats.skillsUsed++;
+    if (skill.ultimate) f.stats.ultsUsed++;
     this.emit({ type: 'skillCast', uid: f.uid, skill });
     if (skill.ultimate) this.voice(f, 'ultimate');
     return null;
@@ -306,6 +307,7 @@ export class Simulation {
     f.energy -= form.energyCost;
     const oldMax = f.maxHp;
     f.form = form;
+    f.stats.transformedAt ??= this.time;
     if (f.sandbox && form.onDeath) {
       // Training: stands in for the second life, with its untouchable and free-energy window.
       f.invuln = form.reviveInvuln ?? 0.3;
@@ -361,11 +363,13 @@ export class Simulation {
         const dealt = takeDamage(f, s.value * DT);
         if (source && dealt > 0) source.stats.damageDealt += dealt;
         f.stats.damageTaken += dealt;
+        recordDamage(source, f, dealt, 'Burn');
       } else if (s.type === 'regen' && f.alive) {
         const source = this.fighter(s.source);
         const before = f.hp;
         f.hp = Math.min(f.maxHp, f.hp + s.value * DT * (source?.form?.healMult ?? 1) * (1 - (1 - DECAY_HEAL_MIN) * this.decayProgress()));
         if (source && f.hp > before) source.stats.healingDone += f.hp - before;
+        if (f.hp > before) f.stats.healingReceived += f.hp - before;
       }
     }
     // A stance or formation that just ended releases the Retaliation it stored.
@@ -419,7 +423,7 @@ export class Simulation {
       f.combo = 0;
       f.attackCd = 0;
       f.cooldowns.clear();
-      f.stats = { damageDealt: 0, damageTaken: 0, skillsUsed: 0, hits: 0, healingDone: 0 };
+      f.stats = newStats();
       f.pos = { ...f.home };
       f.passive.hitsLeft = f.def.passive.kind === 'barrier' ? f.def.passive.hits : 0;
       f.passive.recharge = 0;
@@ -745,6 +749,7 @@ export class Simulation {
   private emitPassiveProcs(): void {
     for (const f of this.fighters) {
       for (const proc of f.passive.procs.splice(0)) {
+        if (proc === 'block' || proc === 'dodge') f.stats.attacksAvoided++;
         this.emit({ type: 'passive', uid: f.uid, passive: f.passiveDef, proc, x: f.pos.x, y: f.pos.y });
       }
     }
@@ -769,6 +774,8 @@ export class Simulation {
         f.channel = null;
         f.swing = null;
         f.statuses = [];
+        f.stats.diedAt = this.time;
+        this.creditKill(f);
         this.emit({ type: 'ko', uid: f.uid });
       } else if (f.alive && f.hp <= f.maxHp * LOW_HP_LINE && !this.lowHpWarned.has(f.uid)) {
         this.lowHpWarned.add(f.uid);
@@ -777,9 +784,21 @@ export class Simulation {
     }
   }
 
+  /** The enemy that landed the last hit gets the kill; other enemies that did real damage to the victim get an assist. */
+  private creditKill(victim: Fighter): void {
+    const killer = victim.lastHitBy === null ? undefined : this.fighter(victim.lastHitBy);
+    if (killer) killer.stats.kills++;
+    for (const [uid, dmg] of Object.entries(victim.stats.takenFrom)) {
+      const other = this.fighter(Number(uid));
+      if (!other || other === killer || other.team === victim.team) continue;
+      if (dmg >= victim.maxHp * 0.12) other.stats.assists++;
+    }
+  }
+
   /** Second life: the fighter rises in their form at `reviveHp` of max HP, untouchable for a moment. */
   private reviveInto(f: Fighter, form: NonNullable<Fighter['def']['form']>): void {
     f.form = form;
+    f.stats.transformedAt ??= this.time;
     f.hp = Math.round(f.maxHp * (form.reviveHp ?? 0.6));
     f.invuln = form.reviveInvuln ?? 0.3;
     f.freeEnergy = form.reviveFreeEnergy ?? 0;

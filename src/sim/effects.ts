@@ -1,4 +1,4 @@
-import type { Fighter, Status, StatusType } from './Fighter';
+import { recordDamage, type Fighter, type Status, type StatusType } from './Fighter';
 import type { Effect, SkillDef, Vec } from './types';
 import { applyMarks, awakenBuff, awakenGain, awakenInterrupt, awakenSave, BRACE_COUNTER, negatesAttack, passiveDamageTaken, passiveKnockbackTaken, passiveUltMult, survivesHit } from './passives';
 import { norm, scale, sub } from './vec';
@@ -105,7 +105,14 @@ export function applyEffects(
         const taken = target.statusMult('guard') * (target.form?.damageTaken ?? 1) * passiveDamageTaken(target);
         // A stance stores the damage it mitigates as Retaliation.
         if (!self && target.hasStatus('stance')) target.retaliation = Math.min(RETALIATION_CAP, target.retaliation + rawDamage * (1 - taken));
-        const dealt = takeDamage(target, Math.round(rawDamage * taken), e.pierce, self ? undefined : (s, absorbed) => shieldAbsorbed(ctx, source, target, s, absorbed));
+        const dealt = takeDamage(target, Math.round(rawDamage * taken), e.pierce, (s, absorbed) => {
+          target.stats.damageBlocked += absorbed;
+          const giver = s.source !== target.uid ? ctx.fighters?.(s.source) : undefined;
+          if (giver) giver.stats.damageProtected += absorbed;
+          if (!self) shieldAbsorbed(ctx, source, target, s, absorbed);
+        });
+        if (dealt > 0 || taken < 1) target.stats.damageMitigated += rawDamage * (1 - taken);
+        recordDamage(source, target, dealt, skill.name);
         if (dealt > 0) {
           source.stats.damageDealt += dealt;
           source.stats.hits += 1;
@@ -148,10 +155,12 @@ export function applyEffects(
           const steady = target.statusMult('steady');
           if (steady <= 0.3) break;
           if (steady < 1) {
+            if (!self) source.stats.controlTime += e.duration * steady;
             addStatus(target, 'stun', e.duration * steady, 0, source.uid);
             break;
           }
         }
+        if (!self) source.stats.controlTime += e.duration;
         addStatus(target, 'stun', e.duration, 0, source.uid);
         if (!self) awakenInterrupt(source);
         // A stun interrupts wind-ups and channels.
@@ -167,10 +176,12 @@ export function applyEffects(
         if (!self && target.hasStatus('ward')) break;
         // A slow resist removes a share of the slow's strength.
         const resist = Math.max(0, ...target.statuses.filter((s) => s.type === 'slowResist').map((s) => s.value));
+        if (!self) source.stats.controlTime += e.duration * 0.5;
         addStatus(target, 'slow', e.duration, 1 - (1 - e.factor) * (1 - resist), source.uid);
         break;
       }
       case 'shield':
+        source.stats.shieldGiven += e.amount;
         addStatus(target, 'shield', e.duration, e.amount, source.uid, { reflect: e.reflect, cap: e.cap, curse: e.curse, charge: e.charge });
         awakenGain(source, 'support', e.amount * 0.5);
         break;
@@ -178,6 +189,7 @@ export function applyEffects(
         const before = target.hp;
         const selfMult = source === target ? (e.selfFactor ?? 1) : 1;
         target.hp = Math.min(target.maxHp, target.hp + Math.round(e.amount * selfMult * (source.form?.healMult ?? 1) * (ctx.healMult?.() ?? 1)));
+        if (target.hp > before) target.stats.healingReceived += target.hp - before;
         const rb = source.passiveDef.kind === 'awakening' ? source.passiveDef.radiusBonus : undefined;
         if (rb && source !== target && before < target.maxHp * 0.35 && target.hp > before) source.passive.boost = rb.expire;
         if (target.hp > before) {
@@ -237,6 +249,7 @@ export function applyEffects(
         break;
       case 'cage':
         if (self) break;
+        source.stats.controlTime += e.duration;
         addStatus(target, 'cage', e.duration, e.hp, source.uid, { reflect: e.reflect, cap: e.cap, curse: e.curse });
         break;
       case 'stance':
@@ -301,8 +314,12 @@ function shieldAbsorbed(ctx: EffectContext, attacker: Fighter, holder: Fighter, 
   // Reflected damage goes straight to the attacker and never passes through a reflecting barrier.
   const lost = takeDamage(attacker, amount);
   if (lost <= 0) return;
-  if (owner) owner.stats.damageDealt += lost;
+  if (owner) {
+    owner.stats.damageDealt += lost;
+    owner.stats.reflected += lost;
+  }
   attacker.stats.damageTaken += lost;
+  recordDamage(owner, attacker, lost, 'Reflected damage');
   if (shield.curse) addStatus(attacker, 'burn', 2, shield.curse, shield.source);
   ctx.onReflect?.(holder, attacker, lost, !!shield.curse);
 }
@@ -318,8 +335,12 @@ function cageStrike(ctx: EffectContext, prisoner: Fighter, dealt: number): void 
   if (amount <= 0) return;
   const lost = takeDamage(prisoner, amount);
   if (lost <= 0) return;
-  if (owner) owner.stats.damageDealt += lost;
+  if (owner) {
+    owner.stats.damageDealt += lost;
+    owner.stats.reflected += lost;
+  }
   prisoner.stats.damageTaken += lost;
+  recordDamage(owner, prisoner, lost, 'Cage retaliation');
   if (cage.curse) addStatus(prisoner, 'burn', 2, cage.curse, cage.source);
   ctx.onReflect?.(owner ?? prisoner, prisoner, lost, !!cage.curse);
 }
@@ -335,6 +356,7 @@ function counterStrike(ctx: EffectContext, attacker: Fighter, braced: Fighter, s
   const dealt = takeDamage(attacker, Math.round(status.value * braced.damageMult));
   braced.stats.damageDealt += dealt;
   attacker.stats.damageTaken += dealt;
+  recordDamage(braced, attacker, dealt, 'Counter');
   const steady = attacker.statusMult('steady');
   attacker.knock = scale(norm(sub(attacker.pos, braced.pos)), COUNTER_KNOCKBACK * steady * passiveKnockbackTaken(attacker));
   if (steady > 0.3 && !attacker.casting?.skill.uninterruptible) {

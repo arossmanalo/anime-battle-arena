@@ -1,4 +1,4 @@
-import type { Fighter } from './Fighter';
+import { recordDamage, type Fighter } from './Fighter';
 import type { Effect, SkillDef } from './types';
 import type { EffectContext } from './effects';
 import { takeDamage } from './effects';
@@ -183,6 +183,7 @@ export function applyMarks(ctx: EffectContext, source: Fighter, target: Fighter,
     const dealt = takeDamage(target, Math.round(p.bonus * source.damageMult));
     source.stats.damageDealt += dealt;
     target.stats.damageTaken += dealt;
+    recordDamage(source, target, dealt, CURSE_BURST.name);
     ctx.onHit(source, target, dealt, CURSE_BURST);
   } else {
     state.marks++;
